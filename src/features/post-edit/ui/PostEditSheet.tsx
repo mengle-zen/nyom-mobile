@@ -37,6 +37,7 @@ import { useAuth } from '@/features/auth'
 import { MealSlotChips } from '@/entities/post/ui/MealSlotChips'
 import { TimeStepper } from '@/shared/ui/TimeStepper'
 import { clampTime } from '@/shared/lib/time-step'
+import { haptic } from '@/shared/ui/press'
 
 /** 편집할 기록 — 프로필 그리드/타임라인의 행에서 이 정도만 필요하다. */
 export type EditablePost = PostBatchRef
@@ -254,7 +255,9 @@ function PostEditForm({
     )
   }
 
-  const askDelete = () =>
+  // 되돌릴 수 없는 삭제를 묻는 순간 — 손끝에서도 "잠깐" 하고 걸리게 한다.
+  const askDelete = () => {
+    void haptic('warning')
     Alert.alert(
       '기록을 삭제할까요?',
       '사진과 반응까지 함께 사라져요. 이 작업은 되돌릴 수 없어요.',
@@ -263,6 +266,7 @@ function PostEditForm({
         { text: '삭제', style: 'destructive', onPress: handleDelete },
       ],
     )
+  }
 
   return (
     <>

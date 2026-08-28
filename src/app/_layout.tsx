@@ -71,7 +71,17 @@ function AuthGate() {
       <Stack.Screen name="index" />
       <Stack.Screen name="login" />
       <Stack.Screen name="onboarding" />
-      <Stack.Screen name="(app)" />
+      {/*
+        앱 셸에서는 엣지 스와이프 뒤로가기를 끈다.
+
+        보드의 날짜 이동이 "오른쪽으로 밀면 과거"인데, 그게 iOS의 왼쪽 엣지
+        뒤로가기 제스처와 같은 동작이다. 켜두면 보드 왼쪽에서 시작한 날짜
+        스와이프가 OS 제스처에 가로채여 (app)이 pop되고, index가 다시
+        /groups로 리다이렉트해 그룹 목록으로 튕긴다.
+
+        여기서 뒤로 갈 곳도 없다 — 스택 아래는 index(리다이렉트 전용)뿐이다.
+      */}
+      <Stack.Screen name="(app)" options={{ gestureEnabled: false }} />
       <Stack.Screen name="auth/callback" />
       <Stack.Screen name="upload" options={{ presentation: 'fullScreenModal' }} />
     </Stack>

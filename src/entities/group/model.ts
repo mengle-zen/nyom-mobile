@@ -1,5 +1,7 @@
 import { supabase } from '@/shared/api/supabase'
+import { dayRangeFromOffset } from '@/entities/post'
 import type { Group, GroupJoinRequest } from '@/types/database'
+import { buildGroupStats, type GroupStats, type MemberIdRow, type PostAuthorRow } from './stats'
 
 export type { Group } from '@/types/database'
 
@@ -44,6 +46,43 @@ export async function fetchPublicGroups(): Promise<PublicGroup[]> {
   const { data, error } = await supabase.rpc('list_public_groups' as never)
   if (error) throw error
   return (data ?? []) as PublicGroup[]
+}
+
+/**
+ * 그룹 목록 카드용 집계 — 그룹 수와 무관하게 왕복 2번.
+ *
+ * 그룹당 보드를 부르면(멤버 프로필 + 게시물 + signed URL) 목록이 무거워지므로,
+ * 필요한 두 컬럼만 그룹 전체에 대해 한 번에 받아 클라이언트에서 접는다.
+ * 두 테이블 모두 "내가 속한 그룹"으로 RLS가 걸려 있어 별도 RPC가 필요 없다.
+ *
+ * 하루 경계는 보드와 같은 기준(`created_at`, 로컬 자정)을 쓴다 — 카드가 말하는
+ * "오늘 2명"과 보드를 열었을 때 채워진 타일 수가 어긋나면 지표를 못 믿는다.
+ */
+export async function fetchGroupStats(
+  groupIds: string[],
+  now: Date = new Date(),
+): Promise<Record<string, GroupStats>> {
+  if (groupIds.length === 0) return {}
+  const { start, end } = dayRangeFromOffset(0, now)
+
+  const [membersRes, postsRes] = await Promise.all([
+    supabase.from('group_members').select('group_id, user_id').in('group_id', groupIds),
+    supabase
+      .from('posts')
+      .select('group_id, user_id')
+      .in('group_id', groupIds)
+      .gte('created_at', start.toISOString())
+      .lt('created_at', end.toISOString()),
+  ])
+
+  if (membersRes.error) throw membersRes.error
+  if (postsRes.error) throw postsRes.error
+
+  return buildGroupStats(
+    groupIds,
+    (membersRes.data ?? []) as unknown as MemberIdRow[],
+    (postsRes.data ?? []) as unknown as PostAuthorRow[],
+  )
 }
 
 /** 그룹 멤버 프로필 목록 */

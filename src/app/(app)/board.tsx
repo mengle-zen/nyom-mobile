@@ -2,7 +2,6 @@ import { useCallback, useMemo, useRef, useState } from 'react'
 import {
   ActivityIndicator,
   Animated,
-  Pressable,
   Text,
   View,
   type LayoutChangeEvent,
@@ -19,7 +18,7 @@ import {
   MEAL_SLOTS,
   clampSlotIdx,
   slotProgress,
-  dateLabel,
+  dateHeading,
   dateFromOffset,
   offsetFromDate,
   deeplinkTarget,
@@ -39,10 +38,11 @@ import {
 } from '@/features/board-nav'
 import { BoardHeader } from '@/widgets/board-header'
 import { SlotChips } from '@/widgets/slot-chips'
-import { SlotBoard } from '@/widgets/slot-board'
+import { SlotBoard, SlotBoardSkeleton } from '@/widgets/slot-board'
 import { DayPicker } from '@/widgets/day-picker'
 import { PostDetail } from '@/widgets/post-detail'
 import { ErrorState } from '@/shared/ui/error-state'
+import { PressableScale, haptic } from '@/shared/ui/press'
 
 /** 최근 2주. 보드 화살표·스와이프·달력이 모두 이 범위를 공유한다. */
 const MAX_OFFSET = 13
@@ -59,6 +59,8 @@ function href(path: string): Href {
 function one(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value
 }
+
+const clampOffset = (n: number) => Math.min(MAX_OFFSET, Math.max(0, n))
 
 export default function BoardScreen() {
   const insets = useSafeAreaInsets()
@@ -106,7 +108,7 @@ export default function BoardScreen() {
     () => dateFromOffset(dateOffset, today),
     [dateOffset, today],
   )
-  const labelText = useMemo(() => dateLabel(dateOffset, today), [dateOffset, today])
+  const heading = useMemo(() => dateHeading(dateOffset, today), [dateOffset, today])
 
   /**
    * 날짜를 옮겨도 **끼니는 그대로 둔다.**
@@ -115,7 +117,7 @@ export default function BoardScreen() {
    * 「아직이에요」 빈 상태가 그대로 답이 된다.
    */
   const changeDate = useCallback((next: number) => {
-    setDateOffset(Math.min(MAX_OFFSET, Math.max(0, next)))
+    setDateOffset(clampOffset(next))
   }, [])
 
   const changeSlot = useCallback((next: number) => {
@@ -141,13 +143,68 @@ export default function BoardScreen() {
   // 않는다. 웹앱의 보이지 않는 가장자리 탭은 옮기지 않았다 — 그게 바로 친구 사진을
   // 탭하면 끼니가 넘어가던 원인이었고(docs/UX_FINDINGS.md B항), 이제 끼니 이동은
   // 상단 칩이 눈에 보이게 담당한다.
+  //
+  // 가로 방향은 **iOS 캘린더·사진과 같은 관례**를 따른다:
+  //   오른쪽으로 밀기(translationX > 0) = 과거   — 왼쪽에 있던 어제를 끌어온다
+  //   왼쪽으로 밀기 (translationX < 0) = 미래   — 오른쪽에 있던 오늘로 되돌린다
+  // 하루하루가 왼쪽(과거) → 오른쪽(오늘)으로 놓인 한 줄이라고 보면, 드래그 중
+  // 콘텐츠가 손가락을 그대로 따라가는 것(dragX = translationX)이 이 배치와 맞는다.
+  // 손가락을 오른쪽으로 밀면 지금 화면이 오른쪽으로 비켜나며 왼쪽에서 과거가 들어온다.
   const [stageWidth, setStageWidth] = useState(0)
   const dragX = useRef(new Animated.Value(0)).current
+  const contentOpacity = useRef(new Animated.Value(1)).current
   const axisRef = useRef<Axis | null>(null)
 
   const onStageLayout = useCallback((e: LayoutChangeEvent) => {
     setStageWidth(e.nativeEvent.layout.width)
   }, [])
+
+  /** 날짜가 실제로 넘어간 순간의 짧은 밝기 딥 — 내용이 갈렸다는 걸 눈에 찍는다. */
+  const flashContent = useCallback(() => {
+    // `setValue`로 0.4를 밀어 넣지 않고 duration 0 timing으로 떨어뜨린다 —
+    // 네이티브 드라이버에 올라간 노드에 setValue를 섞으면 경고가 난다.
+    Animated.sequence([
+      Animated.timing(contentOpacity, {
+        toValue: 0.4,
+        duration: 0,
+        useNativeDriver: true,
+      }),
+      Animated.timing(contentOpacity, {
+        toValue: 1,
+        duration: 220,
+        useNativeDriver: true,
+      }),
+    ]).start()
+  }, [contentOpacity])
+
+  /**
+   * 스와이프로 날짜를 넘길 때만 쓰는 커밋.
+   *
+   * 양 끝(오늘 / 13일 전)에서는 고무줄만 튕기고 아무 일도 일어나지 않는다 —
+   * 그때 햅틱까지 주면 "넘어갔다"는 잘못된 신호가 된다. 화살표 버튼은 눌린 것이
+   * 눈에 보이므로 햅틱 없이 `changeDate`를 그대로 쓴다.
+   */
+  const commitDateSwipe = useCallback(
+    (next: number) => {
+      const clamped = clampOffset(next)
+      if (clamped === dateOffset) return
+      void haptic('light')
+      flashContent()
+      setDateOffset(clamped)
+    },
+    [dateOffset, flashContent],
+  )
+
+  /** 세로 스와이프로 끼니를 넘길 때. 칩 탭과 같은 조작이라 같은 'select' 햅틱. */
+  const commitSlotSwipe = useCallback(
+    (next: number) => {
+      const clamped = clampSlotIdx(next)
+      if (clamped === slotIdx) return
+      void haptic('select')
+      setSlotIdx(clamped)
+    },
+    [slotIdx],
+  )
 
   const pan = useMemo(
     () =>
@@ -161,34 +218,37 @@ export default function BoardScreen() {
             axisRef.current = decideAxis(e.translationX, e.translationY, DRAG_THRESHOLD)
           }
           if (axisRef.current !== 'h') return
-          // 양 끝(오늘 / 13일 전)에서는 고무줄 저항
-          const atNewest = dateOffset === 0 && e.translationX > 0
-          const atOldest = dateOffset === MAX_OFFSET && e.translationX < 0
+          // 양 끝에서는 고무줄 저항. 오늘(offset 0)에서 더 갈 곳은 미래 = 왼쪽 드래그,
+          // 13일 전에서 더 갈 곳은 과거 = 오른쪽 드래그다.
+          const atNewest = dateOffset === 0 && e.translationX < 0
+          const atOldest = dateOffset === MAX_OFFSET && e.translationX > 0
           dragX.setValue(atNewest || atOldest ? e.translationX * 0.3 : e.translationX)
         })
         .onEnd((e) => {
           const axis = axisRef.current
           if (axis === 'h') {
             const w = stageWidth || 360
-            if (e.translationX < -w * COMMIT_RATIO) changeDate(dateOffset + 1)
-            else if (e.translationX > w * COMMIT_RATIO) changeDate(dateOffset - 1)
+            if (e.translationX > w * COMMIT_RATIO) commitDateSwipe(dateOffset + 1)
+            else if (e.translationX < -w * COMMIT_RATIO) commitDateSwipe(dateOffset - 1)
           } else if (axis === 'v') {
             // 위로 밀면 다음 끼니, 아래로 밀면 이전 끼니
-            if (e.translationY < -VERTICAL_COMMIT) changeSlot(slotIdx + 1)
-            else if (e.translationY > VERTICAL_COMMIT) changeSlot(slotIdx - 1)
+            if (e.translationY < -VERTICAL_COMMIT) commitSlotSwipe(slotIdx + 1)
+            else if (e.translationY > VERTICAL_COMMIT) commitSlotSwipe(slotIdx - 1)
           }
         })
         .onFinalize(() => {
           axisRef.current = null
-          Animated.timing(dragX, {
+          Animated.spring(dragX, {
             toValue: 0,
-            duration: 200,
+            speed: 20,
+            bounciness: 3,
             // 드래그 중에는 setValue로 직접 값을 밀어 넣는다. 같은 노드를 네이티브
             // 드라이버로 승격시키면 JS 쪽 갱신과 섞여 경고가 나므로 JS 드라이버로 둔다.
+            // (불투명도는 별도 노드라 네이티브 드라이버를 쓸 수 있다.)
             useNativeDriver: false,
           }).start()
         }),
-    [dateOffset, slotIdx, stageWidth, dragX, changeDate, changeSlot],
+    [dateOffset, slotIdx, stageWidth, dragX, commitDateSwipe, commitSlotSwipe],
   )
 
   // ── 상세 ──────────────────────────────────────────────────
@@ -234,7 +294,8 @@ export default function BoardScreen() {
   return (
     <View className="flex-1 bg-board-bg" style={{ paddingTop: insets.top }}>
       <BoardHeader
-        dateLabelText={labelText}
+        dateLabelText={heading.primary}
+        dateCaption={heading.secondary}
         canGoOlder={dateOffset < MAX_OFFSET}
         canGoNewer={dateOffset > 0}
         onOlder={() => changeDate(dateOffset + 1)}
@@ -254,38 +315,48 @@ export default function BoardScreen() {
           onLayout={onStageLayout}
           style={{ flex: 1, transform: [{ translateX: dragX }] }}
         >
-          {groupHasNothing ? (
-            <NoRecordEmpty onUpload={goUpload} />
-          ) : postsLoading ? (
-            <View className="flex-1 items-center justify-center">
-              <ActivityIndicator color="#FF7A2E" />
-            </View>
-          ) : (
-            <SlotBoard
-              slot={MEAL_SLOTS[slotIdx].key}
-              members={members}
-              posts={posts}
-              currentUserId={userId}
-              onReact={react}
-              onUpload={goUpload}
-              onOpenPost={openPost}
-            />
-          )}
+          <Animated.View style={{ flex: 1, opacity: contentOpacity }}>
+            {groupHasNothing ? (
+              <NoRecordEmpty onUpload={goUpload} />
+            ) : postsLoading ? (
+              <SlotBoardSkeleton memberCount={members.length} />
+            ) : (
+              <SlotBoard
+                slot={MEAL_SLOTS[slotIdx].key}
+                members={members}
+                posts={posts}
+                currentUserId={userId}
+                isToday={dateOffset === 0}
+                onReact={react}
+                onUpload={goUpload}
+                onOpenPost={openPost}
+              />
+            )}
+          </Animated.View>
         </Animated.View>
       </GestureDetector>
 
+      {/*
+        하단 촬영 버튼은 **보드의 상시 진입점**이다. 내 칸이 이미 찼을 때도, 그룹에
+        기록이 하나도 없을 때도, 과거 날짜를 보고 있을 때도 여기서만 기록을 시작할 수
+        있다. 타일 안의 지름길(EmptyTile)은 "내 칸이 비어 있고 오늘일 때"만 나타나는
+        보조 액션이라 무게를 낮춰 뒀다 — 같은 크기의 1차 버튼이 둘이면 어느 쪽이
+        본선인지 알 수 없다.
+      */}
       <View
         className="items-center pt-1"
         style={{ paddingBottom: Math.max(insets.bottom, 12) }}
       >
-        <Pressable
+        <PressableScale
           onPress={goUpload}
+          hapticKind={null}
           accessibilityRole="button"
           accessibilityLabel="오늘의 한 끼 기록하기"
-          className="size-16 items-center justify-center rounded-full bg-primary active:opacity-85"
+          accessibilityHint="사진을 찍어 오늘 날짜로 기록해요"
+          className="size-16 items-center justify-center rounded-full bg-primary"
         >
           <Ionicons name="camera" size={30} color="#fff" />
-        </Pressable>
+        </PressableScale>
       </View>
 
       <DayPicker
@@ -321,15 +392,16 @@ function NoGroupEmpty() {
       <Text className="text-center text-sm leading-relaxed text-muted-foreground">
         친구들과 끼니를 공유할 그룹을 만들거나{'\n'}초대코드로 참여해 보세요
       </Text>
-      <Pressable
+      <PressableScale
         onPress={() => router.replace(href('/groups'))}
+        hapticKind={null}
         accessibilityRole="button"
-        className="rounded-full bg-primary px-6 py-3 active:opacity-85"
+        className="rounded-full bg-primary px-6 py-3"
       >
         <Text className="text-sm font-bold text-primary-foreground">
           그룹 만들기 / 참여하기
         </Text>
-      </Pressable>
+      </PressableScale>
     </View>
   )
 }
@@ -343,13 +415,14 @@ function NoRecordEmpty({ onUpload }: { onUpload: () => void }) {
       <Text className="text-center text-sm leading-relaxed text-white/50">
         먼저 한 끼를 올리면{'\n'}친구들에게 알림이 가요
       </Text>
-      <Pressable
+      <PressableScale
         onPress={onUpload}
+        hapticKind={null}
         accessibilityRole="button"
-        className="rounded-full bg-primary px-6 py-3 active:opacity-85"
+        className="rounded-full bg-primary px-6 py-3"
       >
         <Text className="text-sm font-bold text-primary-foreground">첫 끼니 올리기</Text>
-      </Pressable>
+      </PressableScale>
     </View>
   )
 }

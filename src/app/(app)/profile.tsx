@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import {
   ActivityIndicator,
   Modal,
   Pressable,
+  RefreshControl,
   ScrollView,
   Text,
   TextInput,
@@ -14,7 +15,11 @@ import { Ionicons } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { toast } from 'sonner-native'
 
+import { useQueryClient } from '@tanstack/react-query'
+
 import { dedupeByBatch, mealTimeLabel, type MealSlotKey } from '@/entities/post'
+import { useMyRecordedDays } from '@/entities/post/queries'
+import { useMyGroups } from '@/entities/group'
 import { useAuth } from '@/features/auth'
 import { LookbackCalendar } from '@/features/calendar'
 import { NotificationSettingsSection } from '@/features/notifications'
@@ -28,7 +33,16 @@ import {
   validateNickname,
   type MyPost,
 } from '@/features/profile'
+import { queryKeys } from '@/shared/api/query-keys'
 import { notifyError } from '@/shared/lib/error'
+import { haptic, PressableScale } from '@/shared/ui/press'
+import { Skeleton } from '@/shared/ui/skeleton'
+
+/**
+ * 하단 탭바가 콘텐츠 위에 떠 있다((app)/_layout의 h-16 + 하단 safe area).
+ * 스크롤 끝을 이만큼 띄워야 마지막 카드가 탭바 뒤로 잘려 들어가지 않는다.
+ */
+const TAB_BAR_HEIGHT = 64
 
 /**
  * 상세 모달이 다루는 최소 형태.
@@ -56,9 +70,32 @@ export default function ProfileScreen() {
   const { user, signOut } = useAuth()
   const userId = user?.id
 
+  const queryClient = useQueryClient()
+
   const { profile, loading: profileLoading, refetch: refetchProfile } = useMyProfile()
   const postsQuery = useMyPosts(userId)
   const { data: postCount } = useMyPostCount(userId)
+
+  // 통계 — 스트릭은 제품에서 제거됐다. 백엔드를 건드리지 않고 이미 있는 쿼리만
+  // 조합한다: 이번 달 기록일은 돌아보기 캘린더의 기록일 집합, 그룹 수는 내 그룹 목록.
+  const now = new Date()
+  const monthDaysQuery = useMyRecordedDays(userId, now.getFullYear(), now.getMonth())
+  const groupsQuery = useMyGroups()
+
+  const [refreshing, setRefreshing] = useState(false)
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true)
+    try {
+      await Promise.all([
+        refetchProfile(),
+        // myPosts 프리픽스 하나로 그리드 · 개수 · 월 기록일 · 일 타임라인이 함께 갱신된다
+        queryClient.invalidateQueries({ queryKey: queryKeys.myPosts(userId ?? '') }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.groups.mine }),
+      ])
+    } finally {
+      setRefreshing(false)
+    }
+  }, [queryClient, refetchProfile, userId])
 
   const [tab, setTab] = useState<'grid' | 'calendar'>('grid')
   const [editingProfile, setEditingProfile] = useState(false)
@@ -94,8 +131,20 @@ export default function ProfileScreen() {
 
       <ScrollView
         className="flex-1"
-        contentContainerStyle={{ paddingBottom: insets.bottom + 32 }}
+        // 탭바(+ 하단 safe area)만큼 더 띄운다 — 안 그러면 그리드 마지막 줄과
+        // 돌아보기 타임라인이 탭바 뒤로 잘려 들어간다.
+        contentContainerStyle={{
+          paddingBottom: insets.bottom + TAB_BAR_HEIGHT + 16,
+        }}
         contentContainerClassName="gap-6 px-4 pt-8"
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => void handleRefresh()}
+            tintColor="#FF7A2E"
+            colors={['#FF7A2E']}
+          />
+        }
       >
         {/* 프로필 */}
         <View className="items-center gap-3">
@@ -114,14 +163,13 @@ export default function ProfileScreen() {
           <Text className="text-lg font-semibold text-foreground">{nickname}</Text>
         </View>
 
-        {/* 통계 — 스트릭은 제품에서 제거됐다. 게시물 수만. */}
-        <View className="items-center gap-0.5 rounded-2xl border border-border bg-card py-4">
-          {postCount === undefined ? (
-            <ActivityIndicator color="#FF7A2E" />
-          ) : (
-            <Text className="text-xl font-bold text-foreground">{postCount}</Text>
-          )}
-          <Text className="text-xs text-muted-foreground">게시물</Text>
+        {/* 통계 — 지표 하나에 화면 폭을 다 쓰면 빈약해 보인다. 스트릭은 제품에서 제거됐다. */}
+        <View className="flex-row items-stretch rounded-2xl border border-border bg-card py-4">
+          <StatTile label="기록" value={postCount} />
+          <StatDivider />
+          <StatTile label="이번 달" value={monthDaysQuery.data?.size} unit="일" />
+          <StatDivider />
+          <StatTile label="그룹" value={groupsQuery.data?.length} />
         </View>
 
         {/* 탭 */}
@@ -132,23 +180,40 @@ export default function ProfileScreen() {
               ['calendar', '돌아보기'],
             ] as const
           ).map(([key, label]) => (
-            <Pressable
+            <PressableScale
               key={key}
               accessibilityRole="tab"
               accessibilityState={{ selected: tab === key }}
+              // 탭 전환은 화면 이동에 가깝다 — 햅틱을 붙이면 진동이 배경 소음이 된다.
+              hapticKind={null}
               onPress={() => setTab(key)}
-              className={`rounded-lg px-4 py-1.5 ${tab === key ? 'bg-card' : ''}`}
+              // 그림자는 배경이 있는 뷰에만 그려진다 — 바깥 래퍼에 배경까지 같이 준다.
+              style={
+                tab === key
+                  ? {
+                      backgroundColor: '#FFFFFF',
+                      borderRadius: 10,
+                      shadowColor: '#5C2607',
+                      shadowOffset: { width: 0, height: 1 },
+                      shadowOpacity: 0.14,
+                      shadowRadius: 3,
+                    }
+                  : undefined
+              }
+              className={`rounded-lg px-4 py-1.5 ${
+                tab === key ? '' : 'active:opacity-60'
+              }`}
             >
               <Text
                 className={`text-sm ${
                   tab === key
-                    ? 'font-semibold text-foreground'
-                    : 'text-muted-foreground'
+                    ? 'font-bold text-primary-700'
+                    : 'font-medium text-muted-foreground'
                 }`}
               >
                 {label}
               </Text>
-            </Pressable>
+            </PressableScale>
           ))}
         </View>
 
@@ -201,6 +266,55 @@ export default function ProfileScreen() {
   )
 }
 
+/**
+ * 통계 한 칸. 값이 아직 없으면 스피너 대신 숫자 자리를 뼈대로 잡는다 —
+ * 세 칸의 높이가 로딩 중에도 흔들리지 않는다.
+ */
+function StatTile({
+  label,
+  value,
+  unit,
+}: {
+  label: string
+  value: number | undefined
+  unit?: string
+}) {
+  return (
+    <View className="flex-1 items-center gap-1">
+      {value === undefined ? (
+        <Skeleton style={{ width: 28, height: 22, borderRadius: 6 }} />
+      ) : (
+        <View className="flex-row items-baseline gap-0.5">
+          <Text className="text-xl font-bold text-foreground">{value}</Text>
+          {!!unit && (
+            <Text className="text-xs font-medium text-muted-foreground">{unit}</Text>
+          )}
+        </View>
+      )}
+      <Text className="text-xs text-muted-foreground">{label}</Text>
+    </View>
+  )
+}
+
+function StatDivider() {
+  return <View className="my-1 w-px bg-border" />
+}
+
+/** 그리드 로딩 뼈대 — 도착할 정사각 썸네일 자리를 미리 그린다. */
+function GridSkeleton() {
+  return (
+    <View className="-m-0.5 flex-row flex-wrap">
+      {Array.from({ length: 9 }, (_, i) => (
+        <View key={i} style={{ width: '33.3333%' }} className="p-0.5">
+          <View className="aspect-square">
+            <Skeleton style={{ width: '100%', height: '100%', borderRadius: 10 }} />
+          </View>
+        </View>
+      ))}
+    </View>
+  )
+}
+
 function MyPostsGrid({
   posts,
   loading,
@@ -220,13 +334,7 @@ function MyPostsGrid({
   loadingMore: boolean
   onLoadMore: () => void
 }) {
-  if (loading) {
-    return (
-      <View className="py-10">
-        <ActivityIndicator color="#FF7A2E" />
-      </View>
-    )
-  }
+  if (loading) return <GridSkeleton />
 
   if (error) {
     return (
@@ -264,11 +372,12 @@ function MyPostsGrid({
           const label = mealTimeLabel(post.recorded_at, post.meal_slot)
           return (
             <View key={post.id} style={{ width: '33.3333%' }} className="p-0.5">
-              <Pressable
+              <PressableScale
                 accessibilityRole="button"
                 accessibilityLabel={label ? `${label} 기록 보기` : '기록 보기'}
+                hapticKind="light"
                 onPress={() => onSelect(post)}
-                className="aspect-square overflow-hidden rounded-md bg-muted active:opacity-80"
+                className="aspect-square overflow-hidden rounded-md bg-muted"
               >
                 {post.signedImageUrl && (
                   <Image
@@ -287,7 +396,7 @@ function MyPostsGrid({
                     </Text>
                   </View>
                 )}
-              </Pressable>
+              </PressableScale>
             </View>
           )
         })}
@@ -474,6 +583,7 @@ function EditProfileForm({
       if (draftAvatar) {
         await changeMyAvatar(userId, draftAvatar)
       }
+      void haptic('success')
       toast.success('프로필을 수정했어요')
       onSaved()
       onClose()
