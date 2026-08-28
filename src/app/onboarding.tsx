@@ -1,0 +1,235 @@
+import { useMemo, useState } from 'react'
+import {
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { useRouter } from 'expo-router'
+import * as ImagePicker from 'expo-image-picker'
+import { manipulateAsync, SaveFormat } from 'expo-image-manipulator'
+import Feather from '@expo/vector-icons/Feather'
+import { toast } from 'sonner-native'
+
+import { useAuth } from '@/features/auth'
+import { updateMyProfile, useMyProfile, validateNickname } from '@/features/profile'
+import { notifyError } from '@/shared/lib/error'
+
+/**
+ * 온보딩 — 닉네임 + 프로필 사진.
+ *
+ * 웹에 있던 "개인 초대코드" 블록은 죽은 기능이라 옮기지 않았다(웹에서도 PR #34로 제거).
+ */
+export default function OnboardingScreen() {
+  const { user } = useAuth()
+  const { profile, loading, refetch } = useMyProfile()
+  const router = useRouter()
+  const insets = useSafeAreaInsets()
+
+  // 닉네임은 "사용자가 입력한 값(draft)"만 상태로 들고, 아직 입력이 없으면
+  // 서버 프로필에서 파생한다. 프로필이 늦게 도착해도 effect로 setState 하지 않는다.
+  const [draftNickname, setDraftNickname] = useState<string | null>(null)
+  const nickname = draftNickname ?? profile?.nickname ?? ''
+  const [draftAvatar, setDraftAvatar] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [touched, setTouched] = useState(false)
+
+  const errorMsg = useMemo(
+    () => (touched ? validateNickname(nickname) : null),
+    [nickname, touched],
+  )
+
+  const avatarUri =
+    draftAvatar ??
+    profile?.avatar_url ??
+    (user?.user_metadata?.avatar_url as string | undefined) ??
+    (user?.user_metadata?.picture as string | undefined) ??
+    null
+
+  const handlePickAvatar = async () => {
+    try {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync()
+      if (!perm.granted) {
+        toast.error('사진 접근을 허용해 주세요')
+        return
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.9,
+      })
+      if (result.canceled || !result.assets[0]) return
+
+      // 공유 Supabase 스키마에는 아직 아바타용 스토리지 버킷이 없다(meal-photos 뿐).
+      // 그래서 256px JPEG로 줄여 data URI로 저장한다 — 몇 KB라 profiles.avatar_url
+      // 컬럼에 넣어도 무리가 없고, 웹의 <img src>에서도 그대로 뜬다.
+      // 버킷이 생기면 이 블록만 업로드로 바꾸면 된다.
+      const resized = await manipulateAsync(
+        result.assets[0].uri,
+        [{ resize: { width: 256, height: 256 } }],
+        { compress: 0.7, format: SaveFormat.JPEG, base64: true },
+      )
+      if (!resized.base64) throw new Error('이미지를 변환하지 못했어요')
+      setDraftAvatar(`data:image/jpeg;base64,${resized.base64}`)
+    } catch (e) {
+      notifyError(e, '사진을 불러오지 못했어요')
+    }
+  }
+
+  const handleSave = async () => {
+    if (!user) return
+    setTouched(true)
+    const err = validateNickname(nickname)
+    if (err) {
+      toast.error(err)
+      return
+    }
+
+    try {
+      setSaving(true)
+      await updateMyProfile(user.id, {
+        nickname: nickname.trim(),
+        ...(draftAvatar ? { avatar_url: draftAvatar } : {}),
+      })
+      toast.success('프로필 설정 완료!')
+      await refetch()
+      router.replace('/(app)/groups')
+    } catch (e) {
+      notifyError(e, '저장에 실패했어요. 잠시 후 다시 시도해 주세요.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <View className="flex-1 items-center justify-center bg-background">
+        <Text className="text-sm text-muted-foreground">불러오는 중...</Text>
+      </View>
+    )
+  }
+
+  return (
+    <KeyboardAvoidingView
+      className="flex-1 bg-background"
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
+      <ScrollView
+        className="flex-1"
+        contentContainerStyle={{ flexGrow: 1 }}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View className="px-6 pb-6" style={{ paddingTop: insets.top + 48 }}>
+          <Text className="text-sm font-bold text-primary">반가워요</Text>
+          <Text
+            accessibilityRole="header"
+            className="mt-1 text-2xl font-bold leading-[30px] text-foreground"
+          >
+            프로필을 설정해 주세요
+          </Text>
+          <Text className="mt-1.5 text-sm text-muted-foreground">
+            친구들에게 어떤 이름과 사진으로 보일지 정해요
+          </Text>
+        </View>
+
+        <View className="flex-1 gap-8 px-6 py-2">
+          {/* 아바타 */}
+          <View className="items-center pt-2">
+            <View>
+              {avatarUri ? (
+                <Image
+                  source={{ uri: avatarUri }}
+                  style={{ width: 104, height: 104, borderRadius: 52 }}
+                  accessibilityLabel="프로필 사진"
+                />
+              ) : (
+                <View className="size-[104px] items-center justify-center rounded-full bg-primary-100">
+                  <Text className="text-[40px] font-bold text-primary">
+                    {nickname.trim()[0] ?? '🙂'}
+                  </Text>
+                </View>
+              )}
+              {/* NativeWind가 함수형 style을 버리므로 정적 style만 쓴다. */}
+              <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityLabel="프로필 사진 변경"
+                onPress={() => void handlePickAvatar()}
+                activeOpacity={0.85}
+                style={{
+                  position: 'absolute',
+                  bottom: 0,
+                  right: 0,
+                  width: 34,
+                  height: 34,
+                  borderRadius: 17,
+                  borderWidth: 3,
+                  borderColor: '#FFFCF8',
+                  backgroundColor: '#FF7A2E',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Feather name="camera" size={14} color="#FFFFFF" />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* 닉네임 입력 */}
+          <View className="gap-2">
+            <Text className="text-sm font-bold text-foreground">닉네임</Text>
+            <TextInput
+              value={nickname}
+              onChangeText={(v) => {
+                setDraftNickname(v)
+                if (!touched) setTouched(true)
+              }}
+              onBlur={() => setTouched(true)}
+              placeholder="예: 효린"
+              placeholderTextColor="#A89A82"
+              maxLength={12}
+              accessibilityLabel="닉네임"
+              className="h-[50px] rounded-md border-[1.5px] border-primary bg-card px-4 text-base text-foreground"
+            />
+            <Text
+              className={`text-xs font-medium ${
+                errorMsg ? 'text-destructive' : 'text-muted-foreground'
+              }`}
+            >
+              {errorMsg ?? '2~12자 · 한글, 영문, 숫자 사용 가능'}
+            </Text>
+          </View>
+        </View>
+
+        <View className="px-6 pt-4" style={{ paddingBottom: insets.bottom + 24 }}>
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="시작하기"
+            accessibilityState={{ disabled: saving || !!validateNickname(nickname) }}
+            onPress={() => void handleSave()}
+            disabled={saving || !!validateNickname(nickname)}
+            activeOpacity={0.85}
+            style={{
+              height: 54,
+              borderRadius: 27,
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: '#FF7A2E',
+              opacity: saving || validateNickname(nickname) ? 0.45 : 1,
+            }}
+          >
+            <Text className="text-sm font-medium text-primary-foreground">
+              {saving ? '저장 중...' : '시작하기'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
+  )
+}
