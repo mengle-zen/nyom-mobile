@@ -15,5 +15,6 @@ export {
   localDayKey,
   hhmmFromDate,
 } from './date-range'
+export { dateHeading, type DateHeading } from './date-heading'
 export { dedupeByBatch } from './dedupe'
 export { parseLocalDate, deeplinkTarget } from './deeplink'

@@ -2,6 +2,7 @@ export {
   fetchMyGroups,
   fetchPublicGroups,
   fetchGroupMembers,
+  fetchGroupStats,
   fetchJoinRequests,
   createGroup,
   joinByCode,
@@ -12,6 +13,8 @@ export {
   updateGroup,
   leaveGroup,
 } from './model'
+export { buildGroupStats, type GroupStats } from './stats'
+export { isOptimisticGroup, makeOptimisticGroup } from './optimistic'
 export type {
   Group,
   GroupMemberProfile,
@@ -22,6 +25,10 @@ export type {
 export {
   useMyGroups,
   useGroupMembers,
+  useGroupStats,
+  useCreateGroup,
+  useJoinByCode,
+  useRequestToJoin,
   usePublicGroups,
   useJoinRequests,
   useInvalidateGroups,

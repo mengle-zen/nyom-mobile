@@ -7,6 +7,8 @@ export const queryKeys = {
     mine: ['groups', 'mine'] as const,
     public: ['groups', 'public'] as const,
     members: (groupId: string) => ['groups', 'members', groupId] as const,
+    /** 목록 카드 집계(멤버 수 · 오늘 올린 사람 수). key는 그룹 id 집합에 의존한다. */
+    stats: (groupIdsKey: string) => ['groups', 'stats', groupIdsKey] as const,
     joinRequests: (groupId: string) => ['groups', 'joinRequests', groupId] as const,
   },
   board: (groupId: string, offset: number) => ['board', groupId, offset] as const,

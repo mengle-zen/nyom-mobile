@@ -1,14 +1,5 @@
 import { useState } from 'react'
-import {
-  Alert,
-  Modal,
-  Pressable,
-  ScrollView,
-  Switch,
-  Text,
-  View,
-} from 'react-native'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { Alert, Switch, Text, View } from 'react-native'
 import { useQueryClient } from '@tanstack/react-query'
 import Feather from '@expo/vector-icons/Feather'
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons'
@@ -26,8 +17,9 @@ import {
 import { useAuth } from '@/features/auth'
 import { queryKeys } from '@/shared/api/query-keys'
 import { notifyError } from '@/shared/lib/error'
+import { haptic } from '@/shared/ui/press'
 import { MAX_MEMBERS } from '../lib/join-error'
-import { Avatar, Button, IconButton, Input } from './primitives'
+import { Avatar, BottomSheet, Button, IconButton, Input } from './primitives'
 
 /** 방장 전용 그룹 설정 시트 (이름 · 공개 · 가입요청 · 멤버 · 삭제) */
 export function GroupSettingsSheet({
@@ -40,7 +32,6 @@ export function GroupSettingsSheet({
   onReload: () => Promise<void>
 }) {
   const { user } = useAuth()
-  const insets = useSafeAreaInsets()
   const [editName, setEditName] = useState(group.name)
   const [isPublic, setIsPublic] = useState(group.is_public)
   const [busy, setBusy] = useState(false)
@@ -106,6 +97,8 @@ export function GroupSettingsSheet({
   }
 
   const handleLeave = async () => {
+    // 되돌릴 수 없는 동작 — 확인을 누른 순간에만 경고 햅틱을 준다.
+    void haptic('warning')
     setBusy(true)
     try {
       await leaveGroup(group.id)
@@ -130,37 +123,8 @@ export function GroupSettingsSheet({
     )
 
   return (
-    <Modal visible transparent animationType="slide" onRequestClose={onClose}>
-      {/* 웹의 backdrop-blur는 RN에 없다. 반투명 딤으로 대체한다. */}
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="그룹 설정 닫기"
-        onPress={onClose}
-        className="flex-1"
-        style={{ backgroundColor: 'rgba(31,27,22,0.4)' }}
-      />
-
-      <View
-        className="rounded-t-xl bg-background"
-        style={{ maxHeight: '85%', paddingBottom: insets.bottom }}
-      >
-        {/* 핸들 */}
-        <View className="items-center pb-1 pt-3">
-          <View className="h-1 w-10 rounded-full bg-border" />
-        </View>
-
-        <ScrollView
-          className="px-4"
-          contentContainerStyle={{ paddingBottom: 32 }}
-          keyboardShouldPersistTaps="handled"
-        >
-          <Text
-            accessibilityRole="header"
-            className="py-3 text-base font-bold text-foreground"
-          >
-            그룹 설정
-          </Text>
-
+    <BottomSheet title="그룹 설정" onClose={onClose}>
+      <View>
           {/* 이름 수정 */}
           <View className="mb-5 gap-2">
             <Text className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -313,8 +277,7 @@ export function GroupSettingsSheet({
             onPress={confirmLeave}
             disabled={busy}
           />
-        </ScrollView>
       </View>
-    </Modal>
+    </BottomSheet>
   )
 }

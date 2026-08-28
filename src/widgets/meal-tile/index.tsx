@@ -1,51 +1,22 @@
-import { useCallback, useRef, useState } from 'react'
-import {
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-  type GestureResponderEvent,
-} from 'react-native'
+import { useEffect, useRef, useState } from 'react'
+import { Animated, StyleSheet, Text, View } from 'react-native'
 import { Image } from 'expo-image'
 import Ionicons from '@expo/vector-icons/Ionicons'
 import type { GroupMemberProfile } from '@/entities/group'
 import { hhmmFromDate } from '@/entities/post'
 import type { BoardPost } from '@/entities/post/model'
 import { summarizeReactions, myReactionEmoji, REACTION_EMOJIS } from '@/entities/reaction'
-import { decideAxis, DRAG_THRESHOLD } from '@/features/board-nav'
+import { PressableScale } from '@/shared/ui/press'
 
 /**
- * 타일 위에서 시작한 터치가 "탭"이었는지 "스와이프"였는지 가른다.
+ * 타일 위에서 시작한 터치가 "탭"이었는지 "스와이프"였는지 가르는 일은
+ * `PressableScale`의 `swipeSafe`가 맡는다.
  *
  * 타일이 화면 대부분을 덮기 때문에, 날짜·끼니를 넘기려는 스와이프도 타일 안에서
  * 시작하고 끝난다. RN의 Pressable은 요소 안에 머무는 한 손가락이 얼마나 움직였든
  * onPress를 쏘기 때문에, 그대로 두면 스와이프 한 번에 상세가 열려버린다
- * (실제로 시뮬레이터에서 재현됐다). 판정 기준은 보드 제스처와 같은
- * `decideAxis`를 그대로 쓴다 — 축이 잡혔다면 그건 스와이프다.
+ * (실제로 시뮬레이터에서 재현됐다). 판정 기준은 보드 제스처와 같은 `decideAxis`다.
  */
-function useTapOnly(onTap: () => void) {
-  const start = useRef<{ x: number; y: number } | null>(null)
-
-  const onPressIn = useCallback((e: GestureResponderEvent) => {
-    start.current = { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY }
-  }, [])
-
-  const onPress = useCallback(
-    (e: GestureResponderEvent) => {
-      const from = start.current
-      start.current = null
-      if (from) {
-        const dx = e.nativeEvent.pageX - from.x
-        const dy = e.nativeEvent.pageY - from.y
-        if (decideAxis(dx, dy, DRAG_THRESHOLD) !== null) return // 스와이프였다
-      }
-      onTap()
-    },
-    [onTap],
-  )
-
-  return { onPressIn, onPress }
-}
 
 type FilledProps = {
   member: GroupMemberProfile
@@ -78,14 +49,17 @@ export function FilledTile({
 }: FilledProps) {
   const [imgFailed, setImgFailed] = useState(false)
   const time = hhmmFromDate(new Date(post.recorded_at))
-  const tap = useTapOnly(onOpen)
 
   return (
-    <Pressable
-      {...tap}
+    <PressableScale
+      onPress={onOpen}
+      swipeSafe
+      // 상세로 넘어가는 건 화면 이동이다 — 햅틱을 주지 않는다.
+      hapticKind={null}
       accessibilityRole="button"
       accessibilityLabel={`${isMe ? '나' : member.nickname}의 기록 자세히 보기, ${time}`}
-      className="flex-1 overflow-hidden rounded-lg bg-board-tile active:opacity-90"
+      style={{ flex: 1 }}
+      className="flex-1 overflow-hidden rounded-lg bg-board-tile"
     >
       {post.signedImageUrl && !imgFailed && (
         <Image
@@ -129,7 +103,7 @@ export function FilledTile({
           onReact={onReact}
         />
       </View>
-    </Pressable>
+    </PressableScale>
   )
 }
 
@@ -182,15 +156,17 @@ export function ReactionBar({
           )
         })}
         {!alwaysExpanded && (
-          <Pressable
+          <PressableScale
             onPress={() => setExpanded(false)}
+            hapticKind={null}
+            swipeSafe
             accessibilityRole="button"
             accessibilityLabel="리액션 접기"
             hitSlop={4}
-            className="h-6 items-center justify-center rounded-full bg-black/45 px-2 active:opacity-70"
+            className="h-6 items-center justify-center rounded-full bg-black/45 px-2"
           >
             <Ionicons name="chevron-back" size={12} color="#fff" />
-          </Pressable>
+          </PressableScale>
         )}
       </View>
     )
@@ -207,17 +183,48 @@ export function ReactionBar({
           onPress={() => react(c.emoji)}
         />
       ))}
-      <Pressable
+      <PressableScale
         onPress={() => setExpanded(true)}
+        // 팔레트를 펼치는 건 아직 아무것도 바꾸지 않았다 — 햅틱은 실제 토글에서만.
+        hapticKind={null}
+        swipeSafe
         accessibilityRole="button"
         accessibilityLabel="리액션 남기기"
         hitSlop={4}
-        className="h-6 min-w-6 items-center justify-center rounded-full bg-black/45 px-2 active:opacity-70"
+        className="h-6 min-w-6 items-center justify-center rounded-full bg-black/45 px-2"
       >
         <Ionicons name="add" size={13} color="#fff" />
-      </Pressable>
+      </PressableScale>
     </View>
   )
+}
+
+/**
+ * 카운트가 바뀌는 순간 칩이 한 번 톡 튄다.
+ *
+ * 리액션은 낙관적 업데이트라 탭과 동시에 숫자가 바뀌는데, 숫자만 조용히 갈리면
+ * "눌렸나?"가 남는다. 아주 짧은 스케일 펄스로 변화가 일어난 지점을 눈에 찍어 준다.
+ * 첫 렌더에서는 튀지 않는다 — 스와이프로 날짜를 넘길 때마다 온 화면이 들썩인다.
+ */
+function useCountPop(count: number) {
+  const scale = useRef(new Animated.Value(1)).current
+  const prev = useRef(count)
+
+  useEffect(() => {
+    if (prev.current === count) return
+    prev.current = count
+    Animated.sequence([
+      Animated.timing(scale, { toValue: 1.18, duration: 90, useNativeDriver: true }),
+      Animated.spring(scale, {
+        toValue: 1,
+        speed: 20,
+        bounciness: 10,
+        useNativeDriver: true,
+      }),
+    ]).start()
+  }, [count, scale])
+
+  return scale
 }
 
 function Chip({
@@ -231,57 +238,80 @@ function Chip({
   active: boolean
   onPress: () => void
 }) {
-  // 칩 위에서 시작한 스와이프로 남의 기록에 리액션이 달리면 안 된다.
-  const tap = useTapOnly(onPress)
+  const pop = useCountPop(count)
 
   return (
-    <Pressable
-      {...tap}
-      accessibilityRole="button"
-      accessibilityState={{ selected: active }}
-      accessibilityLabel={`${emoji} 리액션${active ? ' 해제' : ''}${count > 0 ? `, ${count}개` : ''}`}
-      hitSlop={4}
-      className={`h-6 flex-row items-center gap-0.5 rounded-full px-2 active:opacity-70 ${
-        active ? 'bg-primary' : 'bg-black/45'
-      }`}
-    >
-      <Text className="text-[11px]">{emoji}</Text>
-      {count > 0 && (
-        <Text className="text-[10px] font-bold text-white">{count}</Text>
-      )}
-    </Pressable>
+    <Animated.View style={{ transform: [{ scale: pop }] }}>
+      <PressableScale
+        onPress={onPress}
+        // 리액션 토글은 "내가 뭔가를 바꿨다"에 해당한다 — 짧은 light 햅틱.
+        hapticKind="light"
+        // 칩 위에서 시작한 스와이프로 남의 기록에 리액션이 달리면 안 된다.
+        swipeSafe
+        accessibilityRole="button"
+        accessibilityState={{ selected: active }}
+        accessibilityLabel={`${emoji} 리액션${active ? ' 해제' : ''}${count > 0 ? `, ${count}개` : ''}`}
+        hitSlop={4}
+        className={`h-6 flex-row items-center gap-0.5 rounded-full px-2 ${
+          active ? 'bg-primary' : 'bg-black/45'
+        }`}
+      >
+        <Text className="text-[11px]">{emoji}</Text>
+        {count > 0 && <Text className="text-[10px] font-bold text-white">{count}</Text>}
+      </PressableScale>
+    </Animated.View>
   )
 }
 
 type EmptyProps = {
   member: GroupMemberProfile
   isMe: boolean
+  /**
+   * 이 칸에 지금 올릴 수 있는가 — 보고 있는 날짜가 오늘일 때만 true.
+   *
+   * 업로드는 now-only다(`recordedAtFromTime`이 날짜를 오늘로 고정한다). 과거 날짜를
+   * 보다가 내 빈 칸을 눌러 업로드로 넘어가면 "그 날"이 아니라 오늘에 기록이 붙는다.
+   * 백필을 지원하기 전까지는 과거 날짜에서 올리기를 제안하지 않는 게 맞다.
+   */
+  canUpload: boolean
   onUpload: () => void
 }
 
-/** 아직 안 올린 칸. 내 칸이면 바로 올릴 수 있는 버튼, 친구 칸이면 「아직이에요」. */
-export function EmptyTile({ member, isMe, onUpload }: EmptyProps) {
-  const tap = useTapOnly(onUpload)
-
-  if (isMe) {
+/**
+ * 아직 안 올린 칸.
+ *
+ * 내 칸이라도 **하단 촬영 버튼과 경쟁하지 않게** 무게를 낮췄다. 예전에는 채워진
+ * 주황 원 + 「지금 올리기」로 하단 FAB과 똑같은 크기의 1차 액션이 한 화면에 둘이었고,
+ * 특히 1인 그룹에서는 화면 절반이 같은 버튼 두 개였다. 하단 FAB이 "언제든 기록"이라는
+ * 상시 진입점을 맡고(내 칸이 이미 찼을 때도 유일한 경로다), 이 칸은 "여기가 비었다"를
+ * 알리면서 탭도 받는 **보조 지름길**로 둔다.
+ */
+export function EmptyTile({ member, isMe, canUpload, onUpload }: EmptyProps) {
+  if (isMe && canUpload) {
     return (
-      <Pressable
-        {...tap}
+      <PressableScale
+        onPress={onUpload}
+        swipeSafe
+        // 업로드 화면으로 넘어가는 이동이다 — 햅틱은 주지 않는다.
+        hapticKind={null}
         accessibilityRole="button"
-        accessibilityLabel="지금 올리기"
-        className="flex-1 items-center justify-center gap-1.5 rounded-lg border-[1.5px] border-dashed border-primary/60 bg-primary/10 active:opacity-80"
+        accessibilityLabel="내 끼니 올리기"
+        style={{ flex: 1 }}
+        className="flex-1 items-center justify-center gap-1.5 rounded-lg border-[1.5px] border-dashed border-primary/45 bg-primary/10"
       >
-        <View className="size-9 items-center justify-center rounded-full bg-primary">
-          <Ionicons name="camera" size={18} color="#fff" />
-        </View>
-        <Text className="text-xs font-bold text-primary">지금 올리기</Text>
-      </Pressable>
+        <Ionicons name="camera-outline" size={22} color="#FF8C46" />
+        <Text className="text-[11px] font-semibold text-primary-300">
+          탭해서 올리기
+        </Text>
+      </PressableScale>
     )
   }
 
   return (
     <View className="flex-1 items-center justify-center gap-1 rounded-lg border-[1.5px] border-dashed border-white/15 bg-white/5">
-      <Text className="text-[11px] font-semibold text-white/40">{member.nickname}</Text>
+      <Text className="text-[11px] font-semibold text-white/40">
+        {isMe ? '나' : member.nickname}
+      </Text>
       <Text className="text-[10px] text-white/25">아직이에요</Text>
     </View>
   )
