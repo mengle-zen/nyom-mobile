@@ -54,7 +54,8 @@
         }
       ],
       "expo-notifications",
-      "expo-font"
+      "expo-font",
+      "./plugins/with-serial-framework-signing"
     ],
     "experiments": {
       "typedRoutes": true,
