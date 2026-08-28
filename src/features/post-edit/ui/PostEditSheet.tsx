@@ -22,6 +22,7 @@ import {
 import {
   diffGroupSelection,
   hasPostBatchChanges,
+  mealSlotChange,
   postEditErrorMessage,
   type PostBatchDraft,
 } from '@/entities/post/edit'
@@ -36,7 +37,6 @@ import { useAuth } from '@/features/auth'
 import { MealSlotChips } from '@/entities/post/ui/MealSlotChips'
 import { TimeStepper } from '@/shared/ui/TimeStepper'
 import { clampTime } from '@/shared/lib/time-step'
-import { updatePostBatchMealSlot } from '../api'
 
 /** 편집할 기록 — 프로필 그리드/타임라인의 행에서 이 정도만 필요하다. */
 export type EditablePost = PostBatchRef
@@ -44,9 +44,11 @@ export type EditablePost = PostBatchRef
 /**
  * 게시물 사후 편집 (끼니 · 섭취 시각 · 메모 · 공유 그룹 + 삭제).
  *
- * 웹 PostEditDialog에 **끼니 변경**을 더했다. 웹은 시각은 바꿀 수 있는데 끼니는
- * 못 바꿔서, 새벽에 먹은 야식이 "아침"으로 잡히면 영영 고칠 수 없었다
- * (docs/UX_FINDINGS.md C항). 사진 교체는 여전히 범위 밖 — 스토리지 객체 관리가 얽힌다.
+ * 끼니 변경은 새벽에 먹은 야식이 "아침"으로 잡히면 영영 고칠 수 없던 문제를 푼다
+ * (docs/UX_FINDINGS.md C항). 처음엔 RPC가 끼니를 받지 않아 posts.meal_slot을 별도
+ * statement로 직접 update하는 우회를 썼는데, 지금은 update_post_batch가
+ * p_meal_slot을 받아 한 트랜잭션으로 처리한다.
+ * 사진 교체는 여전히 범위 밖 — 스토리지 객체 관리가 얽힌다.
  */
 export function PostEditSheet({
   post,
@@ -129,7 +131,6 @@ function PostEditLoader({
 
   return (
     <PostEditForm
-      postRef={post}
       batch={batchQuery.data}
       groups={groupsQuery.data ?? []}
       onClose={onClose}
@@ -138,12 +139,10 @@ function PostEditLoader({
 }
 
 function PostEditForm({
-  postRef,
   batch,
   groups,
   onClose,
 }: {
-  postRef: PostBatchRef
   batch: PostBatch
   groups: Group[]
   onClose: () => void
@@ -155,36 +154,39 @@ function PostEditForm({
 
   // 시트가 열려 있는 동안 기준 시각은 고정 (max가 초 단위로 흔들리지 않게)
   const [now] = useState(() => new Date())
-  const [slotSaving, setSlotSaving] = useState(false)
 
   const original: PostBatchDraft = {
     groupIds: batch.groupIds,
     caption: batch.caption ?? '',
     recordedTime: hhmmFromDate(new Date(batch.recordedAt)),
+    // 끼니가 비어 있던 기존 행은 아침을 기본으로 보여준다(선택 없음 상태를 만들지 않는다).
+    mealSlot: batch.mealSlot ?? 'breakfast',
   }
-  // 끼니가 비어 있던 기존 행은 아침을 기본으로 보여준다(선택 없음 상태를 만들지 않는다).
-  const originalSlot: MealSlotKey = batch.mealSlot ?? 'breakfast'
 
   const [selected, setSelected] = useState<Set<string>>(
     () => new Set(batch.groupIds),
   )
   const [caption, setCaption] = useState(original.caption)
   const [recordedTime, setRecordedTime] = useState(original.recordedTime)
-  const [slot, setSlot] = useState<MealSlotKey>(originalSlot)
+  const [slot, setSlot] = useState<MealSlotKey>(original.mealSlot)
 
   const maxTime = maxTimeForRecordedDay(batch.recordedAt, now)
-  const busy = updateMutation.isPending || deleteMutation.isPending || slotSaving
+  const busy = updateMutation.isPending || deleteMutation.isPending
 
   // 내가 나간 그룹의 행은 목록에 뜨지 않으므로 제출 대상에서 뺀다.
   const myGroupIds = new Set(groups.map((g) => g.id))
   const nextGroupIds = [...selected].filter((id) => myGroupIds.has(id))
 
-  const draft: PostBatchDraft = { groupIds: nextGroupIds, caption, recordedTime }
-  const changed =
-    hasPostBatchChanges(
-      { ...original, groupIds: original.groupIds.filter((id) => myGroupIds.has(id)) },
-      draft,
-    ) || slot !== originalSlot
+  const draft: PostBatchDraft = {
+    groupIds: nextGroupIds,
+    caption,
+    recordedTime,
+    mealSlot: slot,
+  }
+  const changed = hasPostBatchChanges(
+    { ...original, groupIds: original.groupIds.filter((id) => myGroupIds.has(id)) },
+    draft,
+  )
   const isDeleting = nextGroupIds.length === 0
 
   const toggleGroup = (id: string) =>
@@ -197,27 +199,12 @@ function PostEditForm({
 
   const affectedGroupIds = diffGroupSelection(batch.groupIds, nextGroupIds).affected
 
-  const handleSave = async () => {
+  const handleSave = () => {
     if (busy) return
     // 마지막 그룹까지 빼면 기록이 사라진다 → 확인을 받는다
     if (isDeleting) {
       askDelete()
       return
-    }
-
-    // 끼니는 RPC가 받지 않아 별도 update로 처리한다(features/post-edit/api.ts 주석 참고).
-    // RPC보다 **먼저** 해야 새로 추가되는 그룹 행에도 바뀐 끼니가 복사된다.
-    if (slot !== originalSlot && userId) {
-      setSlotSaving(true)
-      try {
-        await updatePostBatchMealSlot(userId, postRef, slot)
-      } catch (err) {
-        console.error(err)
-        toast.error('끼니를 바꾸지 못했어요')
-        setSlotSaving(false)
-        return
-      }
-      setSlotSaving(false)
     }
 
     updateMutation.mutate(
@@ -233,6 +220,8 @@ function PostEditForm({
                 clampTime(recordedTime, maxTime),
                 now,
               ),
+        // 안 바뀌었으면 null — batch의 기존 끼니(옛 행의 null 포함)를 덮어쓰지 않는다
+        mealSlot: mealSlotChange(original.mealSlot, slot),
         affectedGroupIds,
       },
       {
@@ -278,7 +267,7 @@ function PostEditForm({
   return (
     <>
       <ScrollView className="flex-1" contentContainerClassName="gap-5 p-4 pb-8">
-        {/* 끼니 — 웹에는 없던 항목. 잘못 분류된 기록을 여기서 고친다. */}
+        {/* 끼니 — 잘못 분류된 기록을 여기서 고친다 (UX_FINDINGS C항) */}
         <View className="gap-1.5">
           <Text className="text-xs font-medium text-muted-foreground">끼니</Text>
           <MealSlotChips
@@ -388,7 +377,7 @@ function PostEditForm({
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={isDeleting ? '기록 삭제' : '저장'}
-          onPress={() => void handleSave()}
+          onPress={handleSave}
           disabled={busy || !changed}
           className={`flex-1 flex-row items-center justify-center gap-2 rounded-xl py-3 active:opacity-80 ${
             isDeleting ? 'bg-destructive' : 'bg-primary'

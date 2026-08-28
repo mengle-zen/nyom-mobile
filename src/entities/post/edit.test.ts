@@ -3,6 +3,7 @@ import {
   diffGroupSelection,
   sameGroupSelection,
   hasPostBatchChanges,
+  mealSlotChange,
   postEditErrorMessage,
   type PostBatchDraft,
 } from './edit'
@@ -66,6 +67,7 @@ describe('hasPostBatchChanges', () => {
     groupIds: ['g1'],
     caption: '맛있었다',
     recordedTime: '12:30',
+    mealSlot: 'lunch',
   }
 
   it('아무것도 안 바뀌면 false', () => {
@@ -100,6 +102,20 @@ describe('hasPostBatchChanges', () => {
   it('그룹을 전부 비우면 → true (삭제 확인 흐름으로 간다)', () => {
     expect(hasPostBatchChanges(base, { ...base, groupIds: [] })).toBe(true)
   })
+
+  it('끼니 변경 → true (새벽에 잘못 분류된 기록을 고치는 경로)', () => {
+    expect(hasPostBatchChanges(base, { ...base, mealSlot: 'late_snack' })).toBe(true)
+  })
+})
+
+describe('mealSlotChange', () => {
+  it('안 바뀌었으면 null — RPC가 batch의 끼니를 덮어쓰지 않는다', () => {
+    expect(mealSlotChange('lunch', 'lunch')).toBeNull()
+  })
+
+  it('바뀌었으면 새 값을 그대로 보낸다', () => {
+    expect(mealSlotChange('breakfast', 'late_snack')).toBe('late_snack')
+  })
 })
 
 describe('postEditErrorMessage', () => {
@@ -110,6 +126,7 @@ describe('postEditErrorMessage', () => {
     expect(postEditErrorMessage(new Error('CAPTION_TOO_LONG'))).toContain('100자')
     expect(postEditErrorMessage(new Error('NO_GROUP_SELECTED'))).toContain('하나 이상')
     expect(postEditErrorMessage(new Error('POST_NOT_FOUND'))).toContain('찾을 수 없어요')
+    expect(postEditErrorMessage(new Error('INVALID_MEAL_SLOT'))).toContain('끼니')
   })
 
   it('Postgres가 앞에 붙이는 접두사가 있어도 인식한다', () => {

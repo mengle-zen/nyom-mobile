@@ -9,6 +9,7 @@ import {
   View,
 } from 'react-native'
 import { Image } from 'expo-image'
+import * as ImagePicker from 'expo-image-picker'
 import { Ionicons } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { toast } from 'sonner-native'
@@ -19,6 +20,7 @@ import { LookbackCalendar } from '@/features/calendar'
 import { NotificationSettingsSection } from '@/features/notifications'
 import { PostEditSheet, type EditablePost } from '@/features/post-edit'
 import {
+  changeMyAvatar,
   updateMyProfile,
   useMyPostCount,
   useMyPosts,
@@ -26,6 +28,7 @@ import {
   validateNickname,
   type MyPost,
 } from '@/features/profile'
+import { notifyError } from '@/shared/lib/error'
 
 /**
  * 상세 모달이 다루는 최소 형태.
@@ -175,9 +178,10 @@ export default function ProfileScreen() {
         </Pressable>
       </ScrollView>
 
-      <EditNicknameModal
+      <EditProfileModal
         open={editingProfile}
         currentNickname={profile?.nickname ?? ''}
+        currentAvatarUrl={profile?.avatar_url ?? null}
         userId={userId}
         onClose={() => setEditingProfile(false)}
         onSaved={() => void refetchProfile()}
@@ -370,15 +374,17 @@ function PostDetailModal({
   )
 }
 
-function EditNicknameModal({
+function EditProfileModal({
   open,
   currentNickname,
+  currentAvatarUrl,
   userId,
   onClose,
   onSaved,
 }: {
   open: boolean
   currentNickname: string
+  currentAvatarUrl: string | null
   userId: string | undefined
   onClose: () => void
   onSaved: () => void
@@ -390,13 +396,14 @@ function EditNicknameModal({
           <View className="gap-1">
             <Text className="text-base font-semibold text-foreground">프로필 수정</Text>
             <Text className="text-sm text-muted-foreground">
-              닉네임을 변경할 수 있어요.
+              프로필 사진과 닉네임을 변경할 수 있어요.
             </Text>
           </View>
-          {/* 열릴 때만 마운트 → 매번 현재 닉네임으로 초기화 (effect 불필요) */}
+          {/* 열릴 때만 마운트 → 매번 현재 값으로 초기화 (effect 불필요) */}
           {open && (
-            <EditNicknameForm
+            <EditProfileForm
               currentNickname={currentNickname}
+              currentAvatarUrl={currentAvatarUrl}
               userId={userId}
               onClose={onClose}
               onSaved={onSaved}
@@ -408,23 +415,51 @@ function EditNicknameModal({
   )
 }
 
-function EditNicknameForm({
+function EditProfileForm({
   currentNickname,
+  currentAvatarUrl,
   userId,
   onClose,
   onSaved,
 }: {
   currentNickname: string
+  currentAvatarUrl: string | null
   userId: string | undefined
   onClose: () => void
   onSaved: () => void
 }) {
   const [value, setValue] = useState(currentNickname)
+  /** 아직 올리지 않은 아바타의 로컬 URI. 저장을 누를 때 올린다. */
+  const [draftAvatar, setDraftAvatar] = useState<string | null>(null)
   const [validationError, setValidationError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
+  const nicknameChanged = value.trim() !== currentNickname.trim()
+  const changed = nicknameChanged || draftAvatar !== null
+  const shownAvatar = draftAvatar ?? currentAvatarUrl
+
+  const handlePickAvatar = async () => {
+    try {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync()
+      if (!perm.granted) {
+        toast.error('사진 접근을 허용해 주세요')
+        return
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.9,
+      })
+      if (result.canceled || !result.assets[0]) return
+      setDraftAvatar(result.assets[0].uri)
+    } catch (e) {
+      notifyError(e, '사진을 불러오지 못했어요')
+    }
+  }
+
   const handleSave = async () => {
-    if (!userId || saving) return
+    if (!userId || saving || !changed) return
     const message = validateNickname(value)
     if (message) {
       setValidationError(message)
@@ -432,13 +467,18 @@ function EditNicknameForm({
     }
     try {
       setSaving(true)
-      await updateMyProfile(userId, { nickname: value.trim() })
-      toast.success('닉네임을 변경했어요')
+      if (nicknameChanged) {
+        await updateMyProfile(userId, { nickname: value.trim() })
+      }
+      // 아바타는 스토리지 업로드 + avatar_url 갱신 + 옛 파일 정리가 한 묶음이다.
+      if (draftAvatar) {
+        await changeMyAvatar(userId, draftAvatar)
+      }
+      toast.success('프로필을 수정했어요')
       onSaved()
       onClose()
     } catch (err) {
-      console.error(err)
-      toast.error('닉네임 변경에 실패했어요')
+      notifyError(err, '프로필 수정에 실패했어요')
     } finally {
       setSaving(false)
     }
@@ -446,6 +486,47 @@ function EditNicknameForm({
 
   return (
     <>
+      {/* 아바타 */}
+      <View className="items-center">
+        <View>
+          <View className="size-20 items-center justify-center overflow-hidden rounded-full bg-primary-100">
+            {shownAvatar ? (
+              <Image
+                source={{ uri: shownAvatar }}
+                contentFit="cover"
+                style={{ width: '100%', height: '100%' }}
+                accessibilityLabel="프로필 사진"
+              />
+            ) : (
+              <Ionicons name="person" size={32} color="#C24F0E" />
+            )}
+          </View>
+          {/* NativeWind가 함수형 style을 버리므로 정적 style만 쓴다. */}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="프로필 사진 변경"
+            disabled={saving}
+            onPress={() => void handlePickAvatar()}
+            style={{
+              position: 'absolute',
+              bottom: 0,
+              right: 0,
+              width: 30,
+              height: 30,
+              borderRadius: 15,
+              borderWidth: 3,
+              borderColor: '#FFFCF8',
+              backgroundColor: '#FF7A2E',
+              alignItems: 'center',
+              justifyContent: 'center',
+              opacity: saving ? 0.5 : 1,
+            }}
+          >
+            <Ionicons name="camera" size={13} color="#FFFFFF" />
+          </Pressable>
+        </View>
+      </View>
+
       <View className="gap-2">
         <TextInput
           value={value}
@@ -457,7 +538,6 @@ function EditNicknameForm({
           placeholderTextColor="#A89A82"
           accessibilityLabel="닉네임"
           maxLength={12}
-          autoFocus
           editable={!saving}
           className="rounded-xl border border-border bg-background px-4 py-3 text-foreground"
         />
@@ -479,12 +559,14 @@ function EditNicknameForm({
         </Pressable>
         <Pressable
           accessibilityRole="button"
+          accessibilityLabel="저장"
           onPress={() => void handleSave()}
-          disabled={saving || !value.trim()}
-          className={`flex-1 items-center rounded-xl bg-primary py-3 active:opacity-80 ${
-            saving || !value.trim() ? 'opacity-40' : ''
+          disabled={saving || !value.trim() || !changed}
+          className={`flex-1 flex-row items-center justify-center gap-2 rounded-xl bg-primary py-3 active:opacity-80 ${
+            saving || !value.trim() || !changed ? 'opacity-40' : ''
           }`}
         >
+          {saving && <ActivityIndicator color="#fff" size="small" />}
           <Text className="font-bold text-primary-foreground">저장</Text>
         </Pressable>
       </View>

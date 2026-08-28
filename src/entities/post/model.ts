@@ -35,7 +35,7 @@ export type PostReaction = {
 
 type CreatePostParams = {
   userId: string
-  /** 업로드할 이미지의 로컬 파일 URI (expo-camera 촬영 또는 expo-image-picker 선택) */
+  /** 업로드할 이미지의 로컬 파일 URI (expo-image-picker의 OS 카메라 촬영 또는 갤러리 선택) */
   imageUri: string
   /** MIME 타입. 미지정 시 확장자로 추정한다. */
   mimeType?: string
@@ -172,18 +172,25 @@ type UpdatePostBatchParams = {
   caption: string | null
   /** 섭취 시각(ISO). null이면 유지 */
   recordedAt: string | null
+  /** 끼니. null이면 유지 (mealSlotChange가 계산) */
+  mealSlot: MealSlotKey | null
 }
 
 /**
- * batch 사후 편집 — 그룹 추가/제거 + 메모·시각을 한 트랜잭션으로 적용한다.
+ * batch 사후 편집 — 그룹 추가/제거 + 메모·시각·끼니를 한 트랜잭션으로 적용한다.
  * 여러 행에 걸친 update/delete/insert라 부분 실패가 생기지 않도록 RPC를 쓴다.
  * 그룹 멤버십 검증도 RPC(security definer) 안에서 이뤄진다.
+ *
+ * 끼니는 20260828050000_post_batch_meal_slot.sql에서 p_meal_slot으로 들어왔다.
+ * 그 전에는 posts.meal_slot을 별도 statement로 직접 update하는 우회가 있었는데,
+ * RPC와 원자적이지 않아 "끼니만 반영되고 나머지가 실패"하는 어긋남이 생겼다.
  */
 export async function updatePostBatch({
   postId,
   groupIds,
   caption,
   recordedAt,
+  mealSlot,
 }: UpdatePostBatchParams): Promise<void> {
   if (groupIds.length === 0) throw new Error('NO_GROUP_SELECTED')
 
@@ -193,6 +200,7 @@ export async function updatePostBatch({
     p_group_ids: groupIds,
     p_caption: caption,
     p_recorded_at: recordedAt,
+    p_meal_slot: mealSlot,
   } as never)
   if (error) throw error
 }

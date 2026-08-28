@@ -12,12 +12,16 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import * as ImagePicker from 'expo-image-picker'
-import { manipulateAsync, SaveFormat } from 'expo-image-manipulator'
 import Feather from '@expo/vector-icons/Feather'
 import { toast } from 'sonner-native'
 
 import { useAuth } from '@/features/auth'
-import { updateMyProfile, useMyProfile, validateNickname } from '@/features/profile'
+import {
+  changeMyAvatar,
+  updateMyProfile,
+  useMyProfile,
+  validateNickname,
+} from '@/features/profile'
 import { notifyError } from '@/shared/lib/error'
 
 /**
@@ -35,6 +39,7 @@ export default function OnboardingScreen() {
   // 서버 프로필에서 파생한다. 프로필이 늦게 도착해도 effect로 setState 하지 않는다.
   const [draftNickname, setDraftNickname] = useState<string | null>(null)
   const nickname = draftNickname ?? profile?.nickname ?? ''
+  /** 아직 올리지 않은 아바타의 로컬 파일 URI. 저장 시 스토리지로 올린다. */
   const [draftAvatar, setDraftAvatar] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [touched, setTouched] = useState(false)
@@ -67,17 +72,10 @@ export default function OnboardingScreen() {
       })
       if (result.canceled || !result.assets[0]) return
 
-      // 공유 Supabase 스키마에는 아직 아바타용 스토리지 버킷이 없다(meal-photos 뿐).
-      // 그래서 256px JPEG로 줄여 data URI로 저장한다 — 몇 KB라 profiles.avatar_url
-      // 컬럼에 넣어도 무리가 없고, 웹의 <img src>에서도 그대로 뜬다.
-      // 버킷이 생기면 이 블록만 업로드로 바꾸면 된다.
-      const resized = await manipulateAsync(
-        result.assets[0].uri,
-        [{ resize: { width: 256, height: 256 } }],
-        { compress: 0.7, format: SaveFormat.JPEG, base64: true },
-      )
-      if (!resized.base64) throw new Error('이미지를 변환하지 못했어요')
-      setDraftAvatar(`data:image/jpeg;base64,${resized.base64}`)
+      // 여기서는 업로드하지 않는다 — 로컬 URI를 미리보기로만 들고 있다가
+      // "시작하기"를 눌렀을 때 닉네임과 함께 올린다. 취소하고 나가면
+      // 스토리지에 아무것도 남지 않는다. (리사이즈는 changeMyAvatar가 한다)
+      setDraftAvatar(result.assets[0].uri)
     } catch (e) {
       notifyError(e, '사진을 불러오지 못했어요')
     }
@@ -94,10 +92,16 @@ export default function OnboardingScreen() {
 
     try {
       setSaving(true)
-      await updateMyProfile(user.id, {
-        nickname: nickname.trim(),
-        ...(draftAvatar ? { avatar_url: draftAvatar } : {}),
-      })
+      await updateMyProfile(user.id, { nickname: nickname.trim() })
+      // 아바타는 스토리지 업로드가 따로 필요하므로 닉네임 저장 뒤에 이어서 한다.
+      // 사진만 실패해도 닉네임은 남는다 — 온보딩을 처음부터 다시 하게 만들지 않는다.
+      if (draftAvatar) {
+        try {
+          await changeMyAvatar(user.id, draftAvatar)
+        } catch (e) {
+          notifyError(e, '사진은 저장하지 못했어요. 프로필에서 다시 시도해 주세요.')
+        }
+      }
       toast.success('프로필 설정 완료!')
       await refetch()
       router.replace('/(app)/groups')

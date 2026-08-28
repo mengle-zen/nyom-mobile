@@ -385,6 +385,8 @@ export type Database = {
           p_group_ids: string[]
           p_caption: string | null
           p_recorded_at: string | null
+          /** null이면 끼니 유지 (20260828050000_post_batch_meal_slot.sql) */
+          p_meal_slot: 'breakfast' | 'lunch' | 'dinner' | 'late_snack' | null
         }
         Returns: void
       }

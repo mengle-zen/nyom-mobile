@@ -47,15 +47,10 @@
       ],
       "expo-secure-store",
       [
-        "expo-camera",
-        {
-          "cameraPermission": "끼니 사진을 찍기 위해 카메라를 사용합니다."
-        }
-      ],
-      [
         "expo-image-picker",
         {
-          "photosPermission": "갤러리에서 끼니 사진을 고르기 위해 접근합니다."
+          "photosPermission": "갤러리에서 끼니 사진을 고르기 위해 접근합니다.",
+          "cameraPermission": "끼니 사진을 찍기 위해 카메라를 사용합니다."
         }
       ],
       "expo-notifications"

@@ -7,6 +7,7 @@ import {
   fetchPostBatch, updatePostBatch, deletePostBatch,
   type BoardPost, type PostBatchRef,
 } from './model'
+import type { MealSlotKey } from './board'
 
 /** 특정 그룹·날짜(offset)의 보드 게시물. groupId가 없으면 비활성. */
 export function useBoardPosts(groupId: string | null, offset: number) {
@@ -79,7 +80,7 @@ function invalidateAfterPostEdit(
   }
 }
 
-/** batch 사후 편집(그룹 추가/제거 · 메모 · 시각). */
+/** batch 사후 편집(그룹 추가/제거 · 메모 · 시각 · 끼니). */
 export function useUpdatePostBatch(userId: string | undefined) {
   const qc = useQueryClient()
   return useMutation({
@@ -88,6 +89,8 @@ export function useUpdatePostBatch(userId: string | undefined) {
       groupIds: string[]
       caption: string | null
       recordedAt: string | null
+      /** 끼니. null이면 유지 */
+      mealSlot: MealSlotKey | null
       /** 무효화 대상 = 추가·제거·유지 그룹의 합집합 */
       affectedGroupIds: string[]
     }) => updatePostBatch(vars),

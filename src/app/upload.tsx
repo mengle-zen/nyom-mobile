@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -9,7 +9,6 @@ import {
   Text,
   View,
 } from 'react-native'
-import { CameraView, useCameraPermissions } from 'expo-camera'
 import * as ImagePicker from 'expo-image-picker'
 import * as Haptics from 'expo-haptics'
 import { Ionicons } from '@expo/vector-icons'
@@ -24,9 +23,13 @@ import { createPostToGroups } from '@/entities/post/model'
 import { useMyGroups } from '@/entities/group'
 import { useAuth } from '@/features/auth'
 import { downscaleForUpload, type Shot } from '@/features/upload/lib/downscale'
+import {
+  fallbackAfterCamera,
+  type CaptureFallback,
+} from '@/features/upload/lib/capture-source'
 import { clampTime } from '@/shared/lib/time-step'
-import { CameraControls } from '@/features/upload/ui/CameraControls'
 import { CameraDenied } from '@/features/upload/ui/CameraDenied'
+import { CaptureSourcePicker } from '@/features/upload/ui/CaptureSourcePicker'
 import { GroupSelectSheet } from '@/features/upload/ui/GroupSelectSheet'
 import { ShotEditor } from '@/features/upload/ui/ShotEditor'
 import { queryKeys } from '@/shared/api/query-keys'
@@ -36,28 +39,35 @@ import { notifyError } from '@/shared/lib/error'
 /**
  * 업로드 — 촬영/갤러리 → 맥락 입력 → 그룹 선택.
  *
- * 웹의 3단계 플로우를 그대로 옮기되 두 가지를 고쳤다(docs/UX_FINDINGS.md):
- *  - E항: 업로드 후 `/`가 아니라 **들고 있던 그룹의 보드**로 돌아간다. 기록 앱에서
- *    "올렸다"의 확인은 토스트가 아니라 보드에 내 타일이 채워진 걸 보는 것이다.
- *  - F항: 2단계에서 1단계 메모를 확인·수정할 수 있게 요약 줄을 넣었다.
+ * 촬영은 **OS 기본 카메라**가 맡는다(`ImagePicker.launchCameraAsync`).
+ * 자체 뷰파인더(expo-camera `CameraView`)를 걷어낸 이유는 그게 기기 카메라의 장점을
+ * 통째로 버리기 때문이다 — HDR·나이트모드·화질 보정 같은 기기 파이프라인, 볼륨 버튼
+ * 셔터, 줌·플래시·포커스, 그리고 사용자가 이미 아는 UI. 음식 사진 앱에서 이 차이는
+ * 그대로 결과물의 차이다.
  *
- * 끼니 기본값은 `defaultSlotForHour`(새벽 0~4시 = 야식으로 교정된 버전)를 그대로 쓴다.
+ * **진입하면 바로 OS 카메라를 띄운다.** 제품 원칙이 "사진 1장 5초 기록"이라 촬영과
+ * 화면 사이에 선택지를 한 겹 끼우면 매번 탭이 하나 는다. 대신 자동으로 띄운 카메라를
+ * 취소하면 빈 화면이 남는 문제가 생기므로, 취소·거부·장치부재를 모두
+ * `fallbackAfterCamera`로 받아 선택 화면이나 폴백 안내로 떨어뜨린다(빈 화면 없음).
+ *
+ * 촬영 이후 파이프라인(다운스케일 → ShotEditor → 그룹 선택 → 업로드)은 그대로다.
+ * docs/UX_FINDINGS.md E항(업로드 후 그룹 보드로 복귀)·F항(2단계에 1단계 요약)도 유지.
  */
 export default function UploadScreen() {
   const insets = useSafeAreaInsets()
   const { user } = useAuth()
   const queryClient = useQueryClient()
   const search = useLocalSearchParams<{ group?: string }>()
-  const cameraRef = useRef<CameraView>(null)
 
-  const [permission, requestPermission] = useCameraPermissions()
-  const [cameraReady, setCameraReady] = useState(false)
-  const [facing, setFacing] = useState<'back' | 'front'>('back')
-  /** 카메라가 실제로 프레임을 못 주는 환경(시뮬레이터 등)에서의 폴백 유도 */
-  const [cameraFailed, setCameraFailed] = useState(false)
-
-  /** 촬영(또는 갤러리 선택) 결과. null이면 라이브 뷰파인더 */
+  /** 촬영(또는 갤러리 선택) 결과. null이면 아직 사진이 없다. */
   const [shot, setShot] = useState<Shot | null>(null)
+  /**
+   * 사진이 없을 때 무엇을 보여줄지.
+   * - null  : OS 카메라를 띄우는 중(=진입 직후). 사용자는 곧 OS 화면을 본다.
+   * - choose: 취소하고 돌아옴 — 다시 찍기/갤러리
+   * - blocked: 권한 거부·장치 부재 — 이유를 말하고 갤러리로 유도
+   */
+  const [fallback, setFallback] = useState<CaptureFallback | null>(null)
   const [preparing, setPreparing] = useState(false)
   const [caption, setCaption] = useState('')
   const [uploading, setUploading] = useState(false)
@@ -81,13 +91,6 @@ export default function UploadScreen() {
     if (groupsError) notifyError(groupsError, '그룹을 불러오지 못했어요')
   }, [groupsError])
 
-  // 권한 상태를 아직 모를 때 한 번만 물어본다(설정에서 거부한 사용자는 다시 안 뜬다).
-  useEffect(() => {
-    if (permission && !permission.granted && permission.canAskAgain) {
-      void requestPermission()
-    }
-  }, [permission, requestPermission])
-
   const toggleGroup = (id: string) =>
     setSelected((prev) => {
       const next = new Set(prev)
@@ -101,22 +104,70 @@ export default function UploadScreen() {
     else router.replace('/(app)/groups')
   }
 
-  /** 촬영 */
-  const handleCapture = async () => {
-    if (!cameraRef.current || preparing) return
+  /**
+   * OS 기본 카메라로 촬영.
+   *
+   * 취소(`canceled: true`)는 에러가 아니다 — 토스트도 띄우지 않고 선택 화면으로만
+   * 내린다. 시뮬레이터처럼 카메라가 없는 기기에서는 launch가 throw하거나 빈 결과를
+   * 주는데, 둘 다 "장치 부재"로 묶어 갤러리 폴백을 띄운다(앱이 깨지지 않는다).
+   */
+  const openCamera = useCallback(async () => {
     setPreparing(true)
     try {
-      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-      const photo = await cameraRef.current.takePictureAsync({ quality: 1 })
-      if (!photo) throw new Error('CAPTURE_EMPTY')
-      setShot(await downscaleForUpload(photo))
-    } catch (e) {
-      setCameraFailed(true)
-      notifyError(e, '사진을 찍지 못했어요. 갤러리에서 골라주세요.')
+      const permission = await ImagePicker.requestCameraPermissionsAsync()
+      if (!permission.granted) {
+        setFallback(
+          fallbackAfterCamera({
+            kind: 'denied',
+            canAskAgain: permission.canAskAgain,
+          }),
+        )
+        return
+      }
+
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ['images'],
+        quality: 1,
+        // 크롭은 다음 단계에서 다루지 않는다 — 5초 기록이 목표다.
+        allowsEditing: false,
+      })
+      if (result.canceled) {
+        setFallback(fallbackAfterCamera({ kind: 'canceled' }))
+        return
+      }
+
+      const asset = result.assets[0]
+      if (!asset) {
+        // 취소도 에러도 아닌데 사진이 없다 — 카메라가 정상 동작하지 않은 것으로 본다.
+        setFallback(fallbackAfterCamera({ kind: 'unavailable' }))
+        return
+      }
+
+      setShot(
+        await downscaleForUpload({
+          uri: asset.uri,
+          width: asset.width,
+          height: asset.height,
+        }),
+      )
+      setFallback(null)
+    } catch {
+      // 카메라를 열지 못함(시뮬레이터·장치 오류). 조용히 갤러리 경로로 유도한다 —
+      // 화면 안 안내가 이미 이유를 말하고 있어 토스트까지 겹치면 시끄럽다.
+      setFallback(fallbackAfterCamera({ kind: 'unavailable' }))
     } finally {
       setPreparing(false)
     }
-  }
+  }, [])
+
+  // 진입하자마자 OS 카메라. 마운트당 한 번만 — 사용자가 취소한 뒤 다시 자동으로
+  // 띄우면 화면을 벗어날 수 없는 덫이 된다.
+  const autoLaunched = useRef(false)
+  useEffect(() => {
+    if (autoLaunched.current) return
+    autoLaunched.current = true
+    void openCamera()
+  }, [openCamera])
 
   /** 갤러리에서 선택 */
   const handlePickGallery = async () => {
@@ -126,7 +177,6 @@ export default function UploadScreen() {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
         quality: 1,
-        // 편집(크롭)은 다음 단계에서 다루지 않으므로 켜지 않는다 — 5초 기록이 목표다.
         allowsEditing: false,
       })
       if (result.canceled) return
@@ -139,6 +189,7 @@ export default function UploadScreen() {
           height: asset.height,
         }),
       )
+      setFallback(null)
     } catch (e) {
       notifyError(e, '사진을 불러오지 못했어요')
     } finally {
@@ -146,11 +197,13 @@ export default function UploadScreen() {
     }
   }
 
-  /** 미리보기 닫고 1단계로 되돌림 */
+  /** "다시 찍기" — 미리보기를 버리고 OS 카메라를 다시 연다 */
   const retake = () => {
+    if (preparing) return
     setShot(null)
     setCaption('')
     setStep('details')
+    void openCamera()
   }
 
   /** 선택한 그룹들에 업로드 후 보드로 이동 */
@@ -189,15 +242,12 @@ export default function UploadScreen() {
     }
   }
 
-  const cameraBlocked =
-    cameraFailed || (permission !== null && !permission.granted && !permission.canAskAgain)
-  const deniedReason = cameraFailed
-    ? '이 기기에서 카메라를 열 수 없어요.\n아래에서 갤러리 사진을 골라 올릴 수 있어요.'
-    : '설정 → 뇸 → 카메라에서 권한을 허용하거나,\n아래에서 갤러리 사진을 골라주세요.'
+  /** OS 카메라를 띄우는 중 — 사진도 폴백도 없는 짧은 대기 구간 */
+  const launching = !shot && fallback === null
 
   return (
     <View className="flex-1 bg-neutral-900">
-      {/* 배경 — 라이브 카메라 또는 미리보기 */}
+      {/* 배경 — 촬영/선택한 사진 */}
       {shot ? (
         <Image
           source={{ uri: shot.uri }}
@@ -205,18 +255,7 @@ export default function UploadScreen() {
           style={StyleSheet.absoluteFill}
           accessibilityLabel="촬영한 사진"
         />
-      ) : permission?.granted && !cameraBlocked ? (
-        <CameraView
-          ref={cameraRef}
-          facing={facing}
-          onCameraReady={() => setCameraReady(true)}
-          onMountError={() => setCameraFailed(true)}
-          style={StyleSheet.absoluteFill}
-        />
-      ) : null}
-
-      {/* 카메라가 없을 때의 배경 */}
-      {!shot && (!permission?.granted || cameraBlocked) && (
+      ) : (
         <View className="absolute size-full bg-neutral-800" />
       )}
 
@@ -254,30 +293,35 @@ export default function UploadScreen() {
           <Text className="text-xl font-bold text-white">오늘의 한 끼</Text>
         </View>
 
-        {/* 뷰파인더 오버레이 */}
+        {/* 본문 */}
         <View className="flex-1 items-center justify-center gap-7 px-9">
-          {cameraBlocked && !shot ? (
+          {shot ? (
+            <View className="flex-row items-center gap-1.5 rounded-full bg-black/40 py-2 pl-3.5 pr-4">
+              <Ionicons name="restaurant-outline" size={16} color="#fff" />
+              <Text className="text-sm font-bold text-white">이대로 괜찮나요?</Text>
+            </View>
+          ) : fallback?.stage === 'blocked' ? (
             <CameraDenied
-              reason={deniedReason}
-              onRetry={() => {
-                setCameraFailed(false)
-                void requestPermission()
-              }}
+              reason={fallback.reason}
+              onRetry={() => void openCamera()}
               onPickGallery={() => void handlePickGallery()}
             />
-          ) : (
-            <>
-              <View className="flex-row items-center gap-1.5 rounded-full bg-black/40 py-2 pl-3.5 pr-4">
-                <Ionicons name="restaurant-outline" size={16} color="#fff" />
-                <Text className="text-sm font-bold text-white">
-                  {shot ? '이대로 괜찮나요?' : '음식을 화면 가운데에 담아요'}
-                </Text>
+          ) : fallback?.stage === 'choose' ? (
+            <View className="items-center gap-3">
+              <View className="size-[88px] items-center justify-center rounded-full bg-white/10">
+                <Ionicons name="restaurant-outline" size={40} color="rgba(255,255,255,0.7)" />
               </View>
-              <View className="aspect-square w-full max-w-[321px] rounded-xl border-2 border-dashed border-white/45" />
-            </>
+              <Text className="text-lg font-bold text-white">사진 한 장이면 돼요</Text>
+              <Text className="w-[280px] text-center text-sm leading-5 text-white/65">
+                지금 찍거나, 갤러리에 있는 사진을 골라 올릴 수 있어요.
+              </Text>
+            </View>
+          ) : (
+            // 카메라를 여는 중. OS 화면이 곧 덮으므로 최소한만 보여준다.
+            <ActivityIndicator color="#fff" />
           )}
 
-          {preparing && (
+          {preparing && !launching && (
             <View className="absolute inset-0 items-center justify-center bg-black/40">
               <ActivityIndicator color="#fff" />
             </View>
@@ -298,16 +342,13 @@ export default function UploadScreen() {
               onRetake={retake}
               onNext={() => setStep('groups')}
             />
-          ) : cameraBlocked ? null : (
-            <CameraControls
-              canCapture={cameraReady && !preparing}
+          ) : fallback?.stage === 'choose' ? (
+            <CaptureSourcePicker
+              disabled={preparing}
+              onOpenCamera={() => void openCamera()}
               onPickGallery={() => void handlePickGallery()}
-              onCapture={() => void handleCapture()}
-              onToggleFacing={() =>
-                setFacing((f) => (f === 'back' ? 'front' : 'back'))
-              }
             />
-          )}
+          ) : null}
         </View>
       </KeyboardAvoidingView>
 
