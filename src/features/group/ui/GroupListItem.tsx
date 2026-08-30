@@ -19,6 +19,22 @@ import { groupMeta, groupMetaLabel } from '../lib/group-meta'
  * 진입에는 햅틱을 주지 않는다(`hapticKind={null}`) — 단순 이동에까지 진동을 붙이면
  * 진동이 배경 소음이 되어 "뭔가 바뀌었다"는 신호로서의 의미를 잃는다.
  */
+/**
+ * 카드를 배경에서 띄우는 그림자.
+ *
+ * NativeWind의 `shadow-*`는 검정 그림자를 쓴다. 이 앱의 배경은 따뜻한 크림
+ * (#FFFCF8)이라 검정이 깔리면 회색기가 돌아 카드가 탁해 보인다. 브랜드 계열의
+ * 진한 갈색을 아주 옅게(0.05) 깔아 배경과 같은 색 온도로 띄운다.
+ * 테두리는 두지 않는다 — 그림자와 테두리를 같이 쓰면 경계가 두 겹으로 보인다.
+ */
+const CARD_SHADOW = {
+  shadowColor: '#5C2607',
+  shadowOffset: { width: 0, height: 2 },
+  shadowOpacity: 0.05,
+  shadowRadius: 8,
+  elevation: 1,
+} as const
+
 export function GroupListItem({
   group,
   isOwner,
@@ -37,7 +53,8 @@ export function GroupListItem({
     return (
       <View
         accessibilityLabel={`${group.name} 준비 중`}
-        className="flex-row items-center gap-3 rounded-lg bg-card px-4 py-3.5 shadow-sm"
+        className="flex-row items-center gap-3 rounded-xl bg-card px-4 py-3.5"
+        style={CARD_SHADOW}
       >
         <View className="flex-1">
           <Text numberOfLines={1} className="font-bold text-muted-foreground">
@@ -57,7 +74,10 @@ export function GroupListItem({
     .join(', ')
 
   return (
-    <View className="flex-row items-center rounded-lg bg-card shadow-sm">
+    <View
+      className="flex-row items-center rounded-xl bg-card"
+      style={CARD_SHADOW}
+    >
       <PressableScale
         accessibilityRole="button"
         accessibilityLabel={`${a11y} 보드 열기`}

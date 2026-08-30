@@ -36,6 +36,7 @@ import {
 import { queryKeys } from '@/shared/api/query-keys'
 import { notifyError } from '@/shared/lib/error'
 import { haptic, PressableScale } from '@/shared/ui/press'
+import { SegmentedControl, type Segment } from '@/shared/ui/segmented-control'
 import { Skeleton } from '@/shared/ui/skeleton'
 
 /**
@@ -65,6 +66,13 @@ type DetailPost = {
  *  - 상세에서 **끼니(슬롯)를 바꿀 수 있다**. 웹은 시각만 바꿀 수 있어 잘못 분류된
  *    기록을 영영 못 고쳤다(docs/UX_FINDINGS.md C항).
  */
+type ProfileTab = 'grid' | 'calendar'
+
+const PROFILE_TABS: Segment<ProfileTab>[] = [
+  { key: 'grid', label: '그리드' },
+  { key: 'calendar', label: '돌아보기' },
+]
+
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets()
   const { user, signOut } = useAuth()
@@ -97,7 +105,7 @@ export default function ProfileScreen() {
     }
   }, [queryClient, refetchProfile, userId])
 
-  const [tab, setTab] = useState<'grid' | 'calendar'>('grid')
+  const [tab, setTab] = useState<ProfileTab>('grid')
   const [editingProfile, setEditingProfile] = useState(false)
   const [detail, setDetail] = useState<DetailPost | null>(null)
   /** 사후 편집 대상. 상세에서 넘어온다(두 모달이 겹치지 않게 교체). */
@@ -172,50 +180,8 @@ export default function ProfileScreen() {
           <StatTile label="그룹" value={groupsQuery.data?.length} />
         </View>
 
-        {/* 탭 */}
-        <View className="flex-row gap-1 self-start rounded-xl bg-muted p-1">
-          {(
-            [
-              ['grid', '그리드'],
-              ['calendar', '돌아보기'],
-            ] as const
-          ).map(([key, label]) => (
-            <PressableScale
-              key={key}
-              accessibilityRole="tab"
-              accessibilityState={{ selected: tab === key }}
-              // 탭 전환은 화면 이동에 가깝다 — 햅틱을 붙이면 진동이 배경 소음이 된다.
-              hapticKind={null}
-              onPress={() => setTab(key)}
-              // 그림자는 배경이 있는 뷰에만 그려진다 — 바깥 래퍼에 배경까지 같이 준다.
-              style={
-                tab === key
-                  ? {
-                      backgroundColor: '#FFFFFF',
-                      borderRadius: 10,
-                      shadowColor: '#5C2607',
-                      shadowOffset: { width: 0, height: 1 },
-                      shadowOpacity: 0.14,
-                      shadowRadius: 3,
-                    }
-                  : undefined
-              }
-              className={`rounded-lg px-4 py-1.5 ${
-                tab === key ? '' : 'active:opacity-60'
-              }`}
-            >
-              <Text
-                className={`text-sm ${
-                  tab === key
-                    ? 'font-bold text-primary-700'
-                    : 'font-medium text-muted-foreground'
-                }`}
-              >
-                {label}
-              </Text>
-            </PressableScale>
-          ))}
-        </View>
+        {/* 탭 — 보드 끼니 칩과 같은 미끄러지는 인디케이터 */}
+        <SegmentedControl segments={PROFILE_TABS} value={tab} onChange={setTab} />
 
         {tab === 'grid' ? (
           <MyPostsGrid

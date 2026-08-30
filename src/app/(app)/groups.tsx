@@ -15,6 +15,7 @@ import {
 } from '@/features/group'
 import { queryKeys } from '@/shared/api/query-keys'
 import { haptic, PressableScale } from '@/shared/ui/press'
+import { SegmentedControl } from '@/shared/ui/segmented-control'
 
 type Tab = 'mine' | 'discover'
 
@@ -101,51 +102,10 @@ export default function GroupsScreen() {
         </View>
 
         {/*
-          웹의 shadcn TabsList 대체 — 세그먼트 컨트롤.
-          선택된 쪽은 흰 pill + 그림자 + 진한 글자, 안 선택된 쪽은 한 단계 옅은
-          글자(neutral-400)로 둔다. 둘 다 진하면 어디가 선택됐는지 한눈에 안 든다.
+          웹의 shadcn TabsList 대체 — 미끄러지는 인디케이터가 달린 세그먼트 컨트롤.
+          보드의 끼니 칩과 같은 움직임을 쓰도록 공용 컴포넌트로 뺐다.
         */}
-        <View accessibilityRole="tablist" className="flex-row gap-1 rounded-md bg-muted p-1">
-          {TABS.map(({ key, label, icon }) => {
-            const active = tab === key
-            return (
-              <PressableScale
-                key={key}
-                accessibilityRole="tab"
-                accessibilityLabel={label}
-                accessibilityState={{ selected: active }}
-                hapticKind={null}
-                onPress={() => switchTab(key)}
-                style={{ flex: 1 }}
-              >
-                <View
-                  className="flex-row items-center justify-center gap-1.5 rounded-sm py-2"
-                  style={
-                    active
-                      ? {
-                          backgroundColor: '#FFFFFF',
-                          shadowColor: '#5C2607',
-                          shadowOffset: { width: 0, height: 1 },
-                          shadowOpacity: 0.1,
-                          shadowRadius: 3,
-                          elevation: 2,
-                        }
-                      : undefined
-                  }
-                >
-                  <Feather name={icon} size={14} color={active ? '#1F1B16' : '#A89A82'} />
-                  <Text
-                    className={`text-sm ${
-                      active ? 'font-bold text-foreground' : 'font-medium text-neutral-400'
-                    }`}
-                  >
-                    {label}
-                  </Text>
-                </View>
-              </PressableScale>
-            )
-          })}
-        </View>
+        <SegmentedControl segments={TABS} value={tab} onChange={switchTab} />
       </View>
 
       <ScrollView
