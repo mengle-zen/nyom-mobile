@@ -47,6 +47,14 @@ export default function AppLayout() {
       screenOptions={{
         headerShown: false,
         sceneStyle: { backgroundColor: '#FFFCF8' },
+        // 탭 전환도 기본은 무전환이라 화면이 툭 바뀐다. 짧은 페이드를 줘서
+        // "같은 앱 안에서 자리를 옮겼다"로 읽히게 한다. 탭은 옆으로 미는
+        // 위계가 아니므로 슬라이드가 아니라 페이드가 맞다.
+        animation: 'fade',
+        transitionSpec: {
+          animation: 'timing',
+          config: { duration: 180 },
+        },
       }}
     >
       <Tabs.Screen name="groups" options={{ title: '그룹' }} />

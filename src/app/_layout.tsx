@@ -67,7 +67,18 @@ function AuthGate() {
   }
 
   return (
-    <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#FFFCF8' } }}>
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        contentStyle: { backgroundColor: '#FFFCF8' },
+        // 기본 push 전환은 기기·플랫폼에 따라 갈린다. 명시해서 어디서나 같은
+        // 감각을 갖게 한다 — 새 화면이 오른쪽에서 밀려 들어오고, 아래 화면은
+        // 살짝 뒤로 물러난다. 300ms는 "따라왔다"가 느껴지면서도 기다림이
+        // 생기지 않는 구간이다.
+        animation: 'slide_from_right',
+        animationDuration: 300,
+      }}
+    >
       <Stack.Screen name="index" />
       <Stack.Screen name="login" />
       <Stack.Screen name="onboarding" />
@@ -83,7 +94,18 @@ function AuthGate() {
       */}
       <Stack.Screen name="(app)" options={{ gestureEnabled: false }} />
       <Stack.Screen name="auth/callback" />
-      <Stack.Screen name="upload" options={{ presentation: 'fullScreenModal' }} />
+      {/*
+        업로드는 흐름을 잠깐 덮는 전체화면 모달이다. 옆에서 밀려오는 push가
+        아니라 아래에서 올라와야 "잠시 들렀다 돌아간다"로 읽힌다.
+      */}
+      <Stack.Screen
+        name="upload"
+        options={{
+          presentation: 'fullScreenModal',
+          animation: 'slide_from_bottom',
+          animationDuration: 280,
+        }}
+      />
     </Stack>
   )
 }
