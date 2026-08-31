@@ -78,7 +78,7 @@ export default function LoginScreen() {
           style={{
             width: '100%',
             height: 54,
-            borderRadius: 14,
+            borderRadius: 16,
             alignItems: 'center',
             justifyContent: 'center',
             flexDirection: 'row',

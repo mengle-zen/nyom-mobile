@@ -221,7 +221,7 @@ export default function OnboardingScreen() {
             activeOpacity={0.85}
             style={{
               height: 54,
-              borderRadius: 27,
+              borderRadius: 16,
               alignItems: 'center',
               justifyContent: 'center',
               backgroundColor: '#FF7A2E',
