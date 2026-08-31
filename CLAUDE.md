@@ -30,6 +30,11 @@ Supabase 스키마·RLS·RPC·Edge Function은 **nyom(웹) 저장소가 소유�
   얹힌 탭 대상은 `onPressIn`↔`onPress` 이동 거리를 재서 걸러야 한다(`useTapOnly` 참고).
 - **`getLastNotificationResponseAsync()`는 앱을 껐다 켜도 같은 값을 돌려준다.** 처리 여부를
   메모리에만 두면 실행할 때마다 오래된 알림이 재생된다. AsyncStorage로 영속화할 것.
+- **`Linking.createURL()`은 dev server에 붙은 빌드에서 패키저 호스트를 URL 호스트로 끼워 넣는다.**
+  `nyom://auth/callback`이 아니라 `nyom://192.168.0.10:8081/auth/callback`이 나온다. OAuth
+  리디렉트에 쓰면 Supabase 허용목록에 없어 조용히 무시되고 Site URL(웹앱)로 되돌려져서, 로그인에
+  성공해도 앱이 아니라 브라우저에 착지한다. 프로덕션 빌드에서는 `hostUri`가 비어 정상 동작하므로
+  개발 중에만 재현된다. 리디렉트 주소는 스킴으로 직접 만들 것(`features/auth/context.tsx` 참고).
 - **pnpm에서 `react-native-css-interop`이 호이스팅되지 않는다.** NativeWind의 전이 의존인데
   직접 의존으로 넣어야 번들이 된다.
 
