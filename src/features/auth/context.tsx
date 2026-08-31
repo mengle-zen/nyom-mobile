@@ -8,10 +8,26 @@ import { AuthContext, type AuthContextValue } from './auth-context'
 const TEST_EMAIL = process.env.EXPO_PUBLIC_TEST_LOGIN_EMAIL
 const TEST_PASSWORD = process.env.EXPO_PUBLIC_TEST_LOGIN_PASSWORD
 
+/**
+ * OAuth 리디렉트 목적지. `app.json`의 `expo.scheme`과 같아야 하고,
+ * Supabase의 Authentication → URL Configuration → Redirect URLs에 등록돼 있어야 한다.
+ *
+ * `Linking.createURL('/auth/callback')`을 쓰면 안 된다. dev server에 붙은 빌드에서는
+ * 패키저 호스트가 URL 호스트로 끼어들어 `nyom://192.168.0.10:8081/auth/callback`이 된다
+ * (expo-linking의 `createURL`이 `Constants.expoConfig.hostUri`를 끼워 넣는데, dev build
+ * 에서는 `isExpoHosted()`가 false라 그 값이 지워지지 않는다).
+ *
+ * 그 주소는 허용목록에 없으므로 Supabase가 조용히 무시하고 Site URL(웹앱)로 되돌린다.
+ * 그래서 카카오 로그인 자체는 성공하는데 앱이 아니라 브라우저에 착지한다.
+ * 프로덕션 빌드에서는 hostUri가 비어 정상 동작하기 때문에 개발 중에만 재현되고,
+ * IP가 바뀔 때마다 주소도 바뀌어 허용목록에 등록하는 것도 답이 아니다.
+ */
+const OAUTH_REDIRECT_URL = 'nyom://auth/callback'
+
 export const hasTestLogin = Boolean(TEST_EMAIL && TEST_PASSWORD)
 
 /**
- * OAuth 콜백 딥링크(nyomapp://auth/callback#access_token=...)에서 세션을 만든다.
+ * OAuth 콜백 딥링크(nyom://auth/callback#access_token=...)에서 세션을 만든다.
  * 웹은 supabase-js가 URL을 자동으로 읽지만(detectSessionInUrl), RN에는 주소창이
  * 없어 우리가 직접 파싱해 넘겨야 한다.
  */
@@ -84,17 +100,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const signInWithKakao: AuthContextValue['signInWithKakao'] = async () => {
-    const redirectTo = Linking.createURL('/auth/callback')
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'kakao',
-      options: { redirectTo, skipBrowserRedirect: true },
+      options: { redirectTo: OAUTH_REDIRECT_URL, skipBrowserRedirect: true },
     })
     if (error) throw error
     if (!data.url) throw new Error('OAuth URL을 받지 못했어요')
 
     // 인앱 브라우저(ASWebAuthenticationSession / Custom Tabs)로 열어야
     // 로그인 세션 쿠키가 공유되고 콜백이 앱으로 되돌아온다.
-    const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo)
+    const result = await WebBrowser.openAuthSessionAsync(data.url, OAUTH_REDIRECT_URL)
     if (result.type === 'success') await createSessionFromUrl(result.url)
   }
 
