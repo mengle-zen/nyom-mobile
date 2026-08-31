@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import {
   Animated,
   Pressable,
@@ -75,7 +75,7 @@ export function PressableScale({
   onPressIn,
   ...rest
 }: PressableScaleProps) {
-  const scale = useRef(new Animated.Value(1)).current
+  const scale = useState(() => new Animated.Value(1))[0]
   const from = useRef<{ x: number; y: number } | null>(null)
 
   const animate = useCallback(

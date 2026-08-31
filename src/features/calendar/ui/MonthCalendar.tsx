@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Animated, Pressable, Text, View } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { PressableScale } from '@/shared/ui/press'
@@ -189,7 +189,7 @@ function MonthFade({
   monthKey: string
   children: ReactNode
 }) {
-  const opacity = useRef(new Animated.Value(1)).current
+  const opacity = useState(() => new Animated.Value(1))[0]
   const first = useRef(true)
 
   useEffect(() => {

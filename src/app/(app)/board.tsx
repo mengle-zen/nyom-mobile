@@ -151,8 +151,8 @@ export default function BoardScreen() {
   // 콘텐츠가 손가락을 그대로 따라가는 것(dragX = translationX)이 이 배치와 맞는다.
   // 손가락을 오른쪽으로 밀면 지금 화면이 오른쪽으로 비켜나며 왼쪽에서 과거가 들어온다.
   const [stageWidth, setStageWidth] = useState(0)
-  const dragX = useRef(new Animated.Value(0)).current
-  const contentOpacity = useRef(new Animated.Value(1)).current
+  const dragX = useState(() => new Animated.Value(0))[0]
+  const contentOpacity = useState(() => new Animated.Value(1))[0]
   const axisRef = useRef<Axis | null>(null)
 
   const onStageLayout = useCallback((e: LayoutChangeEvent) => {
@@ -206,6 +206,13 @@ export default function BoardScreen() {
     [slotIdx],
   )
 
+  /*
+    eslint-disable react-hooks/refs --
+    제스처 콜백은 렌더가 아니라 터치 이벤트에서 실행되므로 "렌더 중 ref 접근"이 아니다.
+    축 판정 결과를 state로 두면 onUpdate가 매 프레임 재렌더를 일으키고, 그 사이 값이
+    한 프레임 뒤처져 드래그가 튄다. 제스처가 끝날 때까지 살아 있으면서 렌더를 유발하지
+    않아야 하므로 ref가 여기서는 올바른 도구다.
+  */
   const pan = useMemo(
     () =>
       Gesture.Pan()
@@ -250,6 +257,7 @@ export default function BoardScreen() {
         }),
     [dateOffset, slotIdx, stageWidth, dragX, commitDateSwipe, commitSlotSwipe],
   )
+  /* eslint-enable react-hooks/refs */
 
   // ── 상세 ──────────────────────────────────────────────────
   // 게시물 id만 들고 있고 본문은 매 렌더 캐시에서 다시 찾는다 —
