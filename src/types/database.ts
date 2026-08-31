@@ -324,7 +324,7 @@ export type Database = {
       }
       list_public_groups: {
         Args: Record<string, never>
-        Returns: Array<{
+        Returns: {
           id: string
           name: string
           invite_code: string
@@ -333,7 +333,7 @@ export type Database = {
           created_at: string
           member_count: number
           user_status: 'none' | 'member' | 'requested' | 'banned'
-        }>
+        }[]
       }
       request_to_join_group: {
         Args: { p_group_id: string }

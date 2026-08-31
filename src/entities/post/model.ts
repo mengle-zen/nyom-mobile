@@ -257,7 +257,7 @@ export async function fetchMyRecordedDays(
     .lt('created_at', end.toISOString())
 
   if (error) throw error
-  const rows = (data ?? []) as Array<{ created_at: string }>
+  const rows = (data ?? []) as { created_at: string }[]
   return new Set(rows.map((r) => localDayKey(new Date(r.created_at))))
 }
 
@@ -318,7 +318,7 @@ export async function fetchGroupRecordedDays(
     .gte('created_at', since.toISOString())
 
   if (error) throw error
-  const rows = (data ?? []) as Array<{ created_at: string }>
+  const rows = (data ?? []) as { created_at: string }[]
   return new Set(rows.map((r) => localDayKey(new Date(r.created_at))))
 }
 

@@ -18,11 +18,11 @@ export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
 }
 
 /** 토글 목록 렌더 순서·라벨·설명. 화면과 테스트가 같은 출처를 쓴다. */
-export const NOTIFICATION_KIND_META: ReadonlyArray<{
+export const NOTIFICATION_KIND_META: readonly {
   kind: NotificationKind
   label: string
   description: string
-}> = [
+}[] = [
   {
     kind: 'post',
     label: '게시 알림',

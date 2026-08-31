@@ -23,7 +23,7 @@ export type ReactionCount = {
  * 같은 값에서 순서가 흔들리면 탭하려던 칩이 움직이므로 완전 결정적으로 둔다.
  */
 export function summarizeReactions(
-  reactions: ReadonlyArray<ReactionLite>,
+  reactions: readonly ReactionLite[],
   userId: string,
 ): ReactionCount[] {
   const counts = new Map<string, number>()
@@ -49,7 +49,7 @@ export function summarizeReactions(
 
 /** 내가 누른 이모지(없으면 null). 1인 1리액션이므로 최대 하나다. */
 export function myReactionEmoji(
-  reactions: ReadonlyArray<ReactionLite>,
+  reactions: readonly ReactionLite[],
   userId: string,
 ): string | null {
   return reactions.find((r) => r.user_id === userId)?.emoji ?? null
