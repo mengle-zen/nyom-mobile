@@ -136,7 +136,7 @@ function SlotDots({
   if (total > MAX_DOTS) {
     return (
       <Text
-        className={`text-[10px] font-bold ${active ? 'text-primary-foreground' : 'text-white/45'}`}
+        className={`text-xs font-bold ${active ? 'text-primary-foreground' : 'text-white/60'}`}
       >
         {filled}/{total}
       </Text>

@@ -273,7 +273,7 @@ function PostEditForm({
       <ScrollView className="flex-1" contentContainerClassName="gap-5 p-4 pb-8">
         {/* 끼니 — 잘못 분류된 기록을 여기서 고친다 (UX_FINDINGS C항) */}
         <View className="gap-1.5">
-          <Text className="text-xs font-medium text-muted-foreground">끼니</Text>
+          <Text className="text-sm font-medium text-muted-foreground">끼니</Text>
           <MealSlotChips
             value={slot}
             onChange={setSlot}
@@ -284,20 +284,19 @@ function PostEditForm({
 
         {/* 섭취 시각 — 기록한 날의 시:분만 (날짜 백필은 허용하지 않는다) */}
         <View className="gap-1.5">
-          <Text className="text-xs font-medium text-muted-foreground">섭취 시각</Text>
+          <Text className="text-sm font-medium text-muted-foreground">섭취 시각</Text>
           <TimeStepper
             value={recordedTime}
             max={maxTime}
             onChange={setRecordedTime}
             disabled={busy}
             variant="onLight"
-            label=""
           />
         </View>
 
         {/* 메모 */}
         <View className="gap-1.5">
-          <Text className="text-xs font-medium text-muted-foreground">메모</Text>
+          <Text className="text-sm font-medium text-muted-foreground">메모</Text>
           <TextInput
             value={caption}
             onChangeText={setCaption}
@@ -312,7 +311,7 @@ function PostEditForm({
 
         {/* 공유 그룹 */}
         <View className="gap-1.5">
-          <Text className="text-xs font-medium text-muted-foreground">공유 그룹</Text>
+          <Text className="text-sm font-medium text-muted-foreground">공유 그룹</Text>
           {groups.length === 0 ? (
             <Text className="py-2 text-sm text-muted-foreground">
               속한 그룹이 없어요

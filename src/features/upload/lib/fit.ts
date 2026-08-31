@@ -38,6 +38,39 @@ export function fitWithin(size: Size, maxEdge: number = MAX_UPLOAD_EDGE): Size {
   }
 }
 
+/** ImageManipulator의 `crop()`에 그대로 넘길 수 있는 사각 영역. */
+export type CropRect = {
+  originX: number
+  originY: number
+  width: number
+  height: number
+}
+
+/**
+ * 중앙 정사각 크롭 영역. 짧은 변을 한 변으로 삼고 가운데를 잡는다.
+ *
+ * 왜 정사각인가: 보드 타일이 정사각이다(`widgets/slot-board/layout.ts`). 원본
+ * 비율(3:4)을 그대로 올리면 타일에서 `contentFit="cover"`로 잘리는데, 그 잘림을
+ * 업로드 시점에 확정해두면 프로필 그리드·상세까지 전부 같은 그림이 된다.
+ *
+ * 크롭이 불필요하거나(이미 정사각) 크기를 못 읽은 경우 `null`을 돌려준다 —
+ * 호출부가 manipulator 왕복을 건너뛰게 하려는 것이다. `fitWithin`과 같은 방침으로,
+ * 크기를 모를 때 추측해서 자르지 않는다.
+ */
+export function centerSquareCrop(size: Size): CropRect | null {
+  const { width, height } = size
+  if (!isUsable(width) || !isUsable(height)) return null
+  if (width === height) return null
+
+  const edge = Math.min(width, height)
+  return {
+    originX: Math.round((width - edge) / 2),
+    originY: Math.round((height - edge) / 2),
+    width: edge,
+    height: edge,
+  }
+}
+
 /** 리사이즈가 실제로 필요한지 — 불필요하면 manipulator 왕복을 건너뛴다. */
 export function needsResize(
   size: Size,

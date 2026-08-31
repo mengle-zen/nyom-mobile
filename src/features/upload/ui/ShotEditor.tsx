@@ -32,11 +32,15 @@ export function ShotEditor({
     <View className="gap-3 px-6">
       <MealSlotChips value={slot} onChange={onSlotChange} />
 
-      <TimeStepper
-        value={recordedTime}
-        max={maxTime}
-        onChange={onRecordedTimeChange}
-      />
+      {/* 라벨은 스테퍼 밖에 둔다 — 안에 두면 값과 버튼이 한쪽으로 밀려 대칭이 깨진다. */}
+      <View className="gap-1.5">
+        <Text className="text-sm font-medium text-white/70">섭취 시각</Text>
+        <TimeStepper
+          value={recordedTime}
+          max={maxTime}
+          onChange={onRecordedTimeChange}
+        />
+      </View>
 
       <TextInput
         value={caption}
