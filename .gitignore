@@ -45,3 +45,6 @@ example
 # 로컬 환경변수
 .env.local
 .env*.local
+
+# Superpowers 브레인스토밍 작업 디렉터리
+.superpowers/
