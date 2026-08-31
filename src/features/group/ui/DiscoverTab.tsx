@@ -6,6 +6,7 @@ import { notifyError } from '@/shared/lib/error'
 import { boardHref } from '@/shared/lib/board-href'
 import { haptic, PressableScale } from '@/shared/ui/press'
 import { MAX_MEMBERS } from '../lib/join-error'
+import { GroupCard } from './GroupCard'
 import { Badge, Button } from './primitives'
 import { LoadingSkeleton } from './LoadingSkeleton'
 
@@ -64,10 +65,7 @@ export function DiscoverTab({
         const pending = request.isPending && request.variables === g.id
 
         return (
-          <View
-            key={g.id}
-            className="flex-row items-center gap-3 rounded-lg bg-card px-4 py-3 shadow-sm"
-          >
+          <GroupCard key={g.id} className="gap-3 px-4 py-3.5">
             {/* 그룹 정보 — 이미 멤버인 그룹만 눌러서 들어갈 수 있다 */}
             <PressableScale
               accessibilityRole="button"
@@ -107,7 +105,7 @@ export function DiscoverTab({
                 />
               )}
             </View>
-          </View>
+          </GroupCard>
         )
       })}
     </View>
