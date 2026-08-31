@@ -291,7 +291,6 @@ function PostEditForm({
             onChange={setRecordedTime}
             disabled={busy}
             variant="onLight"
-            label=""
           />
         </View>
 
