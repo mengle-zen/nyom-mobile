@@ -87,7 +87,7 @@ export function SlotChips({ slots, activeIdx, onSelect }: Props) {
  * 좁게 붙어 있어 옆 칩까지 넘어간 것처럼 보인다.
  */
 function Indicator({ left, width }: { left: number; width: number }) {
-  const x = useRef(new Animated.Value(left)).current
+  const x = useState(() => new Animated.Value(left))[0]
   const first = useRef(true)
 
   useEffect(() => {

@@ -207,7 +207,7 @@ export function ReactionBar({
  * 첫 렌더에서는 튀지 않는다 — 스와이프로 날짜를 넘길 때마다 온 화면이 들썩인다.
  */
 function useCountPop(count: number) {
-  const scale = useRef(new Animated.Value(1)).current
+  const scale = useState(() => new Animated.Value(1))[0]
   const prev = useRef(count)
 
   useEffect(() => {

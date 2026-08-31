@@ -1,0 +1,45 @@
+name: CI
+
+# PR과 main 푸시에서 타입·테스트·린트를 강제한다.
+# 지금까지는 아무것도 강제되지 않아 깨진 코드도 머지될 수 있었다.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# 같은 브랜치에 연달아 푸시하면 앞선 실행을 취소한다 — 마지막 커밋 결과만 의미가 있다.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # package.json의 packageManager를 읽어 로컬과 같은 pnpm 버전을 쓴다.
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      # lockfile과 어긋나면 실패시킨다 — CI가 로컬과 다른 트리를 검사하지 않도록.
+      - run: pnpm install --frozen-lockfile
+
+      - name: 타입 검사
+        run: pnpm exec tsc --noEmit
+
+      - name: 테스트
+        run: pnpm exec vitest run
+
+      # eslint는 경고로는 실패하지 않는다(현재 array-type 경고 7건이 남아 있다).
+      # 에러가 하나라도 생기면 여기서 막힌다.
+      - name: 린트
+        run: pnpm lint
+
+# expo-doctor는 일부러 넣지 않았다. Expo가 패치를 낼 때마다 "버전이 뒤졌다"로
+# 실패해서, 우리 코드가 멀쩡한데도 CI가 빨개진다. 의존성 점검은 사람이 주기적으로
+# `pnpm dlx expo-doctor`를 돌리는 편이 낫다.

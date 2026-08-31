@@ -118,7 +118,7 @@ export function SegmentedControl<K extends string>({
  * 시점에 확정되므로 애니메이션하지 않는다.
  */
 function Indicator({ left, width }: { left: number; width: number }) {
-  const x = useRef(new Animated.Value(left)).current
+  const x = useState(() => new Animated.Value(left))[0]
   const first = useRef(true)
 
   useEffect(() => {

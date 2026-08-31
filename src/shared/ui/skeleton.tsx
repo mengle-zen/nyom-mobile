@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import { Animated, View, type ViewStyle } from 'react-native'
 
 /**
@@ -9,7 +9,7 @@ import { Animated, View, type ViewStyle } from 'react-native'
  * 밝기만 오가는 펄스라 네이티브 드라이버로 돌 수 있어 비용이 거의 없다.
  */
 export function Skeleton({ style }: { style?: ViewStyle | ViewStyle[] }) {
-  const opacity = useRef(new Animated.Value(0.45)).current
+  const opacity = useState(() => new Animated.Value(0.45))[0]
 
   useEffect(() => {
     const loop = Animated.loop(
