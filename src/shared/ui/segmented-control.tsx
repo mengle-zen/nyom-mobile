@@ -9,6 +9,7 @@ import {
 import Feather from '@expo/vector-icons/Feather'
 
 import { PressableScale } from './press'
+import { CONTROL_SHADOW } from './shadow'
 
 export type Segment<K extends string> = {
   key: K
@@ -46,7 +47,6 @@ const PAD = 4
  * 보드의 끼니 칩(`widgets/slot-chips`)이 같은 방식이라, 그룹·프로필의 탭도
  * 여기에 맞춰 앱 전체에서 세그먼트가 같은 움직임을 갖는다.
  */
-import { CONTROL_SHADOW } from './shadow'
 export function SegmentedControl<K extends string>({
   segments,
   value,

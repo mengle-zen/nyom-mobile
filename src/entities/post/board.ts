@@ -2,7 +2,7 @@ import { hhmmFromDate } from './date-range'
 
 export type MealSlotKey = 'breakfast' | 'lunch' | 'dinner' | 'late_snack'
 
-export const MEAL_SLOTS: ReadonlyArray<{ key: MealSlotKey; label: string }> = [
+export const MEAL_SLOTS: readonly { key: MealSlotKey; label: string }[] = [
   { key: 'breakfast', label: '아침' },
   { key: 'lunch', label: '점심' },
   { key: 'dinner', label: '저녁' },
