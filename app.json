@@ -53,7 +53,8 @@
           "cameraPermission": "끼니 사진을 찍기 위해 카메라를 사용합니다."
         }
       ],
-      "expo-notifications"
+      "expo-notifications",
+      "expo-font"
     ],
     "experiments": {
       "typedRoutes": true,
