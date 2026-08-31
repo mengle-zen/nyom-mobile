@@ -88,7 +88,7 @@ export function BoardHeader({
               {dateLabelText}
             </Text>
             {dateCaption ? (
-              <Text className="text-center text-[10px] font-semibold text-white/45">
+              <Text className="text-center text-xs font-semibold text-white/60">
                 {dateCaption}
               </Text>
             ) : null}

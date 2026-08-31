@@ -356,7 +356,7 @@ function MyPostsGrid({
                   <View className="absolute inset-x-0 bottom-0 bg-black/45 px-1 py-0.5">
                     <Text
                       numberOfLines={1}
-                      className="text-[10px] font-semibold text-white"
+                      className="text-[11px] font-semibold text-white"
                     >
                       {label}
                     </Text>

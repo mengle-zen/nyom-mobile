@@ -309,10 +309,10 @@ export function EmptyTile({ member, isMe, canUpload, onUpload }: EmptyProps) {
 
   return (
     <View className="flex-1 items-center justify-center gap-1 rounded-lg border-[1.5px] border-dashed border-white/15 bg-white/5">
-      <Text className="text-[11px] font-semibold text-white/40">
+      <Text className="text-sm font-semibold text-white/55">
         {isMe ? '나' : member.nickname}
       </Text>
-      <Text className="text-[10px] text-white/25">아직이에요</Text>
+      <Text className="text-xs text-white/40">아직이에요</Text>
     </View>
   )
 }
