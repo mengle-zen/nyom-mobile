@@ -3,6 +3,8 @@ import { Tabs, usePathname, useRouter, type Href } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import Feather from '@expo/vector-icons/Feather'
 
+import { FLOATING_SHADOW } from '@/shared/ui/shadow'
+
 /**
  * 앱 하단 탭바 (그룹 · 기록 · 프로필).
  *
@@ -104,11 +106,7 @@ function BottomNav() {
               alignItems: 'center',
               justifyContent: 'center',
               backgroundColor: '#FF7A2E',
-              shadowColor: '#5C2607',
-              shadowOffset: { width: 0, height: 4 },
-              shadowOpacity: 0.18,
-              shadowRadius: 10,
-              elevation: 4,
+              ...FLOATING_SHADOW,
             }}
           >
             <Feather name="camera" size={20} color="#FFFFFF" />

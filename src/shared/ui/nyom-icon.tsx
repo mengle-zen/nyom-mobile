@@ -8,6 +8,7 @@ import { View } from 'react-native'
  * 의존성을 늘리지 않았다. 대신 같은 모티브(밥그릇 ㅁ + 숟가락 ㄴ + 김 ㅛ)를
  * View 몇 개로 재현한다. 좌표는 원본 SVG의 512×512 viewBox 비율을 그대로 옮긴 것.
  */
+import { HERO_SHADOW } from './shadow'
 export function NyomIcon({
   size = 48,
   shadow = false,
@@ -34,13 +35,7 @@ export function NyomIcon({
           backgroundColor: bg,
           overflow: 'hidden',
         },
-        shadow && {
-          shadowColor: '#5C2607',
-          shadowOffset: { width: 0, height: 12 },
-          shadowOpacity: 0.2,
-          shadowRadius: 18,
-          elevation: 8,
-        },
+        shadow && HERO_SHADOW,
       ]}
     >
       {/* ── ㄴ (숟가락) : 세로 획 + 가로 획 ─────────────── */}

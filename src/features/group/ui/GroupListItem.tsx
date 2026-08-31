@@ -6,6 +6,7 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons'
 import { isOptimisticGroup, type Group, type GroupStats } from '@/entities/group'
 import { boardHref } from '@/shared/lib/board-href'
 import { haptic, PressableScale } from '@/shared/ui/press'
+import { GroupCard } from './GroupCard'
 import { Skeleton } from '@/shared/ui/skeleton'
 import { groupMeta, groupMetaLabel } from '../lib/group-meta'
 
@@ -27,14 +28,6 @@ import { groupMeta, groupMetaLabel } from '../lib/group-meta'
  * 진한 갈색을 아주 옅게(0.05) 깔아 배경과 같은 색 온도로 띄운다.
  * 테두리는 두지 않는다 — 그림자와 테두리를 같이 쓰면 경계가 두 겹으로 보인다.
  */
-const CARD_SHADOW = {
-  shadowColor: '#5C2607',
-  shadowOffset: { width: 0, height: 2 },
-  shadowOpacity: 0.05,
-  shadowRadius: 8,
-  elevation: 1,
-} as const
-
 export function GroupListItem({
   group,
   isOwner,
@@ -51,10 +44,9 @@ export function GroupListItem({
   // 낙관적 자리표시 — 아직 서버에 없어 보드·초대코드·설정이 모두 무의미하다.
   if (isOptimisticGroup(group)) {
     return (
-      <View
+      <GroupCard
         accessibilityLabel={`${group.name} 준비 중`}
-        className="flex-row items-center gap-3 rounded-xl bg-card px-4 py-3.5"
-        style={CARD_SHADOW}
+        className="gap-3 px-4 py-3.5"
       >
         <View className="flex-1">
           <Text numberOfLines={1} className="font-bold text-muted-foreground">
@@ -64,7 +56,7 @@ export function GroupListItem({
             <Skeleton style={{ width: '55%', height: 12, borderRadius: 6 }} />
           </View>
         </View>
-      </View>
+      </GroupCard>
     )
   }
 
@@ -74,10 +66,7 @@ export function GroupListItem({
     .join(', ')
 
   return (
-    <View
-      className="flex-row items-center rounded-xl bg-card"
-      style={CARD_SHADOW}
-    >
+    <GroupCard>
       <PressableScale
         accessibilityRole="button"
         accessibilityLabel={`${a11y} 보드 열기`}
@@ -154,6 +143,6 @@ export function GroupListItem({
           <Feather name="more-vertical" size={18} color="#A89A82" />
         </View>
       </PressableScale>
-    </View>
+    </GroupCard>
   )
 }

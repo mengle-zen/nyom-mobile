@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { hasTestLogin, useAuth } from '@/features/auth'
 import { notifyError } from '@/shared/lib/error'
+import { CONTROL_SHADOW } from '@/shared/ui/shadow'
 import { NyomIcon } from '@/shared/ui/nyom-icon'
 
 /**
@@ -85,10 +86,7 @@ export default function LoginScreen() {
             gap: 8,
             backgroundColor: '#FEE500',
             opacity: isPending ? 0.7 : 1,
-            shadowColor: '#5C2607',
-            shadowOffset: { width: 0, height: 1 },
-            shadowOpacity: 0.08,
-            shadowRadius: 3,
+            ...CONTROL_SHADOW,
           }}
         >
           {isPending && <ActivityIndicator size="small" color="#1A140D" />}
