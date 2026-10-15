@@ -97,18 +97,22 @@ export function IconButton({
   accessibilityLabel,
   color = '#736756',
   bg = '#F5EFE6',
+  disabled = false,
 }: {
   icon: keyof typeof Feather.glyphMap
   onPress: () => void
   accessibilityLabel: string
   color?: string
   bg?: string
+  disabled?: boolean
 }) {
   return (
     <TouchableOpacity
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
+      accessibilityState={{ disabled }}
       onPress={onPress}
+      disabled={disabled}
       hitSlop={6}
       activeOpacity={0.7}
       style={{
@@ -118,6 +122,7 @@ export function IconButton({
         backgroundColor: bg,
         alignItems: 'center',
         justifyContent: 'center',
+        opacity: disabled ? 0.4 : 1,
       }}
     >
       <Feather name={icon} size={16} color={color} />

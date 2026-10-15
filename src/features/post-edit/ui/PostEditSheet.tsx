@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   ActivityIndicator,
   Alert,
@@ -58,12 +58,31 @@ export function PostEditSheet({
   post: EditablePost | null
   onClose: () => void
 }) {
+  /** 폼에 저장 안 한 변경이 있는지. 폼이 알려 준다(헤더 X는 폼 바깥에 있다). */
+  const dirty = useRef(false)
+  const setDirty = useCallback((next: boolean) => {
+    dirty.current = next
+  }, [])
+
+  // 닫기 경로(X · 취소 · Android 뒤로)는 모두 여기로 — 고친 내용을 말없이 버리지 않는다.
+  // 저장·삭제 성공 뒤의 닫기는 확인이 필요 없으므로 onClose를 직접 쓴다.
+  const requestClose = () => {
+    if (!dirty.current) {
+      onClose()
+      return
+    }
+    Alert.alert('수정을 그만둘까요?', '바꾼 내용은 저장되지 않아요.', [
+      { text: '계속 수정', style: 'cancel' },
+      { text: '그만두기', style: 'destructive', onPress: onClose },
+    ])
+  }
+
   return (
     <Modal
       visible={post !== null}
       animationType="slide"
       presentationStyle="pageSheet"
-      onRequestClose={onClose}
+      onRequestClose={requestClose}
     >
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -74,7 +93,8 @@ export function PostEditSheet({
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="닫기"
-            onPress={onClose}
+            onPress={requestClose}
+            hitSlop={8}
             className="ml-auto size-9 items-center justify-center rounded-full active:opacity-60"
           >
             <Ionicons name="close" size={20} color="#3A3329" />
@@ -82,7 +102,14 @@ export function PostEditSheet({
         </View>
 
         {/* 열릴 때만 마운트 → 매번 서버 상태로 초기화 (effect 불필요) */}
-        {post && <PostEditLoader post={post} onClose={onClose} />}
+        {post && (
+          <PostEditLoader
+            post={post}
+            onClose={onClose}
+            onCancel={requestClose}
+            onDirtyChange={setDirty}
+          />
+        )}
       </KeyboardAvoidingView>
     </Modal>
   )
@@ -92,9 +119,13 @@ export function PostEditSheet({
 function PostEditLoader({
   post,
   onClose,
+  onCancel,
+  onDirtyChange,
 }: {
   post: EditablePost
   onClose: () => void
+  onCancel: () => void
+  onDirtyChange: (dirty: boolean) => void
 }) {
   const { user } = useAuth()
   const batchQuery = usePostBatch(user?.id, post)
@@ -135,6 +166,8 @@ function PostEditLoader({
       batch={batchQuery.data}
       groups={groupsQuery.data ?? []}
       onClose={onClose}
+      onCancel={onCancel}
+      onDirtyChange={onDirtyChange}
     />
   )
 }
@@ -143,10 +176,16 @@ function PostEditForm({
   batch,
   groups,
   onClose,
+  onCancel,
+  onDirtyChange,
 }: {
   batch: PostBatch
   groups: Group[]
+  /** 저장·삭제가 끝난 뒤 확인 없이 닫는다. */
   onClose: () => void
+  /** 사용자가 그만두려 할 때. 변경이 있으면 시트가 한 번 더 묻는다. */
+  onCancel: () => void
+  onDirtyChange: (dirty: boolean) => void
 }) {
   const { user } = useAuth()
   const userId = user?.id
@@ -189,6 +228,12 @@ function PostEditForm({
     draft,
   )
   const isDeleting = nextGroupIds.length === 0
+
+  useEffect(() => {
+    onDirtyChange(changed)
+  }, [changed, onDirtyChange])
+  // 폼이 내려가면(닫힘·다른 기록) 이전 변경 여부가 남지 않게
+  useEffect(() => () => onDirtyChange(false), [onDirtyChange])
 
   const toggleGroup = (id: string) =>
     setSelected((prev) => {
@@ -357,7 +402,7 @@ function PostEditForm({
           accessibilityRole="button"
           onPress={askDelete}
           disabled={busy}
-          className={`flex-row items-center gap-1.5 self-start active:opacity-60 ${
+          className={`min-h-11 flex-row items-center gap-1.5 self-start active:opacity-60 ${
             busy ? 'opacity-50' : ''
           }`}
         >
@@ -369,7 +414,7 @@ function PostEditForm({
       <View className="flex-row gap-2 border-t border-border p-4">
         <Pressable
           accessibilityRole="button"
-          onPress={onClose}
+          onPress={onCancel}
           disabled={busy}
           className={`flex-1 items-center rounded-xl border border-border py-3 active:opacity-70 ${
             busy ? 'opacity-50' : ''

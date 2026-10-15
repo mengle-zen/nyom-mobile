@@ -1,10 +1,13 @@
 import { useCallback, useState } from 'react'
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   RefreshControl,
   ScrollView,
+  StyleSheet,
   Text,
   TextInput,
   View,
@@ -404,16 +407,19 @@ function PostDetailModal({
       animationType="fade"
       onRequestClose={onClose}
     >
-      <Pressable
-        accessibilityLabel="닫기"
-        onPress={onClose}
-        className="flex-1 items-center justify-center bg-black/60 px-6"
-      >
+      <View className="flex-1 items-center justify-center bg-black/60 px-6">
+        {/*
+          배경 탭으로 닫기. 카드를 감싸지 않고 형제로 깐다 — 감싸면 스크린 리더가
+          카드 전체를 "닫기" 하나로 읽어 안의 「기록 편집」에 닿지 못한다.
+          스크린 리더 사용자는 카드의 닫기 버튼을 쓴다.
+        */}
         <Pressable
-          // 카드 내부 탭이 배경(닫기)으로 새지 않게 흡수한다
-          onPress={() => {}}
-          className="w-full overflow-hidden rounded-2xl bg-card"
-        >
+          accessible={false}
+          importantForAccessibility="no"
+          onPress={onClose}
+          style={StyleSheet.absoluteFill}
+        />
+        <View className="w-full overflow-hidden rounded-2xl bg-card">
           <View className="aspect-square w-full bg-muted">
             {post?.signedImageUrl && (
               <Image
@@ -423,6 +429,15 @@ function PostDetailModal({
                 accessibilityLabel={post.caption ?? '기록 사진'}
               />
             )}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="닫기"
+              onPress={onClose}
+              hitSlop={6}
+              className="absolute right-3 top-3 size-8 items-center justify-center rounded-full bg-black/45 active:opacity-70"
+            >
+              <Ionicons name="close" size={18} color="#fff" />
+            </Pressable>
           </View>
 
           <View className="flex-row items-center gap-2 px-4 py-2.5">
@@ -431,7 +446,7 @@ function PostDetailModal({
               accessibilityRole="button"
               accessibilityLabel="기록 편집"
               onPress={() => post && onEdit(post)}
-              className="ml-auto flex-row items-center gap-1.5 rounded-lg px-2 py-1 active:opacity-60"
+              className="ml-auto min-h-11 flex-row items-center gap-1.5 rounded-lg px-2 active:opacity-60"
             >
               <Ionicons name="options-outline" size={16} color="#736756" />
               <Text className="text-xs font-medium text-muted-foreground">
@@ -443,8 +458,8 @@ function PostDetailModal({
           {!!post?.caption && (
             <Text className="px-4 pb-3 text-sm text-foreground">{post.caption}</Text>
           )}
-        </Pressable>
-      </Pressable>
+        </View>
+      </View>
     </Modal>
   )
 }
@@ -466,7 +481,11 @@ function EditProfileModal({
 }) {
   return (
     <Modal visible={open} transparent animationType="fade" onRequestClose={onClose}>
-      <View className="flex-1 items-center justify-center bg-black/60 px-6">
+      {/* 가운데 카드라 키보드가 올라오면 저장 버튼이 가려진다(작은 화면) — 위로 밀어 올린다. */}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        className="flex-1 items-center justify-center bg-black/60 px-6"
+      >
         <View className="w-full gap-4 rounded-2xl bg-card p-5">
           <View className="gap-1">
             <Text className="text-base font-semibold text-foreground">프로필 수정</Text>
@@ -485,7 +504,7 @@ function EditProfileModal({
             />
           )}
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   )
 }

@@ -36,6 +36,24 @@ export function GroupSettingsSheet({
   const [isPublic, setIsPublic] = useState(group.is_public)
   const [busy, setBusy] = useState(false)
   const [nameError, setNameError] = useState<string | null>(null)
+  /**
+   * 처리 중인 요청·멤버 id. 결과가 돌아와 목록이 갱신될 때까지 그 행의 버튼을 잠근다 —
+   * 안 그러면 두 번 누른 만큼 RPC가 두 번 나간다.
+   */
+  const [pending, setPending] = useState<ReadonlySet<string>>(() => new Set())
+  const track = async (id: string, run: () => Promise<void>) => {
+    if (pending.has(id)) return
+    setPending((prev) => new Set(prev).add(id))
+    try {
+      await run()
+    } finally {
+      setPending((prev) => {
+        const next = new Set(prev)
+        next.delete(id)
+        return next
+      })
+    }
+  }
 
   const qc = useQueryClient()
   const { data: requests = [] } = useJoinRequests(group.id)
@@ -67,34 +85,44 @@ export function GroupSettingsSheet({
     }
   }
 
-  const handleApprove = async (requestId: string) => {
-    try {
-      await approveRequest(requestId)
-      await Promise.all([invalidateRequests(), invalidateMembers()])
-      await onReload()
-    } catch (e) {
-      notifyError(e, '요청을 수락하지 못했어요')
-    }
-  }
+  const handleApprove = (requestId: string) =>
+    track(requestId, async () => {
+      try {
+        await approveRequest(requestId)
+        await Promise.all([invalidateRequests(), invalidateMembers()])
+        await onReload()
+      } catch (e) {
+        notifyError(e, '요청을 수락하지 못했어요')
+      }
+    })
 
-  const handleReject = async (requestId: string) => {
-    try {
-      await rejectRequest(requestId)
-      await invalidateRequests()
-    } catch (e) {
-      notifyError(e, '요청을 거절하지 못했어요')
-    }
-  }
+  const handleReject = (requestId: string) =>
+    track(requestId, async () => {
+      try {
+        await rejectRequest(requestId)
+        await invalidateRequests()
+      } catch (e) {
+        notifyError(e, '요청을 거절하지 못했어요')
+      }
+    })
 
-  const handleKick = async (userId: string) => {
-    try {
-      await kickMember(group.id, userId)
-      await invalidateMembers()
-      await onReload()
-    } catch (e) {
-      notifyError(e, '멤버를 내보내지 못했어요')
-    }
-  }
+  const handleKick = (userId: string) =>
+    track(userId, async () => {
+      try {
+        await kickMember(group.id, userId)
+        await invalidateMembers()
+        await onReload()
+      } catch (e) {
+        notifyError(e, '멤버를 내보내지 못했어요')
+      }
+    })
+
+  // 다른 사람에게 바로 영향을 주는 동작이라 한 탭으로 끝내지 않는다.
+  const confirmKick = (userId: string, nickname: string) =>
+    Alert.alert(`${nickname}님을 내보낼까요?`, undefined, [
+      { text: '취소', style: 'cancel' },
+      { text: '내보내기', style: 'destructive', onPress: () => void handleKick(userId) },
+    ])
 
   const handleLeave = async () => {
     // 되돌릴 수 없는 동작 — 확인을 누른 순간에만 경고 햅틱을 준다.
@@ -215,6 +243,7 @@ export function GroupSettingsSheet({
                         accessibilityLabel={`${req.requester.nickname} 수락`}
                         color="#FF7A2E"
                         bg="#FFF4EC"
+                        disabled={pending.has(req.id)}
                         onPress={() => void handleApprove(req.id)}
                       />
                       <IconButton
@@ -222,6 +251,7 @@ export function GroupSettingsSheet({
                         accessibilityLabel={`${req.requester.nickname} 거절`}
                         color="#E5484D"
                         bg="#FDECEC"
+                        disabled={pending.has(req.id)}
                         onPress={() => void handleReject(req.id)}
                       />
                     </View>
@@ -261,7 +291,8 @@ export function GroupSettingsSheet({
                         icon="log-out"
                         accessibilityLabel={`${m.nickname} 강퇴`}
                         bg="transparent"
-                        onPress={() => void handleKick(m.user_id)}
+                        disabled={pending.has(m.user_id)}
+                        onPress={() => confirmKick(m.user_id, m.nickname)}
                       />
                     )}
                   </View>

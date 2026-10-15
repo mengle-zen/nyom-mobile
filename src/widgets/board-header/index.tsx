@@ -70,6 +70,8 @@ export function BoardHeader({
             accessibilityLabel="이전 날짜"
             accessibilityState={{ disabled: !canGoOlder }}
             style={{ opacity: canGoOlder ? 1 : 0.25 }}
+            // 28pt 버튼을 44pt 과녁으로. 날짜 알약 쪽(오른쪽)으로는 넓히지 않는다.
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 0 }}
             className="size-7 items-center justify-center rounded-full"
           >
             <Ionicons name="chevron-back" size={18} color="#fff" />
@@ -102,6 +104,7 @@ export function BoardHeader({
             accessibilityLabel="다음 날짜"
             accessibilityState={{ disabled: !canGoNewer }}
             style={{ opacity: canGoNewer ? 1 : 0.25 }}
+            hitSlop={{ top: 8, bottom: 8, left: 0, right: 8 }}
             className="size-7 items-center justify-center rounded-full"
           >
             <Ionicons name="chevron-forward" size={18} color="#fff" />
@@ -114,6 +117,7 @@ export function BoardHeader({
         hapticKind={null}
         accessibilityRole="button"
         accessibilityLabel="내 프로필"
+        hitSlop={4}
         className="size-9 items-center justify-center overflow-hidden rounded-full bg-primary"
       >
         {avatarUrl ? (
