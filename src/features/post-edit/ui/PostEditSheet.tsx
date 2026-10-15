@@ -272,11 +272,13 @@ function PostEditForm({
       },
       {
         onSuccess: () => {
+          void haptic('success')
           toast.success('기록을 수정했어요')
           onClose()
         },
         onError: (err) => {
           console.error(err)
+          void haptic('error')
           toast.error(postEditErrorMessage(err))
         },
       },
@@ -289,20 +291,22 @@ function PostEditForm({
       { postId: batch.postId, affectedGroupIds: batch.groupIds },
       {
         onSuccess: () => {
+          void haptic('medium')
           toast.success('기록을 삭제했어요')
           onClose()
         },
         onError: (err) => {
           console.error(err)
+          void haptic('error')
           toast.error(postEditErrorMessage(err))
         },
       },
     )
   }
 
-  // 되돌릴 수 없는 삭제를 묻는 순간 — 손끝에서도 "잠깐" 하고 걸리게 한다.
+  // 묻는 순간에는 햅틱을 주지 않는다 — 아직 아무것도 바뀌지 않았다.
+  // 실제로 지워진 순간(handleDelete 성공)에 무게감 있는 햅틱을 준다.
   const askDelete = () => {
-    void haptic('warning')
     Alert.alert(
       '기록을 삭제할까요?',
       '사진과 반응까지 함께 사라져요. 이 작업은 되돌릴 수 없어요.',
@@ -372,7 +376,10 @@ function PostEditForm({
                     accessibilityState={{ checked, disabled: busy }}
                     accessibilityLabel={`${group.name} 그룹에 공유`}
                     disabled={busy}
-                    onPress={() => toggleGroup(group.id)}
+                    onPress={() => {
+                      void haptic('select')
+                      toggleGroup(group.id)
+                    }}
                     className="flex-row items-center gap-2.5 rounded-lg px-2.5 py-2.5 active:opacity-70"
                   >
                     <View

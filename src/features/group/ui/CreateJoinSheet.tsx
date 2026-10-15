@@ -56,6 +56,7 @@ export function CreateJoinSheet({
       },
       onError: (e) => {
         const key = (e as Error).message as JoinGroupError
+        void haptic('error')
         setJoinError(JOIN_ERROR_MSG[key] ?? JOIN_ERROR_MSG.UNKNOWN)
       },
     })

@@ -12,6 +12,7 @@ import { Toaster } from 'sonner-native'
 import { queryClient } from '@/shared/api/query-client'
 import { AuthProvider, useAuth } from '@/features/auth'
 import { NotificationDeepLinks } from '@/features/notifications'
+import { useReducedMotion } from '@/shared/ui/motion'
 
 export default function RootLayout() {
   return (
@@ -42,6 +43,7 @@ export default function RootLayout() {
  */
 function AuthGate() {
   const { session, loading } = useAuth()
+  const reduceMotion = useReducedMotion()
   const segments = useSegments()
   const router = useRouter()
 
@@ -71,12 +73,10 @@ function AuthGate() {
       screenOptions={{
         headerShown: false,
         contentStyle: { backgroundColor: '#FFFCF8' },
-        // 기본 push 전환은 기기·플랫폼에 따라 갈린다. 명시해서 어디서나 같은
-        // 감각을 갖게 한다 — 새 화면이 오른쪽에서 밀려 들어오고, 아래 화면은
-        // 살짝 뒤로 물러난다. 300ms는 "따라왔다"가 느껴지면서도 기다림이
-        // 생기지 않는 구간이다.
-        animation: 'slide_from_right',
-        animationDuration: 300,
+        // 화면 전환은 플랫폼 기본을 그대로 쓴다. 사용자는 OS 전체에서 이미 그 속도와
+        // 곡선(뒤로 스와이프와 맞물리는 것까지)에 익숙하다 — JS에서 길이를 바꾸면
+        // 이 앱만 미묘하게 어긋난다. 동작 줄이기를 켰으면 미는 대신 페이드.
+        animation: reduceMotion ? 'fade' : 'default',
       }}
     >
       <Stack.Screen name="index" />
@@ -92,20 +92,18 @@ function AuthGate() {
 
         여기서 뒤로 갈 곳도 없다 — 스택 아래는 index(리다이렉트 전용)뿐이다.
       */}
-      <Stack.Screen name="(app)" options={{ gestureEnabled: false }} />
+      {/*
+        (app)에는 로그인·온보딩에서 replace로만 들어온다. 위계가 생기는 게 아니므로
+        옆에서 밀려오는 push가 아니라 페이드로 바꿔 끼운다.
+      */}
+      <Stack.Screen name="(app)" options={{ gestureEnabled: false, animation: 'fade' }} />
       <Stack.Screen name="auth/callback" />
       {/*
         업로드는 흐름을 잠깐 덮는 전체화면 모달이다. 옆에서 밀려오는 push가
-        아니라 아래에서 올라와야 "잠시 들렀다 돌아간다"로 읽힌다.
+        아니라 아래에서 올라와야 "잠시 들렀다 돌아간다"로 읽힌다 — 네이티브 모달
+        표현이 그 전환을 그대로 해 준다.
       */}
-      <Stack.Screen
-        name="upload"
-        options={{
-          presentation: 'fullScreenModal',
-          animation: 'slide_from_bottom',
-          animationDuration: 280,
-        }}
-      />
+      <Stack.Screen name="upload" options={{ presentation: 'fullScreenModal' }} />
     </Stack>
   )
 }

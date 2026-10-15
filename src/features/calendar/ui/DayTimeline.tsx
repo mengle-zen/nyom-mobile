@@ -48,7 +48,8 @@ export function DayTimeline({ dayKey, isToday, posts, loading, onSelect }: Props
             key={post.id}
             accessibilityRole="button"
             accessibilityLabel={`${post.meal_slot ? slotLabel(post.meal_slot) : '기록'} ${hhmmFromDate(new Date(post.recorded_at))} 보기`}
-            hapticKind="light"
+            // 상세를 여는 건 보기일 뿐 — 보드 타일과 같이 햅틱 없음.
+            hapticKind={null}
             onPress={() => onSelect(post)}
             className="flex-row items-center gap-3 rounded-xl bg-card p-2"
           >

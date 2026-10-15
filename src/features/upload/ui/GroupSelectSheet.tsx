@@ -10,6 +10,7 @@ import { Image } from 'expo-image'
 import { Ionicons } from '@expo/vector-icons'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useGroupMembers, type Group } from '@/entities/group'
+import { haptic } from '@/shared/ui/press'
 
 /** 그룹 한 줄 — 체크 + 이름 + 멤버 아바타 스택 */
 function GroupRow({
@@ -32,7 +33,10 @@ function GroupRow({
       accessibilityRole="checkbox"
       accessibilityState={{ checked, disabled }}
       accessibilityLabel={`${group.name} 그룹에 올리기`}
-      onPress={onToggle}
+      onPress={() => {
+        void haptic('select')
+        onToggle()
+      }}
       disabled={disabled}
       className={`mb-2 flex-row items-center gap-3 rounded-2xl px-3 py-3 active:opacity-80 ${
         checked ? 'bg-white/15' : 'bg-white/5'

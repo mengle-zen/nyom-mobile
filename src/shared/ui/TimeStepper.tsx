@@ -1,5 +1,6 @@
 import { Pressable, Text, View } from 'react-native'
 import { canStep, stepTime, MINUTE_STEP } from '@/shared/lib/time-step'
+import { haptic } from '@/shared/ui/press'
 
 type Variant = 'onDark' | 'onLight'
 
@@ -114,7 +115,11 @@ function StepButton({
       accessibilityLabel={text.replace('−', '').replace('+', '') + (text.startsWith('−') ? ' 이전' : ' 이후')}
       accessibilityState={{ disabled }}
       disabled={disabled}
-      onPress={onPress}
+      onPress={() => {
+        // 값이 한 칸 넘어가는 순간. 끝에 닿아 비활성이면 눌리지 않으므로 울리지 않는다.
+        void haptic('select')
+        onPress()
+      }}
       // iOS 권장 최소 터치 타깃 44pt.
       className={`h-11 flex-1 items-center justify-center rounded-xl ${tone.button} ${
         disabled ? 'opacity-30' : ''

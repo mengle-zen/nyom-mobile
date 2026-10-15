@@ -131,7 +131,8 @@ export function GroupListItem({
         accessibilityRole="button"
         accessibilityLabel={`${group.name} 더보기`}
         accessibilityHint="초대코드 복사, 그룹 설정"
-        hapticKind="light"
+        // 시트를 여는 건 아무것도 바꾸지 않는다 — 햅틱 없음.
+        hapticKind={null}
         onPress={() => onOpenActions(group.id)}
       >
         {/*

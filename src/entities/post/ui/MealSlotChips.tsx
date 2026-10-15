@@ -1,5 +1,6 @@
 import { Pressable, Text, View } from 'react-native'
 import { MEAL_SLOTS, type MealSlotKey } from '@/entities/post'
+import { haptic } from '@/shared/ui/press'
 
 type Variant = 'onDark' | 'onLight'
 
@@ -30,7 +31,11 @@ export function MealSlotChips({
             accessibilityState={{ selected: active, disabled }}
             accessibilityLabel={`끼니 ${slot.label}`}
             disabled={disabled}
-            onPress={() => onChange(slot.key)}
+            onPress={() => {
+              if (active) return
+              void haptic('select')
+              onChange(slot.key)
+            }}
             className={`flex-1 items-center rounded-full py-2 active:opacity-70 ${
               active
                 ? 'bg-primary'

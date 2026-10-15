@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { queryKeys } from '@/shared/api/query-keys'
+import { notifyError } from '@/shared/lib/error'
 import { toggleReaction, nextReactions } from '@/entities/reaction'
 import {
   fetchBoardPosts, fetchGroupRecordedDays,
@@ -147,8 +148,10 @@ export function useToggleReaction(
       )
       return { prev }
     },
-    onError: (_err, _vars, ctx) => {
+    onError: (err, _vars, ctx) => {
       if (ctx?.prev) qc.setQueryData(key, ctx.prev)
+      // 낙관적으로 바뀐 칩이 말없이 되돌아가면 "눌렀는데 왜 없어졌지?"가 남는다.
+      notifyError(err, '리액션을 남기지 못했어요')
     },
   })
 

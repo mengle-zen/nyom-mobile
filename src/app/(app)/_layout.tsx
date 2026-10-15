@@ -49,14 +49,10 @@ export default function AppLayout() {
       screenOptions={{
         headerShown: false,
         sceneStyle: { backgroundColor: '#FFFCF8' },
-        // 탭 전환도 기본은 무전환이라 화면이 툭 바뀐다. 짧은 페이드를 줘서
-        // "같은 앱 안에서 자리를 옮겼다"로 읽히게 한다. 탭은 옆으로 미는
-        // 위계가 아니므로 슬라이드가 아니라 페이드가 맞다.
-        animation: 'fade',
-        transitionSpec: {
-          animation: 'timing',
-          config: { duration: 180 },
-        },
+        // 탭 전환은 애니메이션하지 않는다. 하루에 수십 번 오가는 동작이라
+        // 180ms 페이드도 매번 기다림으로 쌓인다(iOS 기본 탭바도 즉시 바뀐다).
+        // 탭은 서로 위계가 없으니 슬라이드는 더더욱 아니다.
+        animation: 'none',
       }}
     >
       <Tabs.Screen name="groups" options={{ title: '그룹' }} />

@@ -12,7 +12,6 @@ import {
   View,
 } from 'react-native'
 import * as ImagePicker from 'expo-image-picker'
-import * as Haptics from 'expo-haptics'
 import { Ionicons } from '@expo/vector-icons'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -37,6 +36,7 @@ import { ShotEditor } from '@/features/upload/ui/ShotEditor'
 import { queryKeys } from '@/shared/api/query-keys'
 import { boardHref } from '@/shared/lib/board-href'
 import { notifyError } from '@/shared/lib/error'
+import { haptic } from '@/shared/ui/press'
 
 /**
  * 업로드 — 촬영/갤러리 → 맥락 입력 → 그룹 선택.
@@ -90,7 +90,7 @@ export default function UploadScreen() {
   const { data: groups = [], error: groupsError } = useMyGroups()
 
   useEffect(() => {
-    if (groupsError) notifyError(groupsError, '그룹을 불러오지 못했어요')
+    if (groupsError) notifyError(groupsError, '그룹을 불러오지 못했어요', { haptic: false })
   }, [groupsError])
 
   const toggleGroup = (id: string) =>
@@ -258,7 +258,7 @@ export default function UploadScreen() {
       })
       void queryClient.invalidateQueries({ queryKey: queryKeys.myPosts(user.id) })
 
-      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+      void haptic('success')
       toast.success('오늘의 한 끼를 올렸어요')
 
       // UX_FINDINGS E항 — 그룹 목록이 아니라 방금 올린 그룹의 보드로.

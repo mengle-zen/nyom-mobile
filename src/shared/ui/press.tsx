@@ -1,22 +1,32 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useRef } from 'react'
 import {
-  Animated,
   Pressable,
   type GestureResponderEvent,
   type PressableProps,
   type ViewStyle,
 } from 'react-native'
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated'
 import * as Haptics from 'expo-haptics'
 
 import { decideAxis } from '@/features/board-nav'
+import { DURATION_PRESS, EASE_OUT, useReducedMotion } from './motion'
 
 /** 눌렀을 때 줄어드는 정도. 값이 작을수록 반응이 커 보인다. */
 const PRESS_SCALE = 0.97
-/** 손을 대는 순간과 떼는 순간의 복원 속도(ms). 200 넘어가면 둔하게 느껴진다. */
-const IN_MS = 90
-const OUT_MS = 140
+/** 동작 줄이기를 켠 사람에게는 크기 대신 밝기로 눌림을 알린다. */
+const PRESS_OPACITY = 0.85
 
-export type HapticKind = 'light' | 'medium' | 'success' | 'warning' | 'select'
+export type HapticKind =
+  | 'light'
+  | 'medium'
+  | 'success'
+  | 'warning'
+  | 'error'
+  | 'select'
 
 /**
  * 햅틱은 "내가 뭔가를 바꿨다"는 순간에만 준다.
@@ -33,6 +43,8 @@ export async function haptic(kind: HapticKind = 'light') {
         return await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
       case 'warning':
         return await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning)
+      case 'error':
+        return await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
       default:
         return await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
     }
@@ -73,30 +85,48 @@ export function PressableScale({
   swipeSafe = false,
   onPress,
   onPressIn,
+  onPressOut,
+  pressRetentionOffset = 16,
   ...rest
 }: PressableScaleProps) {
-  const scale = useState(() => new Animated.Value(1))[0]
+  const reduced = useReducedMotion()
+  /** 0 = 놓임, 1 = 눌림. 스케일·밝기는 여기서 파생한다(UI 스레드). */
+  const pressed = useSharedValue(0)
   const from = useRef<{ x: number; y: number } | null>(null)
 
+  const pressStyle = useAnimatedStyle(() => {
+    const p = pressed.get()
+    return reduced
+      ? { opacity: 1 - (1 - PRESS_OPACITY) * p }
+      : { transform: [{ scale: 1 - (1 - PRESS_SCALE) * p }] }
+  })
+
   const animate = useCallback(
-    (to: number, duration: number) => {
-      Animated.timing(scale, { toValue: to, duration, useNativeDriver: true }).start()
+    (to: 0 | 1) => {
+      pressed.set(withTiming(to, { duration: DURATION_PRESS, easing: EASE_OUT }))
     },
-    [scale],
+    [pressed],
   )
 
   const handlePressIn = useCallback(
     (e: GestureResponderEvent) => {
       from.current = { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY }
-      animate(PRESS_SCALE, IN_MS)
+      animate(1)
       onPressIn?.(e)
     },
     [animate, onPressIn],
   )
 
+  const handlePressOut = useCallback(
+    (e: GestureResponderEvent) => {
+      animate(0)
+      onPressOut?.(e)
+    },
+    [animate, onPressOut],
+  )
+
   const handlePress = useCallback(
     (e: GestureResponderEvent) => {
-      animate(1, OUT_MS)
       if (swipeSafe && from.current) {
         const dx = e.nativeEvent.pageX - from.current.x
         const dy = e.nativeEvent.pageY - from.current.y
@@ -106,16 +136,18 @@ export function PressableScale({
       if (hapticKind) void haptic(hapticKind)
       onPress?.(e)
     },
-    [animate, hapticKind, onPress, swipeSafe],
+    [hapticKind, onPress, swipeSafe],
   )
 
   return (
-    <Animated.View style={[{ transform: [{ scale }] }, style]}>
+    <Animated.View style={[pressStyle, style]}>
       <Pressable
         {...rest}
+        // 손가락이 몇 px 흘러도 누르려던 의도를 취소하지 않는다.
+        pressRetentionOffset={pressRetentionOffset}
         onPressIn={handlePressIn}
         onPress={handlePress}
-        onPressOut={() => animate(1, OUT_MS)}
+        onPressOut={handlePressOut}
       />
     </Animated.View>
   )
