@@ -344,7 +344,8 @@ function MyPostsGrid({
               <PressableScale
                 accessibilityRole="button"
                 accessibilityLabel={label ? `${label} 기록 보기` : '기록 보기'}
-                hapticKind="light"
+                // 상세를 여는 건 보기일 뿐 — 햅틱 없음.
+                hapticKind={null}
                 onPress={() => onSelect(post)}
                 className="aspect-square overflow-hidden rounded-md bg-muted"
               >

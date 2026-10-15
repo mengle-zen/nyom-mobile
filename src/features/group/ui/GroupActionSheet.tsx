@@ -43,7 +43,8 @@ export function GroupActionSheet({
   }
 
   const handleLeave = async () => {
-    void haptic('warning')
+    // 확인을 누른 순간 — 되돌릴 수 없는 동작이 실제로 실행된다.
+    void haptic('medium')
     try {
       await leaveGroup(group.id)
       await qc.invalidateQueries({ queryKey: queryKeys.groups.all })

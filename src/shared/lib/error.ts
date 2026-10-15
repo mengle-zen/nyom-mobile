@@ -1,11 +1,20 @@
 import { toast } from 'sonner-native'
+import { haptic } from '@/shared/ui/press'
 
 /**
  * 에러를 사용자에게 toast로 알린다. `catch {}`로 삼키던 실패를 표준화하는 진입점.
  * 개발 편의를 위해 콘솔에도 원본 에러를 남긴다.
+ *
+ * 사용자가 누른 동작이 실패했다는 뜻이므로 실패 햅틱을 토스트와 같은 순간에 준다.
+ * 사용자가 일으키지 않은 실패(화면 진입 시 조회 등)는 `{ haptic: false }`.
  */
-export function notifyError(err: unknown, message: string): void {
+export function notifyError(
+  err: unknown,
+  message: string,
+  options: { haptic?: boolean } = {},
+): void {
   console.error(err)
+  if (options.haptic !== false) void haptic('error')
   toast.error(message)
 }
 

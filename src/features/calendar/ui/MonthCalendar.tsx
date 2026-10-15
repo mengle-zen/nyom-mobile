@@ -1,6 +1,13 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { Animated, Pressable, Text, View } from 'react-native'
+import { useEffect, useRef, type ReactNode } from 'react'
+import { Pressable, Text, View } from 'react-native'
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated'
 import { Ionicons } from '@expo/vector-icons'
+import { EASE_OUT } from '@/shared/ui/motion'
 import { PressableScale } from '@/shared/ui/press'
 import { buildMonthGrid, monthLabel } from '../lib/month'
 
@@ -189,7 +196,7 @@ function MonthFade({
   monthKey: string
   children: ReactNode
 }) {
-  const opacity = useState(() => new Animated.Value(1))[0]
+  const opacity = useSharedValue(1)
   const first = useRef(true)
 
   useEffect(() => {
@@ -197,13 +204,16 @@ function MonthFade({
       first.current = false
       return
     }
-    opacity.setValue(0.35)
-    Animated.timing(opacity, {
-      toValue: 1,
-      duration: 180,
-      useNativeDriver: true,
-    }).start()
+    // 밝기 변화라 동작 줄이기를 켜도 유지한다 — 위치는 움직이지 않는다.
+    opacity.set(
+      withSequence(
+        withTiming(0.35, { duration: 0 }),
+        withTiming(1, { duration: 180, easing: EASE_OUT }),
+      ),
+    )
   }, [monthKey, opacity])
 
-  return <Animated.View style={{ opacity }}>{children}</Animated.View>
+  const fade = useAnimatedStyle(() => ({ opacity: opacity.get() }))
+
+  return <Animated.View style={fade}>{children}</Animated.View>
 }

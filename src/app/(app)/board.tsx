@@ -2,6 +2,7 @@ import { useCallback, useMemo, useRef, useState } from 'react'
 import {
   ActivityIndicator,
   Animated,
+  Easing,
   Text,
   View,
   type LayoutChangeEvent,
@@ -42,6 +43,7 @@ import { SlotBoard, SlotBoardSkeleton } from '@/widgets/slot-board'
 import { DayPicker } from '@/widgets/day-picker'
 import { PostDetail } from '@/widgets/post-detail'
 import { ErrorState } from '@/shared/ui/error-state'
+import { EASE_OUT_BEZIER } from '@/shared/ui/motion'
 import { PressableScale, haptic } from '@/shared/ui/press'
 
 /** 최근 2주. 보드 화살표·스와이프·달력이 모두 이 범위를 공유한다. */
@@ -171,7 +173,8 @@ export default function BoardScreen() {
       }),
       Animated.timing(contentOpacity, {
         toValue: 1,
-        duration: 220,
+        duration: 200,
+        easing: Easing.bezier(...EASE_OUT_BEZIER),
         useNativeDriver: true,
       }),
     ]).start()

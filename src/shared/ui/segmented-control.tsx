@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useState } from 'react'
+import Animated, { useAnimatedStyle } from 'react-native-reanimated'
 import {
-  Animated,
   Text,
   View,
   type LayoutChangeEvent,
@@ -8,7 +8,8 @@ import {
 } from 'react-native'
 import Feather from '@expo/vector-icons/Feather'
 
-import { PressableScale } from './press'
+import { useSlideX } from './motion'
+import { haptic, PressableScale } from './press'
 import { CONTROL_SHADOW } from './shadow'
 
 export type Segment<K extends string> = {
@@ -81,9 +82,13 @@ export function SegmentedControl<K extends string>({
               accessibilityRole="tab"
               accessibilityLabel={seg.label}
               accessibilityState={{ selected: active }}
-              // 탭 전환은 화면 이동에 가깝다 — 햅틱을 붙이면 진동이 배경 소음이 된다.
+              // 값이 한 칸 넘어가는 선택 — 이미 선택된 칸을 다시 누르면 아무 일도 없다.
               hapticKind={null}
-              onPress={() => onChange(seg.key)}
+              onPress={() => {
+                if (active) return
+                void haptic('select')
+                onChange(seg.key)
+              }}
               style={{ flex: 1 }}
               // 활성 배경은 아래에서 미끄러져 온 인디케이터가 맡는다.
               className="flex-row items-center justify-center gap-1.5 py-2"
@@ -115,43 +120,29 @@ export function SegmentedControl<K extends string>({
 /**
  * 선택된 세그먼트 뒤에 깔리는 흰 알약.
  *
- * translateX만 움직이므로 네이티브 드라이버로 돈다. 폭은 레이아웃이 정해지는
- * 시점에 확정되므로 애니메이션하지 않는다.
+ * translateX만 UI 스레드에서 움직인다. 폭은 레이아웃이 정해지는 시점에 확정되므로
+ * 애니메이션하지 않는다.
  */
 function Indicator({ left, width }: { left: number; width: number }) {
-  const x = useState(() => new Animated.Value(left))[0]
-  const first = useRef(true)
-
-  useEffect(() => {
-    if (first.current) {
-      // 첫 렌더는 미끄러지지 않고 제자리에서 시작한다. 값이 이미 초기값으로
-      // 들어가 있으므로 아무것도 하지 않는다 — 네이티브 드라이버에 올라간
-      // 노드에 setValue를 섞지 않기 위해서다.
-      first.current = false
-      return
-    }
-    Animated.spring(x, {
-      toValue: left,
-      speed: 18,
-      bounciness: 6,
-      useNativeDriver: true,
-    }).start()
-  }, [left, x])
+  const x = useSlideX(left)
+  const slide = useAnimatedStyle(() => ({ transform: [{ translateX: x.get() }] }))
 
   return (
     <Animated.View
       pointerEvents="none"
-      style={{
-        position: 'absolute',
-        left: 0,
-        top: 0,
-        bottom: 0,
-        width,
-        borderRadius: 10,
-        backgroundColor: '#FFFFFF',
-        ...CONTROL_SHADOW,
-        transform: [{ translateX: x }],
-      }}
+      style={[
+        {
+          position: 'absolute',
+          left: 0,
+          top: 0,
+          bottom: 0,
+          width,
+          borderRadius: 10,
+          backgroundColor: '#FFFFFF',
+          ...CONTROL_SHADOW,
+        },
+        slide,
+      ]}
     />
   )
 }

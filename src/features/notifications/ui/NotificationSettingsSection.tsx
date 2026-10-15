@@ -3,6 +3,7 @@ import { ActivityIndicator, Pressable, Switch, Text, View } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { toast } from 'sonner-native'
 import { useAuth } from '@/features/auth'
+import { haptic } from '@/shared/ui/press'
 import { useNotificationSettings, useSaveNotificationSettings } from '../queries'
 import { NOTIFICATION_KIND_META, withKind } from '../lib/settings'
 import {
@@ -107,6 +108,7 @@ function DevicePushNotice({ userId }: { userId: string }) {
       const result = await registerForPushNotifications(userId)
       if (result === 'registered') {
         setStatus('granted')
+        void haptic('success')
         toast.success('이 기기에서 알림을 받아요')
         return
       }

@@ -14,7 +14,7 @@ import {
   MyGroupsTab,
 } from '@/features/group'
 import { queryKeys } from '@/shared/api/query-keys'
-import { haptic, PressableScale } from '@/shared/ui/press'
+import { PressableScale } from '@/shared/ui/press'
 import { ErrorState } from '@/shared/ui/error-state'
 import { SegmentedControl } from '@/shared/ui/segmented-control'
 
@@ -67,12 +67,6 @@ export default function GroupsScreen() {
     }
   }, [myGroupsQuery, publicQuery, statsQuery, tab])
 
-  const switchTab = (key: Tab) => {
-    if (key === tab) return
-    void haptic('select')
-    setTab(key)
-  }
-
   return (
     <View className="flex-1 bg-background">
       {/* 헤더 + 탭 */}
@@ -86,7 +80,8 @@ export default function GroupsScreen() {
             accessibilityRole="button"
             accessibilityLabel="그룹 추가"
             accessibilityHint="그룹을 만들거나 초대코드로 참여해요"
-            hapticKind="light"
+            // 시트를 여는 것은 무언가를 바꾼 게 아니다 — 햅틱 없이 눌림만.
+            hapticKind={null}
             onPress={() => setAddMode('create')}
             hitSlop={8}
             style={{
@@ -106,7 +101,7 @@ export default function GroupsScreen() {
           웹의 shadcn TabsList 대체 — 미끄러지는 인디케이터가 달린 세그먼트 컨트롤.
           보드의 끼니 칩과 같은 움직임을 쓰도록 공용 컴포넌트로 뺐다.
         */}
-        <SegmentedControl segments={TABS} value={tab} onChange={switchTab} />
+        <SegmentedControl segments={TABS} value={tab} onChange={setTab} />
       </View>
 
       <ScrollView

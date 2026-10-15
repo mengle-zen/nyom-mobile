@@ -76,9 +76,11 @@ export function GroupSettingsSheet({
         name: trimmed !== group.name ? trimmed : undefined,
         isPublic: isPublic !== group.is_public ? isPublic : undefined,
       })
+      void haptic('success')
       await onReload()
       onClose()
     } catch {
+      void haptic('error')
       setNameError('저장에 실패했어요')
     } finally {
       setBusy(false)
@@ -89,6 +91,7 @@ export function GroupSettingsSheet({
     track(requestId, async () => {
       try {
         await approveRequest(requestId)
+        void haptic('success')
         await Promise.all([invalidateRequests(), invalidateMembers()])
         await onReload()
       } catch (e) {
@@ -100,6 +103,7 @@ export function GroupSettingsSheet({
     track(requestId, async () => {
       try {
         await rejectRequest(requestId)
+        void haptic('light')
         await invalidateRequests()
       } catch (e) {
         notifyError(e, '요청을 거절하지 못했어요')
@@ -110,6 +114,7 @@ export function GroupSettingsSheet({
     track(userId, async () => {
       try {
         await kickMember(group.id, userId)
+        void haptic('medium')
         await invalidateMembers()
         await onReload()
       } catch (e) {
@@ -125,8 +130,8 @@ export function GroupSettingsSheet({
     ])
 
   const handleLeave = async () => {
-    // 되돌릴 수 없는 동작 — 확인을 누른 순간에만 경고 햅틱을 준다.
-    void haptic('warning')
+    // 되돌릴 수 없는 동작 — 확인을 누른 순간에만 무게감 있는 햅틱을 준다.
+    void haptic('medium')
     setBusy(true)
     try {
       await leaveGroup(group.id)

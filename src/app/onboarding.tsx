@@ -23,6 +23,7 @@ import {
   validateNickname,
 } from '@/features/profile'
 import { notifyError } from '@/shared/lib/error'
+import { haptic } from '@/shared/ui/press'
 
 /**
  * 온보딩 — 닉네임 + 프로필 사진.
@@ -102,6 +103,7 @@ export default function OnboardingScreen() {
           notifyError(e, '사진은 저장하지 못했어요. 프로필에서 다시 시도해 주세요.')
         }
       }
+      void haptic('success')
       toast.success('프로필 설정 완료!')
       await refetch()
       router.replace('/(app)/groups')

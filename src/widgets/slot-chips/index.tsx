@@ -1,6 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { Animated, Text, View, type LayoutChangeEvent } from 'react-native'
+import { useCallback, useState } from 'react'
+import { Text, View, type LayoutChangeEvent } from 'react-native'
+import Animated, { useAnimatedStyle } from 'react-native-reanimated'
 import type { SlotProgress } from '@/entities/post'
+import { useSlideX } from '@/shared/ui/motion'
 import { PressableScale } from '@/shared/ui/press'
 
 type Props = {
@@ -81,44 +83,30 @@ export function SlotChips({ slots, activeIdx, onSelect }: Props) {
 }
 
 /**
- * 선택된 칩 뒤에 깔리는 알약. translateX만 움직이므로 네이티브 드라이버로 돈다.
+ * 선택된 칩 뒤에 깔리는 알약. translateX만 UI 스레드에서 움직인다.
  *
- * `speed`/`bounciness`는 "따라온다"가 느껴질 만큼만 — 튕김을 키우면 네 칩이
- * 좁게 붙어 있어 옆 칩까지 넘어간 것처럼 보인다.
+ * 튕기지 않는다 — 네 칩이 좁게 붙어 있어 오버슈트가 옆 칩까지 넘어간 것처럼 보이고,
+ * 탭에는 손가락의 운동량이 없어 튕길 이유도 없다.
  */
 function Indicator({ left, width }: { left: number; width: number }) {
-  const x = useState(() => new Animated.Value(left))[0]
-  const first = useRef(true)
-
-  useEffect(() => {
-    if (first.current) {
-      // 첫 렌더(딥링크로 저녁부터 열리는 경우 등)는 미끄러지지 않고 제자리에서 시작.
-      // 값은 이미 초기값으로 들어가 있으므로 아무것도 하지 않는다 — 네이티브
-      // 드라이버에 올라간 노드에 setValue를 섞지 않기 위해서다.
-      first.current = false
-      return
-    }
-    Animated.spring(x, {
-      toValue: left,
-      speed: 18,
-      bounciness: 6,
-      useNativeDriver: true,
-    }).start()
-  }, [left, x])
+  const x = useSlideX(left)
+  const slide = useAnimatedStyle(() => ({ transform: [{ translateX: x.get() }] }))
 
   return (
     <Animated.View
       pointerEvents="none"
-      style={{
-        position: 'absolute',
-        left: 0,
-        top: 0,
-        bottom: 0,
-        width,
-        borderRadius: 999,
-        backgroundColor: '#FF7A2E',
-        transform: [{ translateX: x }],
-      }}
+      style={[
+        {
+          position: 'absolute',
+          left: 0,
+          top: 0,
+          bottom: 0,
+          width,
+          borderRadius: 999,
+          backgroundColor: '#FF7A2E',
+        },
+        slide,
+      ]}
     />
   )
 }

@@ -1,11 +1,18 @@
 import { useEffect, useRef, useState } from 'react'
-import { Animated, StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text, View } from 'react-native'
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated'
 import { Image } from 'expo-image'
 import Ionicons from '@expo/vector-icons/Ionicons'
 import type { GroupMemberProfile } from '@/entities/group'
 import { hhmmFromDate } from '@/entities/post'
 import type { BoardPost } from '@/entities/post/model'
 import { summarizeReactions, myReactionEmoji, REACTION_EMOJIS } from '@/entities/reaction'
+import { EASE_OUT, useReducedMotion } from '@/shared/ui/motion'
 import { PressableScale } from '@/shared/ui/press'
 
 
@@ -207,31 +214,35 @@ export function ReactionBar({
 }
 
 /**
- * 카운트가 바뀌는 순간 칩이 한 번 톡 튄다.
+ * 카운트가 늘어나는 순간 칩이 한 번 톡 튄다.
  *
  * 리액션은 낙관적 업데이트라 탭과 동시에 숫자가 바뀌는데, 숫자만 조용히 갈리면
  * "눌렸나?"가 남는다. 아주 짧은 스케일 펄스로 변화가 일어난 지점을 눈에 찍어 준다.
- * 첫 렌더에서는 튀지 않는다 — 스와이프로 날짜를 넘길 때마다 온 화면이 들썩인다.
+ *
+ * - 늘 때만 튄다. 줄어드는 칩(내가 취소, 다른 이모지로 교체, 실패 롤백)까지 튀면
+ *   "뭔가 더해졌다"로 잘못 읽힌다.
+ * - 오버슈트 없이 ease-out으로 커졌다 돌아온다. 탭에는 손가락 운동량이 없다.
+ * - 첫 렌더에서는 튀지 않는다 — 스와이프로 날짜를 넘길 때마다 온 화면이 들썩인다.
+ * - 동작 줄이기를 켰으면 튀지 않는다(숫자 변화와 칩 색이 이미 알려 준다).
  */
 function useCountPop(count: number) {
-  const scale = useState(() => new Animated.Value(1))[0]
+  const reduced = useReducedMotion()
+  const scale = useSharedValue(1)
   const prev = useRef(count)
 
   useEffect(() => {
-    if (prev.current === count) return
+    const grew = count > prev.current
     prev.current = count
-    Animated.sequence([
-      Animated.timing(scale, { toValue: 1.18, duration: 90, useNativeDriver: true }),
-      Animated.spring(scale, {
-        toValue: 1,
-        speed: 20,
-        bounciness: 10,
-        useNativeDriver: true,
-      }),
-    ]).start()
-  }, [count, scale])
+    if (!grew || reduced) return
+    scale.set(
+      withSequence(
+        withTiming(1.12, { duration: 90, easing: EASE_OUT }),
+        withTiming(1, { duration: 150, easing: EASE_OUT }),
+      ),
+    )
+  }, [count, reduced, scale])
 
-  return scale
+  return useAnimatedStyle(() => ({ transform: [{ scale: scale.get() }] }))
 }
 
 function Chip({
@@ -248,7 +259,7 @@ function Chip({
   const pop = useCountPop(count)
 
   return (
-    <Animated.View style={{ transform: [{ scale: pop }] }}>
+    <Animated.View style={pop}>
       <PressableScale
         onPress={onPress}
         // 리액션 토글은 "내가 뭔가를 바꿨다"에 해당한다 — 짧은 light 햅틱.
