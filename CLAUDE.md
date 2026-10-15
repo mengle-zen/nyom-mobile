@@ -37,6 +37,13 @@ Supabase 스키마·RLS·RPC·Edge Function은 **nyom(웹) 저장소가 소유�
   개발 중에만 재현된다. 리디렉트 주소는 스킴으로 직접 만들 것(`features/auth/context.tsx` 참고).
 - **pnpm에서 `react-native-css-interop`이 호이스팅되지 않는다.** NativeWind의 전이 의존인데
   직접 의존으로 넣어야 번들이 된다.
+- **릴리스 번들(Xcode 아카이브)은 `babel-preset-expo`·`@babel/plugin-transform-react-jsx`가
+  직접 의존이어야 한다.** dev 서버에서는 우연히 찾아져서 개발 중엔 안 보이고, 아카이브의
+  `export:embed` 단계에서만 `Cannot find module`로 깨진다. css-interop의 babel 설정이 jsx
+  플러그인을 이름으로만 부르면서 의존성에 선언하지 않은 탓이다.
+- **의존성을 바꾼 뒤엔 `expo prebuild --clean`부터.** pnpm 경로 해시가 바뀌어 Pods가 옛 경로를
+  가리키고 `PrivacyInfo.xcprivacy` 등을 못 찾는다. prebuild는 `package.json`의 `ios`/`android`
+  스크립트를 `expo run:*`으로 바꿔 놓으니 되돌릴 것.
 
 ## 구조 (FSD, 웹과 동일)
 
@@ -77,6 +84,20 @@ pnpm exec tsc --noEmit     # 타입 검사
 
 로컬 백엔드는 웹 저장소에서 `pnpm dlx supabase start`.
 `.env.local`은 `.env.example` 참고. 실기기는 `127.0.0.1` 대신 LAN IP를 써야 한다.
+
+## TestFlight 업로드
+
+번들 ID `nyom.mengle.zen`, 팀 `8V5VNMF9JM`, App Store Connect API 키는
+`~/.appstoreconnect/private_keys/`의 `R6UDW8VG95`(issuer `f8f947ed-9d55-48a8-b7eb-2dce3c6407fc`).
+올리기 전에 `app.json`의 `ios.buildNumber`를 올린다(같은 번호는 거부된다).
+
+1. `npx expo prebuild --platform ios --clean` (스크립트 되돌리기)
+2. `EXPO_PUBLIC_TEST_LOGIN_EMAIL= EXPO_PUBLIC_TEST_LOGIN_PASSWORD= xcodebuild … archive`
+   — 테스트 계정 정보가 번들에 박히지 않게 비운다. 서명은 `-allowProvisioningUpdates`와
+   `-authenticationKey*`로 자동.
+3. `xcodebuild -exportArchive` (method `app-store-connect`, **destination `export`**) →
+   `xcrun altool --upload-app --apiKey … --apiIssuer …`.
+   destination `upload`는 "No Accounts with App Store Connect Access"로 실패한다.
 
 ## 미해결
 

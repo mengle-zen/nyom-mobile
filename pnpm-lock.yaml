@@ -140,9 +140,15 @@ importers:
         specifier: ^0.27.0
         version: 0.27.0(c7c17244384af7199af9f1f926fc1940)
     devDependencies:
+      '@babel/plugin-transform-react-jsx':
+        specifier: ^7.29.7
+        version: 7.29.7(@babel/core@7.29.7)
       '@types/react':
         specifier: ~19.2.2
         version: 19.2.18
+      babel-preset-expo:
+        specifier: ~57.0.9
+        version: 57.0.9(@babel/core@7.29.7)(@babel/runtime@7.29.7)(expo@57.0.18)(react-refresh@0.14.2)
       eslint:
         specifier: ^9.39.5
         version: 9.39.5(jiti@1.21.7)
