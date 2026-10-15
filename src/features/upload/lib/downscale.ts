@@ -39,6 +39,11 @@ export type Shot = {
 export async function downscaleForUpload(
   source: Size & { uri: string },
   maxEdge: number = MAX_UPLOAD_EDGE,
+  /**
+   * false면 자르지 않고 줄이기만 한다 — 업로드 미리보기에서 사용자가 직접 위치를 고르는
+   * 편집 원본용. 이때는 확대해도 깨지지 않게 `EDIT_SOURCE_EDGE`로 넉넉히 남긴다.
+   */
+  { square = true }: { square?: boolean } = {},
 ): Promise<Shot> {
   const original: Shot = {
     uri: normalizeFileUri(source.uri),
@@ -51,7 +56,7 @@ export async function downscaleForUpload(
     const context = ImageManipulator.manipulate(source.uri)
 
     // 크롭이 먼저다 — 이후 리사이즈 판단은 잘라낸 크기를 기준으로 해야 한다.
-    const crop = centerSquareCrop(source)
+    const crop = square ? centerSquareCrop(source) : null
     if (crop) context.crop(crop)
     const cropped: Size = crop ? { width: crop.width, height: crop.height } : source
 

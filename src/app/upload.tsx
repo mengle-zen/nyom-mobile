@@ -23,7 +23,9 @@ import { hhmmFromDate, recordedAtFromTime } from '@/entities/post/date-range'
 import { createPostToGroups } from '@/entities/post/model'
 import { useMyGroups } from '@/entities/group'
 import { useAuth } from '@/features/auth'
+import { isUntouched } from '@/features/upload/lib/canvas-transform'
 import { downscaleForUpload, type Shot } from '@/features/upload/lib/downscale'
+import { EDIT_SOURCE_EDGE } from '@/features/upload/lib/fit'
 import {
   fallbackAfterCamera,
   type CaptureFallback,
@@ -32,6 +34,7 @@ import { clampTime } from '@/shared/lib/time-step'
 import { CameraDenied } from '@/features/upload/ui/CameraDenied'
 import { CaptureSourcePicker } from '@/features/upload/ui/CaptureSourcePicker'
 import { GroupSelectSheet } from '@/features/upload/ui/GroupSelectSheet'
+import { PhotoCanvas, type PhotoCanvasHandle } from '@/features/upload/ui/PhotoCanvas'
 import { ShotEditor } from '@/features/upload/ui/ShotEditor'
 import { queryKeys } from '@/shared/api/query-keys'
 import { boardHref } from '@/shared/lib/board-href'
@@ -61,8 +64,13 @@ export default function UploadScreen() {
   const queryClient = useQueryClient()
   const search = useLocalSearchParams<{ group?: string }>()
 
-  /** 촬영(또는 갤러리 선택) 결과. null이면 아직 사진이 없다. */
+  /**
+   * 촬영(또는 갤러리 선택) 결과 — 자르지 않은 편집 원본. null이면 아직 사진이 없다.
+   * 올라갈 정사각 한 장(`finalShot`)은 「다음」을 누를 때 캔버스에서 확정한다.
+   */
   const [shot, setShot] = useState<Shot | null>(null)
+  const [finalShot, setFinalShot] = useState<Shot | null>(null)
+  const canvasRef = useRef<PhotoCanvasHandle>(null)
   /**
    * 사진이 없을 때 무엇을 보여줄지.
    * - null  : OS 카메라를 띄우는 중(=진입 직후). 사용자는 곧 OS 화면을 본다.
@@ -172,11 +180,11 @@ export default function UploadScreen() {
       }
 
       setShot(
-        await downscaleForUpload({
-          uri: asset.uri,
-          width: asset.width,
-          height: asset.height,
-        }),
+        await downscaleForUpload(
+          { uri: asset.uri, width: asset.width, height: asset.height },
+          EDIT_SOURCE_EDGE,
+          { square: false },
+        ),
       )
       setFallback(null)
     } catch {
@@ -211,11 +219,11 @@ export default function UploadScreen() {
       const asset = result.assets[0]
       if (!asset) return
       setShot(
-        await downscaleForUpload({
-          uri: asset.uri,
-          width: asset.width,
-          height: asset.height,
-        }),
+        await downscaleForUpload(
+          { uri: asset.uri, width: asset.width, height: asset.height },
+          EDIT_SOURCE_EDGE,
+          { square: false },
+        ),
       )
       setFallback(null)
     } catch (e) {
@@ -238,14 +246,14 @@ export default function UploadScreen() {
 
   /** 선택한 그룹들에 업로드 후 보드로 이동 */
   const upload = async () => {
-    if (!shot || !user || selected.size === 0 || uploading) return
+    if (!finalShot || !user || selected.size === 0 || uploading) return
     setUploading(true)
     const groupIds = [...selected]
     try {
       await createPostToGroups({
         userId: user.id,
-        imageUri: shot.uri,
-        mimeType: shot.mimeType,
+        imageUri: finalShot.uri,
+        mimeType: finalShot.mimeType,
         caption,
         groupIds,
         mealSlot: slot,
@@ -272,18 +280,42 @@ export default function UploadScreen() {
     }
   }
 
+  /**
+   * 「다음」 — 캔버스에 보이는 그대로 정사각 한 장을 확정하고 그룹 선택으로.
+   * 손대지 않았으면 캡처하지 않고 원본에서 가운데를 잘라 화질을 지킨다(예전과 같은 결과).
+   */
+  const goNext = async () => {
+    const canvas = canvasRef.current
+    if (!shot || !canvas || preparing) return
+    setPreparing(true)
+    try {
+      const final = isUntouched(canvas.getTransform())
+        ? await downscaleForUpload(shot)
+        : await canvas.capture()
+      setFinalShot(final)
+      setStep('groups')
+    } catch (e) {
+      notifyError(e, '사진을 준비하지 못했어요. 다시 시도해 주세요.')
+    } finally {
+      setPreparing(false)
+    }
+  }
+
   /** OS 카메라를 띄우는 중 — 사진도 폴백도 없는 짧은 대기 구간 */
   const launching = !shot && fallback === null
 
   return (
     <View className="flex-1 bg-neutral-900">
-      {/* 배경 — 촬영/선택한 사진 */}
+      {/*
+        배경 — 같은 사진을 흐리게 깐다. 사진 자체는 가운데 캔버스가 보여주고,
+        배경은 분위기만 이어 준다(스토리 편집 화면처럼).
+      */}
       {shot ? (
         <Image
           source={{ uri: shot.uri }}
           resizeMode="cover"
+          blurRadius={40}
           style={StyleSheet.absoluteFill}
-          accessibilityLabel="촬영한 사진"
         />
       ) : (
         <View className="absolute size-full bg-neutral-800" />
@@ -325,12 +357,12 @@ export default function UploadScreen() {
         </View>
 
         {/* 본문 */}
-        <View className="flex-1 items-center justify-center gap-7 px-9">
+        <View
+          className={`flex-1 items-center justify-center gap-7 ${shot ? 'px-4 py-2' : 'px-9'}`}
+        >
           {shot ? (
-            <View className="flex-row items-center gap-1.5 rounded-full bg-black/40 py-2 pl-3.5 pr-4">
-              <Ionicons name="restaurant-outline" size={16} color="#fff" />
-              <Text className="text-sm font-bold text-white">이대로 괜찮나요?</Text>
-            </View>
+            // 사진을 바꾸면(다시 찍기·갤러리) 편집 상태를 처음부터
+            <PhotoCanvas key={shot.uri} ref={canvasRef} shot={shot} />
           ) : fallback?.stage === 'blocked' ? (
             <CameraDenied
               reason={fallback.reason}
@@ -371,7 +403,7 @@ export default function UploadScreen() {
               caption={caption}
               onCaptionChange={setCaption}
               onRetake={retake}
-              onNext={() => setStep('groups')}
+              onNext={() => void goNext()}
             />
           ) : fallback?.stage === 'choose' ? (
             <CaptureSourcePicker
@@ -384,9 +416,9 @@ export default function UploadScreen() {
       </KeyboardAvoidingView>
 
       {/* 2단계 — 보낼 그룹 선택 */}
-      {shot && step === 'groups' && (
+      {finalShot && step === 'groups' && (
         <GroupSelectSheet
-          shotUri={shot.uri}
+          shotUri={finalShot.uri}
           summary={`${slotLabel(slot)} · ${recordedTime}`}
           caption={caption}
           groups={groups}

@@ -12,6 +12,12 @@
  */
 export const MAX_UPLOAD_EDGE = 1280
 
+/**
+ * 편집 원본의 긴 변 상한(px). 미리보기 캔버스에서 확대한 뒤 1280 정사각으로 구워도
+ * 깨지지 않을 만큼 남긴다. 원본(4032px)을 그대로 들고 있으면 미리보기가 무거워진다.
+ */
+export const EDIT_SOURCE_EDGE = 2048
+
 /** JPEG 재인코딩 품질. 음식 사진에서 0.8은 육안상 열화가 거의 없다. */
 export const UPLOAD_JPEG_QUALITY = 0.8
 
