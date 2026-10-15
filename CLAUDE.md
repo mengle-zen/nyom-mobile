@@ -41,6 +41,10 @@ Supabase 스키마·RLS·RPC·Edge Function은 **nyom(웹) 저장소가 소유�
   직접 의존이어야 한다.** dev 서버에서는 우연히 찾아져서 개발 중엔 안 보이고, 아카이브의
   `export:embed` 단계에서만 `Cannot find module`로 깨진다. css-interop의 babel 설정이 jsx
   플러그인을 이름으로만 부르면서 의존성에 선언하지 않은 탓이다.
+- **Xcode 27(iOS 27 SDK)로 빌드하면 UIScene 생명주기가 필수다.** 없으면 iOS 27 기기에서 실행 즉시
+  SIGTRAP으로 꺼진다(iOS 18에선 멀쩡해서 놓치기 쉽다). Expo 57.0.29의 `ExpoAppSceneDelegate`를
+  `plugins/with-scene-lifecycle.js`가 켠다. Expo 템플릿이 scene을 기본으로 갖추면 플러그인을 지울 것.
+  릴리스 빌드는 iOS 27 시뮬레이터에서 한 번 띄워 보고 올린다.
 - **의존성을 바꾼 뒤엔 `expo prebuild --clean`부터.** pnpm 경로 해시가 바뀌어 Pods가 옛 경로를
   가리키고 `PrivacyInfo.xcprivacy` 등을 못 찾는다. prebuild는 `package.json`의 `ios`/`android`
   스크립트를 `expo run:*`으로 바꿔 놓으니 되돌릴 것.

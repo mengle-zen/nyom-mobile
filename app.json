@@ -10,7 +10,7 @@
     "ios": {
       "icon": "./assets/expo.icon",
       "bundleIdentifier": "nyom.mengle.zen",
-      "buildNumber": "1",
+      "buildNumber": "2",
       "supportsTablet": false,
       "infoPlist": {
         "NSCameraUsageDescription": "끼니 사진을 찍어 그룹에 공유하기 위해 카메라를 사용합니다.",
@@ -58,7 +58,10 @@
       ],
       "expo-notifications",
       "expo-font",
-      "./plugins/with-serial-framework-signing"
+      "./plugins/with-serial-framework-signing",
+      "./plugins/with-scene-lifecycle",
+      "expo-image",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,
