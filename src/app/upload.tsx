@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   ActivityIndicator,
+  Alert,
+  BackHandler,
   KeyboardAvoidingView,
   Image,
   Platform,
@@ -99,10 +101,36 @@ export default function UploadScreen() {
       return next
     })
 
-  const close = () => {
+  const leave = useCallback(() => {
     if (router.canGoBack()) router.back()
     else router.replace('/(app)/groups')
-  }
+  }, [])
+
+  /** 찍은 사진이 있으면 버리기 전에 한 번 묻는다 — 다시 찍을 수 없는 순간일 수 있다. */
+  const close = useCallback(() => {
+    if (!shot || uploading) {
+      leave()
+      return
+    }
+    Alert.alert('기록을 그만둘까요?', '찍은 사진과 메모는 저장되지 않아요.', [
+      { text: '계속 기록', style: 'cancel' },
+      { text: '그만두기', style: 'destructive', onPress: leave },
+    ])
+  }, [leave, shot, uploading])
+
+  // Android 뒤로 — 그룹 선택 단계면 한 단계만 돌아가고, 아니면 X와 같은 확인을 거친다.
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (step === 'groups') {
+        if (!uploading) setStep('details')
+        return true
+      }
+      if (!shot) return false
+      close()
+      return true
+    })
+    return () => sub.remove()
+  }, [close, shot, step, uploading])
 
   /**
    * OS 기본 카메라로 촬영.
@@ -197,11 +225,13 @@ export default function UploadScreen() {
     }
   }
 
-  /** "다시 찍기" — 미리보기를 버리고 OS 카메라를 다시 연다 */
+  /**
+   * "다시 찍기" — OS 카메라를 다시 연다.
+   * 지금 사진과 메모는 새 사진이 도착할 때까지 그대로 둔다. 카메라에서 취소하면
+   * 원래 사진으로 돌아와야 한다(먼저 지우면 취소한 순간 둘 다 잃는다).
+   */
   const retake = () => {
     if (preparing) return
-    setShot(null)
-    setCaption('')
     setStep('details')
     void openCamera()
   }
@@ -286,6 +316,7 @@ export default function UploadScreen() {
             accessibilityRole="button"
             accessibilityLabel="닫기"
             onPress={close}
+            hitSlop={8}
             className="absolute left-4 size-9 items-center justify-center rounded-full bg-white/15 active:opacity-70"
           >
             <Ionicons name="close" size={20} color="#fff" />

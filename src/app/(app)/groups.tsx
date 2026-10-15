@@ -15,6 +15,7 @@ import {
 } from '@/features/group'
 import { queryKeys } from '@/shared/api/query-keys'
 import { haptic, PressableScale } from '@/shared/ui/press'
+import { ErrorState } from '@/shared/ui/error-state'
 import { SegmentedControl } from '@/shared/ui/segmented-control'
 
 type Tab = 'mine' | 'discover'
@@ -120,7 +121,23 @@ export default function GroupsScreen() {
           />
         }
       >
-        {tab === 'mine' ? (
+        {/*
+          불러오기 실패를 빈 목록으로 보여주면 "그룹이 없어요 → 만들기"를 권하게 되고,
+          이미 있는 그룹을 하나 더 만들게 된다. 캐시가 없을 때만 오류 화면으로 바꾼다.
+        */}
+        {tab === 'mine' && myGroupsQuery.error && !myGroupsQuery.data ? (
+          <ErrorState
+            variant="onLight"
+            message="그룹을 불러오지 못했어요"
+            onRetry={() => void myGroupsQuery.refetch()}
+          />
+        ) : tab === 'discover' && publicQuery.error && !publicQuery.data ? (
+          <ErrorState
+            variant="onLight"
+            message="공개 그룹을 불러오지 못했어요"
+            onRetry={() => void publicQuery.refetch()}
+          />
+        ) : tab === 'mine' ? (
           <MyGroupsTab
             groups={myGroups}
             loading={myGroupsQuery.isLoading}

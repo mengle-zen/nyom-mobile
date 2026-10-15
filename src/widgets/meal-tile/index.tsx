@@ -8,6 +8,13 @@ import type { BoardPost } from '@/entities/post/model'
 import { summarizeReactions, myReactionEmoji, REACTION_EMOJIS } from '@/entities/reaction'
 import { PressableScale } from '@/shared/ui/press'
 
+
+/**
+ * 리액션 칩은 24pt라 그대로면 옆 칩·남의 기록을 잘못 누르기 쉽다.
+ * 위아래로만 넓혀 40pt 과녁을 만든다 — 칩 사이(4pt)로 넓히면 이웃 칩과 겹친다.
+ */
+const CHIP_HIT_SLOP = { top: 8, bottom: 8, left: 2, right: 2 }
+
 /**
  * 타일 위에서 시작한 터치가 "탭"이었는지 "스와이프"였는지 가르는 일은
  * `PressableScale`의 `swipeSafe`가 맡는다.
@@ -162,7 +169,7 @@ export function ReactionBar({
             swipeSafe
             accessibilityRole="button"
             accessibilityLabel="리액션 접기"
-            hitSlop={4}
+            hitSlop={CHIP_HIT_SLOP}
             className="h-6 items-center justify-center rounded-full bg-black/45 px-2"
           >
             <Ionicons name="chevron-back" size={12} color="#fff" />
@@ -190,7 +197,7 @@ export function ReactionBar({
         swipeSafe
         accessibilityRole="button"
         accessibilityLabel="리액션 남기기"
-        hitSlop={4}
+        hitSlop={CHIP_HIT_SLOP}
         className="h-6 min-w-6 items-center justify-center rounded-full bg-black/45 px-2"
       >
         <Ionicons name="add" size={13} color="#fff" />
@@ -251,7 +258,7 @@ function Chip({
         accessibilityRole="button"
         accessibilityState={{ selected: active }}
         accessibilityLabel={`${emoji} 리액션${active ? ' 해제' : ''}${count > 0 ? `, ${count}개` : ''}`}
-        hitSlop={4}
+        hitSlop={CHIP_HIT_SLOP}
         className={`h-6 flex-row items-center gap-0.5 rounded-full px-2 ${
           active ? 'bg-primary' : 'bg-black/45'
         }`}

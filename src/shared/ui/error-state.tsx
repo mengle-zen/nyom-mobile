@@ -3,17 +3,26 @@ import { Pressable, Text, View } from 'react-native'
 type Props = {
   message?: string
   onRetry?: () => void
+  /** 보드처럼 어두운 배경이면 onDark(기본), 일반 화면이면 onLight. */
+  variant?: 'onDark' | 'onLight'
 }
 
-/** 조회 실패 공통 화면. 보드는 어두운 배경 위에 얹히므로 흰 글씨를 쓴다. */
+/** 조회 실패 공통 화면. */
 export function ErrorState({
   message = '잠시 문제가 생겼어요',
   onRetry,
+  variant = 'onDark',
 }: Props) {
   return (
     <View className="flex-1 items-center justify-center gap-4 px-8">
       <Text className="text-4xl">😵‍💫</Text>
-      <Text className="text-center text-base font-bold text-white">{message}</Text>
+      <Text
+        className={`text-center text-base font-bold ${
+          variant === 'onDark' ? 'text-white' : 'text-foreground'
+        }`}
+      >
+        {message}
+      </Text>
       {onRetry && (
         <Pressable
           onPress={onRetry}
