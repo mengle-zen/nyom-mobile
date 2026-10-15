@@ -53,9 +53,9 @@ src/
 
 **이 저장소가 앞으로의 주 작업 대상이다.** 웹앱(nyom)은 유지보수만 하고 신규 작업은 여기서 한다.
 
-**브랜치 → PR → 머지.** `main`에 직접 커밋하지 않는다.
-초기 두 커밋(이식·카메라 전환)은 빈 저장소라 base가 없어 main에 바로 들어갔고,
-그 이후로는 PR을 쓴다. 히스토리를 소급해 고치지는 않았다.
+**PR 없이 `main`에 바로 커밋·푸시한다.** (2026-10-15부터. 그 전까지는 #13까지 PR로 머지했다.)
+`main`은 다른 워크트리가 체크아웃하고 있을 수 있으니, 워크트리에서는
+`origin/main` 위에서 커밋한 뒤 `git push origin HEAD:main`으로 올린다.
 
 커밋 메시지는 한국어 conventional commit. 마지막 줄에
 `Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>`.
