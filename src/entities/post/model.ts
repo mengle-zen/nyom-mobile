@@ -62,7 +62,7 @@ export async function createPostToGroups({
   groupIds,
   mealSlot,
   recordedAt,
-}: CreatePostParams): Promise<void> {
+}: CreatePostParams): Promise<{ postId: string }> {
   if (groupIds.length === 0) throw new Error('NO_GROUP_SELECTED')
 
   const contentType =
@@ -93,16 +93,22 @@ export async function createPostToGroups({
     ...(recordedAt ? { recorded_at: recordedAt } : {}),
   }))
 
-  const { error: insertError } = await supabase
+  const { data: inserted, error: insertError } = await supabase
     .from('posts')
     // supabase-js 2.106 generic 추론 우회. 런타임 안전.
     .insert(rows as never)
+    .select('id')
 
   if (insertError) {
     // 글 생성 실패 시 고아 파일이 남지 않도록 정리 (실패해도 무시)
     await supabase.storage.from('meal-photos').remove([path])
     throw insertError
   }
+
+  // batch의 아무 행 하나면 된다 — 되돌리기(delete_post_batch)가 batch 전체를 지운다.
+  const first = (inserted as { id: string }[] | null)?.[0]
+  if (!first) throw new Error('POST_NOT_CREATED')
+  return { postId: first.id }
 }
 
 /** 사후 편집에서 다루는 batch 식별자 — batch_id가 없는 기존 행은 자기 id가 키. */

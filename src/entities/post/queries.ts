@@ -65,11 +65,12 @@ export function usePostBatch(
 }
 
 /**
- * 사후 편집 후 무효화 — 빠뜨리기 쉬운 지점을 한 곳에 모았다.
+ * 기록을 만들거나 고치거나 지운 뒤의 무효화 — 빠뜨리기 쉬운 지점을 한 곳에 모았다.
+ * (업로드·되돌리기도 이걸 쓴다)
  * - myPosts 프리픽스 하나로 그리드 · 게시물 수 · 월 캘린더 점 · 일 타임라인 · batch 상태
  * - 영향받은 **모든** 그룹(추가·제거·유지)의 보드와 기록일 — 제거된 그룹도 갱신해야 한다
  */
-function invalidateAfterPostEdit(
+export function invalidateAfterPostEdit(
   qc: QueryClient,
   userId: string,
   affectedGroupIds: string[],

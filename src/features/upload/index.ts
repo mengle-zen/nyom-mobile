@@ -17,4 +17,4 @@ export {
 export { CaptureSourcePicker } from './ui/CaptureSourcePicker'
 export { CameraDenied } from './ui/CameraDenied'
 export { ShotEditor } from './ui/ShotEditor'
-export { GroupSelectSheet } from './ui/GroupSelectSheet'
+export { RecipientSheet } from './ui/RecipientSheet'
