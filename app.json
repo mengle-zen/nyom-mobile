@@ -10,7 +10,7 @@
     "ios": {
       "icon": "./assets/expo.icon",
       "bundleIdentifier": "nyom.mengle.zen",
-      "buildNumber": "3",
+      "buildNumber": "4",
       "supportsTablet": false,
       "infoPlist": {
         "NSCameraUsageDescription": "끼니 사진을 찍어 그룹에 공유하기 위해 카메라를 사용합니다.",

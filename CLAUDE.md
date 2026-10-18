@@ -45,6 +45,11 @@ Supabase 스키마·RLS·RPC·Edge Function은 **nyom(웹) 저장소가 소유�
   SIGTRAP으로 꺼진다(iOS 18에선 멀쩡해서 놓치기 쉽다). Expo 57.0.29의 `ExpoAppSceneDelegate`를
   `plugins/with-scene-lifecycle.js`가 켠다. Expo 템플릿이 scene을 기본으로 갖추면 플러그인을 지울 것.
   릴리스 빌드는 iOS 27 시뮬레이터에서 한 번 띄워 보고 올린다.
+- **Xcode를 올리면 `ExpoModulesJSI` 캐시부터 지운다.** 이 xcframework는 빌드 때 이 Mac에서
+  만들어지는데, 소스 해시가 같으면 예전 Xcode로 만든 결과를 재사용한다. Xcode 27.0 → 27.1 뒤
+  아카이브가 `cannot find type '__ObjC::expo'`로 깨졌다(미리 빌드한 모듈을 꺼도 그대로).
+  `rm -rf node_modules/.pnpm/expo-modules-jsi@*/node_modules/expo-modules-jsi/apple/Products/ExpoModulesJSI.xcframework`
+  후 `expo prebuild --clean`. 시뮬레이터 Release 빌드는 `ONLY_ACTIVE_ARCH=YES ARCHS=arm64`로.
 - **의존성을 바꾼 뒤엔 `expo prebuild --clean`부터.** pnpm 경로 해시가 바뀌어 Pods가 옛 경로를
   가리키고 `PrivacyInfo.xcprivacy` 등을 못 찾는다. prebuild는 `package.json`의 `ios`/`android`
   스크립트를 `expo run:*`으로 바꿔 놓으니 되돌릴 것.
