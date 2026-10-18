@@ -17,4 +17,5 @@ export {
 } from './date-range'
 export { dateHeading, type DateHeading } from './date-heading'
 export { dedupeByBatch } from './dedupe'
+export { postImageSource } from './image-source'
 export { parseLocalDate, deeplinkTarget } from './deeplink'

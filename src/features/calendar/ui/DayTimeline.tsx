@@ -1,6 +1,6 @@
 import { Text, View } from 'react-native'
 import { Image } from 'expo-image'
-import { slotLabel } from '@/entities/post'
+import { postImageSource, slotLabel } from '@/entities/post'
 import { hhmmFromDate } from '@/entities/post/date-range'
 import type { DayPost } from '@/entities/post/model'
 import { PressableScale } from '@/shared/ui/press'
@@ -57,7 +57,7 @@ export function DayTimeline({ dayKey, isToday, posts, loading, onSelect }: Props
             <View className="size-16 overflow-hidden rounded-lg bg-muted">
               {post.signedImageUrl && (
                 <Image
-                  source={{ uri: post.signedImageUrl }}
+                  source={postImageSource(post)}
                   contentFit="cover"
                   style={{ width: '100%', height: '100%' }}
                 />

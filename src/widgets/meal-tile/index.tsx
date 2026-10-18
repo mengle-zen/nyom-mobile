@@ -9,7 +9,7 @@ import Animated, {
 import { Image } from 'expo-image'
 import Ionicons from '@expo/vector-icons/Ionicons'
 import type { GroupMemberProfile } from '@/entities/group'
-import { hhmmFromDate } from '@/entities/post'
+import { hhmmFromDate, postImageSource } from '@/entities/post'
 import type { BoardPost } from '@/entities/post/model'
 import { summarizeReactions, myReactionEmoji, REACTION_EMOJIS } from '@/entities/reaction'
 import { EASE_OUT, useReducedMotion } from '@/shared/ui/motion'
@@ -77,7 +77,7 @@ export function FilledTile({
     >
       {post.signedImageUrl && !imgFailed && (
         <Image
-          source={{ uri: post.signedImageUrl }}
+          source={postImageSource(post)}
           style={StyleSheet.absoluteFill}
           contentFit="cover"
           transition={120}

@@ -20,7 +20,12 @@ import { toast } from 'sonner-native'
 
 import { useQueryClient } from '@tanstack/react-query'
 
-import { dedupeByBatch, mealTimeLabel, type MealSlotKey } from '@/entities/post'
+import {
+  dedupeByBatch,
+  mealTimeLabel,
+  postImageSource,
+  type MealSlotKey,
+} from '@/entities/post'
 import { useMyRecordedDays } from '@/entities/post/queries'
 import { useMyGroups } from '@/entities/group'
 import { useAuth } from '@/features/auth'
@@ -55,6 +60,8 @@ const TAB_BAR_HEIGHT = 64
 type DetailPost = {
   id: string
   batch_id: string | null
+  /** 저장 경로 — 사진 캐시 키로 쓴다(`postImageSource`) */
+  image_url: string
   signedImageUrl: string | null
   caption: string | null
   recorded_at: string
@@ -351,7 +358,7 @@ function MyPostsGrid({
               >
                 {post.signedImageUrl && (
                   <Image
-                    source={{ uri: post.signedImageUrl }}
+                    source={postImageSource(post)}
                     contentFit="cover"
                     style={{ width: '100%', height: '100%' }}
                   />
@@ -424,7 +431,7 @@ function PostDetailModal({
           <View className="aspect-square w-full bg-muted">
             {post?.signedImageUrl && (
               <Image
-                source={{ uri: post.signedImageUrl }}
+                source={postImageSource(post)}
                 contentFit="cover"
                 style={{ width: '100%', height: '100%' }}
                 accessibilityLabel={post.caption ?? '기록 사진'}

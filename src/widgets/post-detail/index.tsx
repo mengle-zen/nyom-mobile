@@ -3,7 +3,7 @@ import { Modal, Pressable, ScrollView, Text, View } from 'react-native'
 import { Image } from 'expo-image'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import Ionicons from '@expo/vector-icons/Ionicons'
-import { mealTimeLabel } from '@/entities/post'
+import { mealTimeLabel, postImageSource } from '@/entities/post'
 import type { BoardPost } from '@/entities/post/model'
 import type { GroupMemberProfile } from '@/entities/group'
 import { ReactionBar } from '@/widgets/meal-tile'
@@ -69,7 +69,7 @@ export function PostDetail({
           <View className="flex-1 justify-center bg-black">
             {post.signedImageUrl && !imgFailed ? (
               <Image
-                source={{ uri: post.signedImageUrl }}
+                source={postImageSource(post)}
                 style={{ width: '100%', height: '100%' }}
                 contentFit="contain"
                 transition={120}
