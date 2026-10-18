@@ -5,6 +5,7 @@ import { useAuth } from '@/features/auth'
 import { GroupListItem } from './GroupListItem'
 import { LoadingSkeleton } from './LoadingSkeleton'
 import { Button } from './primitives'
+import Ionicons from '@expo/vector-icons/Ionicons'
 
 /**
  * 내 그룹 탭 — 목록만.
@@ -33,7 +34,7 @@ export function MyGroupsTab({
   if (groups.length === 0) {
     return (
       <View className="flex-1 items-center justify-center gap-3 px-2 py-10">
-        <Text className="text-5xl">🍱</Text>
+        <Ionicons name="people-outline" size={44} color="#A89A82" />
         <Text className="text-base font-bold text-foreground">아직 그룹이 없어요</Text>
         <Text className="mb-2 text-center text-sm text-muted-foreground">
           그룹을 만들어 친구를 초대하거나,{'\n'}받은 초대코드로 들어가 보세요

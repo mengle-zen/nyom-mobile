@@ -1,4 +1,5 @@
 import { Pressable, Text, View } from 'react-native'
+import Ionicons from '@expo/vector-icons/Ionicons'
 
 type Props = {
   message?: string
@@ -15,7 +16,11 @@ export function ErrorState({
 }: Props) {
   return (
     <View className="flex-1 items-center justify-center gap-4 px-8">
-      <Text className="text-4xl">😵‍💫</Text>
+      <Ionicons
+        name="alert-circle-outline"
+        size={40}
+        color={variant === 'onDark' ? 'rgba(255,255,255,0.6)' : '#A89A82'}
+      />
       <Text
         className={`text-center text-base font-bold ${
           variant === 'onDark' ? 'text-white' : 'text-foreground'
@@ -27,7 +32,7 @@ export function ErrorState({
         <Pressable
           onPress={onRetry}
           accessibilityRole="button"
-          className="rounded-full bg-primary px-5 py-2.5 active:opacity-80"
+          className="h-control-sm justify-center rounded-full bg-primary px-5 active:opacity-80"
         >
           <Text className="text-sm font-bold text-primary-foreground">다시 시도</Text>
         </Pressable>

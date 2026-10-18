@@ -77,7 +77,7 @@ export function PostDetail({
               />
             ) : (
               <View className="items-center gap-2">
-                <Text className="text-3xl">🍽️</Text>
+                <Ionicons name="image-outline" size={32} color="rgba(255,255,255,0.4)" />
                 <Text className="text-xs text-white/40">사진을 불러오지 못했어요</Text>
               </View>
             )}

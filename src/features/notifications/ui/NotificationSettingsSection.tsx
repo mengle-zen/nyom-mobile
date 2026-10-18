@@ -50,7 +50,7 @@ export function NotificationSettingsSection() {
           <Pressable
             accessibilityRole="button"
             onPress={() => void query.refetch()}
-            className="rounded-xl border border-border px-3 py-1.5 active:opacity-70"
+            className="h-control-sm justify-center rounded-xl border border-border px-3 active:opacity-70"
           >
             <Text className="text-xs font-medium text-foreground">다시 시도</Text>
           </Pressable>
@@ -142,7 +142,7 @@ function DevicePushNotice({ userId }: { userId: string }) {
         accessibilityRole="button"
         onPress={() => void handleEnable()}
         disabled={busy}
-        className={`items-center rounded-xl border border-border py-2.5 active:opacity-70 ${
+        className={`h-control-sm items-center justify-center rounded-xl border border-border active:opacity-70 ${
           busy ? 'opacity-50' : ''
         }`}
       >

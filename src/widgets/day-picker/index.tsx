@@ -85,7 +85,7 @@ function DayPickerPanel({
           accessibilityRole="button"
           accessibilityLabel="닫기"
           hitSlop={8}
-          className="size-9 items-center justify-center rounded-full bg-card active:opacity-70"
+          className="size-icon items-center justify-center rounded-full bg-card active:opacity-70"
         >
           <Ionicons name="chevron-down" size={20} color="#1F1B16" />
         </Pressable>

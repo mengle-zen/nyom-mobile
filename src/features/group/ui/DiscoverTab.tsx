@@ -9,6 +9,7 @@ import { MAX_MEMBERS } from '../lib/join-error'
 import { GroupCard } from './GroupCard'
 import { Badge, Button } from './primitives'
 import { LoadingSkeleton } from './LoadingSkeleton'
+import Ionicons from '@expo/vector-icons/Ionicons'
 
 /**
  * 탐색 탭 — 공개 그룹 목록 + 참여 요청.
@@ -40,7 +41,7 @@ export function DiscoverTab({
   if (groups.length === 0) {
     return (
       <View className="flex-1 items-center justify-center gap-3 px-2 py-10">
-        <Text className="text-5xl">🔍</Text>
+        <Ionicons name="search-outline" size={44} color="#A89A82" />
         <Text className="text-base font-bold text-foreground">공개 그룹이 없어요</Text>
         <Text className="mb-2 text-center text-sm text-muted-foreground">
           지금은 탐색할 그룹이 없어요.{'\n'}직접 만들어 공개로 열면 여기 뜨게 돼요

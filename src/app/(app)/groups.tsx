@@ -85,9 +85,10 @@ export default function GroupsScreen() {
             onPress={() => setAddMode('create')}
             hitSlop={8}
             style={{
-              width: 34,
-              height: 34,
-              borderRadius: 17,
+              // tailwind `icon` 토큰(44)과 같게
+              width: 44,
+              height: 44,
+              borderRadius: 22,
               alignItems: 'center',
               justifyContent: 'center',
               backgroundColor: '#FFF4EC',

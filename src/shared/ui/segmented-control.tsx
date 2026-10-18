@@ -91,7 +91,8 @@ export function SegmentedControl<K extends string>({
               }}
               style={{ flex: 1 }}
               // 활성 배경은 아래에서 미끄러져 온 인디케이터가 맡는다.
-              className="flex-row items-center justify-center gap-1.5 py-2"
+              // 36 + 위아래 PAD 4 = 44(세그먼트 높이)
+              className="h-9 flex-row items-center justify-center gap-1.5"
             >
               {seg.icon && (
                 <Feather

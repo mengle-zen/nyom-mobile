@@ -67,7 +67,7 @@ export function Button({
       : variant === 'destructive'
         ? '#E5484D'
         : '#1F1B16'
-  const pad = size === 'sm' ? 'h-9 px-3' : 'h-11 px-4'
+  const pad = size === 'sm' ? 'h-control-sm px-3' : 'h-control px-4'
 
   return (
     // NativeWind(react-native-css-interop)로 감싼 컴포넌트는 함수 형태의 style
@@ -116,9 +116,10 @@ export function IconButton({
       hitSlop={6}
       activeOpacity={0.7}
       style={{
-        width: 36,
-        height: 36,
-        borderRadius: 18,
+        // 아이콘 버튼 높이(tailwind `icon` 토큰)와 같게 — 정적 style이라 숫자로 둔다.
+        width: 44,
+        height: 44,
+        borderRadius: 22,
         backgroundColor: bg,
         alignItems: 'center',
         justifyContent: 'center',
@@ -136,7 +137,7 @@ export function Input(props: TextInputProps & { className?: string }) {
     <TextInput
       placeholderTextColor="#A89A82"
       {...rest}
-      className={`h-11 rounded-md border border-border bg-card px-3 text-base text-foreground ${className}`}
+      className={`h-field rounded-md border border-border bg-card px-3 text-base text-foreground ${className}`}
     />
   )
 }

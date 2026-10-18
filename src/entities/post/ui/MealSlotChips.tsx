@@ -36,7 +36,7 @@ export function MealSlotChips({
               void haptic('select')
               onChange(slot.key)
             }}
-            className={`flex-1 items-center rounded-full py-2 active:opacity-70 ${
+            className={`h-chip flex-1 items-center justify-center rounded-full active:opacity-70 ${
               active
                 ? 'bg-primary'
                 : variant === 'onDark'

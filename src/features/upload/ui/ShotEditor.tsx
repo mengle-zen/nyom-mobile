@@ -50,14 +50,14 @@ export function ShotEditor({
         placeholderTextColor="rgba(255,255,255,0.5)"
         accessibilityLabel="한 줄 메모"
         returnKeyType="done"
-        className="rounded-full bg-white/15 px-4 py-3 text-sm text-white"
+        className="h-field rounded-full bg-white/15 px-4 text-sm text-white"
       />
 
       <View className="flex-row items-center gap-3">
         <Pressable
           accessibilityRole="button"
           onPress={onRetake}
-          className="flex-row items-center gap-2 rounded-full bg-white/15 px-5 py-3.5 active:opacity-70"
+          className="h-control flex-row items-center gap-2 rounded-full bg-white/15 px-5 active:opacity-70"
         >
           <Ionicons name="refresh" size={18} color="#fff" />
           <Text className="font-bold text-white">다시 찍기</Text>
@@ -66,7 +66,7 @@ export function ShotEditor({
         <Pressable
           accessibilityRole="button"
           onPress={onNext}
-          className="flex-1 flex-row items-center justify-center gap-1.5 rounded-full bg-primary px-5 py-3.5 active:opacity-80"
+          className="h-control flex-1 flex-row items-center justify-center gap-1.5 rounded-full bg-primary px-5 active:opacity-80"
         >
           <Text className="font-bold text-primary-foreground">다음</Text>
           <Ionicons name="arrow-forward" size={18} color="#fff" />

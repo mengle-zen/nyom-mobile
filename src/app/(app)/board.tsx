@@ -397,7 +397,7 @@ function NoGroupEmpty() {
   return (
     <View className="flex-1 items-center justify-center gap-5 bg-background px-8">
       <View className="size-[120px] items-center justify-center rounded-full bg-primary-100">
-        <Text className="text-5xl">👥</Text>
+        <Ionicons name="people-outline" size={44} color="rgba(255,255,255,0.45)" />
       </View>
       <Text className="text-2xl font-bold text-foreground">먼저 그룹을 만들어요</Text>
       <Text className="text-center text-sm leading-relaxed text-muted-foreground">
@@ -407,7 +407,7 @@ function NoGroupEmpty() {
         onPress={() => router.replace(href('/groups'))}
         hapticKind={null}
         accessibilityRole="button"
-        className="rounded-full bg-primary px-6 py-3"
+        className="h-control justify-center rounded-full bg-primary px-6"
       >
         <Text className="text-sm font-bold text-primary-foreground">
           그룹 만들기 / 참여하기
@@ -421,7 +421,7 @@ function NoGroupEmpty() {
 function NoRecordEmpty({ onUpload }: { onUpload: () => void }) {
   return (
     <View className="flex-1 items-center justify-center gap-4 px-8">
-      <Text className="text-5xl">🍚</Text>
+      <Ionicons name="restaurant-outline" size={44} color="rgba(255,255,255,0.45)" />
       <Text className="text-lg font-bold text-white">아직 첫 끼니가 없어요</Text>
       <Text className="text-center text-sm leading-relaxed text-white/50">
         먼저 한 끼를 올리면{'\n'}친구들에게 알림이 가요
@@ -430,7 +430,7 @@ function NoRecordEmpty({ onUpload }: { onUpload: () => void }) {
         onPress={onUpload}
         hapticKind={null}
         accessibilityRole="button"
-        className="rounded-full bg-primary px-6 py-3"
+        className="h-control justify-center rounded-full bg-primary px-6"
       >
         <Text className="text-sm font-bold text-primary-foreground">첫 끼니 올리기</Text>
       </PressableScale>

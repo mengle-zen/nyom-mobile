@@ -113,13 +113,13 @@ export function GroupSelectSheet({
 
   return (
     <View className="absolute inset-0 z-20 bg-neutral-900" style={{ paddingTop: insets.top }}>
-      <View className="h-14 flex-row items-center gap-2 px-4">
+      <View className="h-header flex-row items-center gap-2 px-4">
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="뒤로"
           onPress={onBack}
           disabled={uploading}
-          className={`size-9 items-center justify-center rounded-full bg-white/10 active:opacity-70 ${
+          className={`size-icon items-center justify-center rounded-full bg-white/10 active:opacity-70 ${
             uploading ? 'opacity-50' : ''
           }`}
         >
@@ -196,7 +196,7 @@ export function GroupSelectSheet({
           accessibilityState={{ disabled: !canSend }}
           onPress={onSend}
           disabled={!canSend}
-          className={`flex-row items-center justify-center gap-2 rounded-full bg-primary py-3.5 active:opacity-80 ${
+          className={`h-control flex-row items-center justify-center gap-2 rounded-full bg-primary active:opacity-80 ${
             canSend ? '' : 'opacity-40'
           }`}
         >

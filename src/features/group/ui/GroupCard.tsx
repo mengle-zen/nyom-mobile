@@ -21,7 +21,7 @@ export function GroupCard({ children, style, className, ...rest }: ViewProps) {
       // className을 반드시 병합해야 한다. `{...rest}`로 흘려보내면 호출부가 넘긴
       // className이 이 껍데기의 것을 통째로 덮어써서 배경·라운드·flex-row가 전부
       // 사라진다(실제로 탐색 탭 카드가 배경 없이 세로로 쌓였다).
-      className={`flex-row items-center rounded-xl bg-card ${className ?? ''}`}
+      className={`min-h-row flex-row items-center rounded-xl bg-card ${className ?? ''}`}
       style={[CARD_SHADOW, style]}
       {...rest}
     >

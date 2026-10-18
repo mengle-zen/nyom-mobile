@@ -88,14 +88,14 @@ export function PostEditSheet({
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         className="flex-1 bg-background"
       >
-        <View className="h-14 flex-row items-center border-b border-border px-4">
+        <View className="h-header flex-row items-center border-b border-border px-4">
           <Text className="text-base font-semibold text-foreground">기록 편집</Text>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="닫기"
             onPress={requestClose}
             hitSlop={8}
-            className="ml-auto size-9 items-center justify-center rounded-full active:opacity-60"
+            className="ml-auto size-icon items-center justify-center rounded-full active:opacity-60"
           >
             <Ionicons name="close" size={20} color="#3A3329" />
           </Pressable>
@@ -152,7 +152,7 @@ function PostEditLoader({
             void batchQuery.refetch()
             void groupsQuery.refetch()
           }}
-          className="flex-row items-center gap-1.5 rounded-xl border border-border px-4 py-2 active:opacity-70"
+          className="h-control-sm flex-row items-center gap-1.5 rounded-xl border border-border px-4 active:opacity-70"
         >
           <Ionicons name="refresh" size={14} color="#3A3329" />
           <Text className="text-sm font-medium text-foreground">다시 시도</Text>
@@ -354,7 +354,7 @@ function PostEditForm({
             placeholder="한 줄 메모 (선택)"
             placeholderTextColor="#A89A82"
             accessibilityLabel="메모"
-            className="rounded-xl border border-border bg-card px-4 py-3 text-sm text-foreground"
+            className="h-field rounded-xl border border-border bg-card px-4 text-sm text-foreground"
           />
         </View>
 
@@ -423,7 +423,7 @@ function PostEditForm({
           accessibilityRole="button"
           onPress={onCancel}
           disabled={busy}
-          className={`flex-1 items-center rounded-xl border border-border py-3 active:opacity-70 ${
+          className={`h-control flex-1 items-center justify-center rounded-xl border border-border active:opacity-70 ${
             busy ? 'opacity-50' : ''
           }`}
         >
@@ -434,7 +434,7 @@ function PostEditForm({
           accessibilityLabel={isDeleting ? '기록 삭제' : '저장'}
           onPress={handleSave}
           disabled={busy || !changed}
-          className={`flex-1 flex-row items-center justify-center gap-2 rounded-xl py-3 active:opacity-80 ${
+          className={`h-control flex-1 flex-row items-center justify-center gap-2 rounded-xl active:opacity-80 ${
             isDeleting ? 'bg-destructive' : 'bg-primary'
           } ${busy || !changed ? 'opacity-40' : ''}`}
         >

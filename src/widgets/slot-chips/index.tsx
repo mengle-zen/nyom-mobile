@@ -64,7 +64,7 @@ export function SlotChips({ slots, activeIdx, onSelect }: Props) {
               accessibilityLabel={`${slot.label} ${slot.filled}/${slot.total} 올림`}
               style={{ flex: 1 }}
               // 활성 칩의 배경은 아래에서 미끄러져 온 인디케이터가 맡는다.
-              className={`items-center gap-1 rounded-full px-2 py-1.5 ${
+              className={`min-h-chip items-center justify-center gap-1 rounded-full px-2 py-1.5 ${
                 active ? '' : 'bg-white/10'
               }`}
             >

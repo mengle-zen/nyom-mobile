@@ -36,7 +36,7 @@ export function CameraDenied({
         <Pressable
           accessibilityRole="button"
           onPress={onRetry}
-          className="rounded-full bg-white/15 px-5 py-2.5 active:opacity-70"
+          className="h-control-sm justify-center rounded-full bg-white/15 px-5 active:opacity-70"
         >
           <Text className="font-bold text-white">다시 시도</Text>
         </Pressable>
@@ -44,7 +44,7 @@ export function CameraDenied({
           accessibilityRole="button"
           accessibilityLabel="갤러리에서 사진 고르기"
           onPress={onPickGallery}
-          className="flex-row items-center gap-1.5 rounded-full bg-primary px-5 py-2.5 active:opacity-80"
+          className="h-control-sm flex-row items-center gap-1.5 rounded-full bg-primary px-5 active:opacity-80"
         >
           <Ionicons name="images-outline" size={16} color="#fff" />
           <Text className="font-bold text-primary-foreground">갤러리에서 고르기</Text>

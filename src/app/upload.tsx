@@ -349,7 +349,7 @@ export default function UploadScreen() {
             accessibilityLabel="닫기"
             onPress={close}
             hitSlop={8}
-            className="absolute left-4 size-9 items-center justify-center rounded-full bg-white/15 active:opacity-70"
+            className="absolute left-4 size-icon items-center justify-center rounded-full bg-white/15 active:opacity-70"
           >
             <Ionicons name="close" size={20} color="#fff" />
           </Pressable>

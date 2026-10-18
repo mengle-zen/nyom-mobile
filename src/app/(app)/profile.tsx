@@ -127,14 +127,14 @@ export default function ProfileScreen() {
 
   return (
     <View className="flex-1 bg-background" style={{ paddingTop: insets.top }}>
-      <View className="h-14 flex-row items-center border-b border-border/50 px-4">
+      <View className="h-header flex-row items-center border-b border-border/50 px-4">
         <Text className="text-base font-semibold text-foreground">프로필</Text>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="프로필 수정"
           disabled={profileLoading}
           onPress={() => setEditingProfile(true)}
-          className="ml-auto size-9 items-center justify-center rounded-lg active:opacity-60"
+          className="ml-auto size-icon items-center justify-center rounded-lg active:opacity-60"
         >
           <Ionicons name="pencil" size={16} color="#3A3329" />
         </Pressable>
@@ -206,7 +206,7 @@ export default function ProfileScreen() {
         <Pressable
           accessibilityRole="button"
           onPress={() => void signOut()}
-          className="items-center rounded-xl border border-border py-3 active:opacity-70"
+          className="h-control items-center justify-center rounded-xl border border-border active:opacity-70"
         >
           <Text className="font-medium text-foreground">로그아웃</Text>
         </Pressable>
@@ -314,7 +314,7 @@ function MyPostsGrid({
         <Pressable
           accessibilityRole="button"
           onPress={onRetry}
-          className="rounded-xl border border-border px-4 py-2 active:opacity-70"
+          className="h-control-sm justify-center rounded-xl border border-border px-4 active:opacity-70"
         >
           <Text className="text-sm font-medium text-foreground">다시 시도</Text>
         </Pressable>
@@ -325,7 +325,7 @@ function MyPostsGrid({
   if (posts.length === 0) {
     return (
       <View className="items-center justify-center gap-3 py-12">
-        <Text className="text-5xl">🍽️</Text>
+        <Ionicons name="restaurant-outline" size={44} color="#A89A82" />
         <Text className="font-medium text-foreground">아직 기록이 없어요</Text>
         <Text className="text-sm text-muted-foreground">첫 끼니를 기록해봐요</Text>
       </View>
@@ -377,7 +377,7 @@ function MyPostsGrid({
           accessibilityRole="button"
           onPress={onLoadMore}
           disabled={loadingMore}
-          className={`items-center rounded-xl border border-border py-3 active:opacity-70 ${
+          className={`h-control items-center justify-center rounded-xl border border-border active:opacity-70 ${
             loadingMore ? 'opacity-50' : ''
           }`}
         >
@@ -635,7 +635,7 @@ function EditProfileForm({
           accessibilityLabel="닉네임"
           maxLength={12}
           editable={!saving}
-          className="rounded-xl border border-border bg-background px-4 py-3 text-foreground"
+          className="h-field rounded-xl border border-border bg-background px-4 text-foreground"
         />
         {validationError && (
           <Text className="text-sm text-destructive">{validationError}</Text>
@@ -647,7 +647,7 @@ function EditProfileForm({
           accessibilityRole="button"
           onPress={onClose}
           disabled={saving}
-          className={`flex-1 items-center rounded-xl border border-border py-3 active:opacity-70 ${
+          className={`h-control flex-1 items-center justify-center rounded-xl border border-border active:opacity-70 ${
             saving ? 'opacity-50' : ''
           }`}
         >
@@ -658,7 +658,7 @@ function EditProfileForm({
           accessibilityLabel="저장"
           onPress={() => void handleSave()}
           disabled={saving || !value.trim() || !changed}
-          className={`flex-1 flex-row items-center justify-center gap-2 rounded-xl bg-primary py-3 active:opacity-80 ${
+          className={`h-control flex-1 flex-row items-center justify-center gap-2 rounded-xl bg-primary active:opacity-80 ${
             saving || !value.trim() || !changed ? 'opacity-40' : ''
           }`}
         >

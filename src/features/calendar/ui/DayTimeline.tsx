@@ -6,6 +6,7 @@ import type { DayPost } from '@/entities/post/model'
 import { PressableScale } from '@/shared/ui/press'
 import { Skeleton } from '@/shared/ui/skeleton'
 import { dayKeyLabel } from '../lib/view-month'
+import Ionicons from '@expo/vector-icons/Ionicons'
 
 type Props = {
   /** 선택된 날짜 키('YYYY-MM-DD') */
@@ -39,7 +40,7 @@ export function DayTimeline({ dayKey, isToday, posts, loading, onSelect }: Props
         <TimelineSkeleton />
       ) : posts.length === 0 ? (
         <View className="items-center justify-center gap-2 py-10">
-          <Text className="text-3xl">🍃</Text>
+          <Ionicons name="leaf-outline" size={28} color="#A89A82" />
           <Text className="text-sm text-muted-foreground">이 날은 기록이 없어요</Text>
         </View>
       ) : (

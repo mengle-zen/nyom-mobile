@@ -26,7 +26,7 @@ export function CaptureSourcePicker({
         accessibilityState={{ disabled }}
         onPress={onOpenCamera}
         disabled={disabled}
-        className="flex-row items-center justify-center gap-2 rounded-full bg-primary px-5 py-4 active:opacity-80"
+        className="flex-row items-center justify-center gap-2 rounded-full bg-primary h-control px-5 active:opacity-80"
       >
         <Ionicons name="camera" size={20} color="#fff" />
         <Text className="text-base font-bold text-primary-foreground">카메라로 촬영</Text>
@@ -38,7 +38,7 @@ export function CaptureSourcePicker({
         accessibilityState={{ disabled }}
         onPress={onPickGallery}
         disabled={disabled}
-        className="flex-row items-center justify-center gap-2 rounded-full bg-white/15 px-5 py-4 active:opacity-70"
+        className="flex-row items-center justify-center gap-2 rounded-full bg-white/15 h-control px-5 active:opacity-70"
       >
         <Ionicons name="images-outline" size={20} color="#fff" />
         <Text className="text-base font-bold text-white">갤러리에서 고르기</Text>

@@ -24,6 +24,7 @@ import {
 } from '@/features/profile'
 import { notifyError } from '@/shared/lib/error'
 import { haptic } from '@/shared/ui/press'
+import Ionicons from '@expo/vector-icons/Ionicons'
 
 /**
  * 온보딩 — 닉네임 + 프로필 사진.
@@ -157,9 +158,13 @@ export default function OnboardingScreen() {
                 />
               ) : (
                 <View className="size-[104px] items-center justify-center rounded-full bg-primary-100">
-                  <Text className="text-[40px] font-bold text-primary">
-                    {nickname.trim()[0] ?? '🙂'}
-                  </Text>
+                  {nickname.trim() ? (
+                    <Text className="text-[40px] font-bold text-primary">
+                      {nickname.trim()[0]}
+                    </Text>
+                  ) : (
+                    <Ionicons name="person" size={40} color="#C24F0E" />
+                  )}
                 </View>
               )}
               {/* NativeWind가 함수형 style을 버리므로 정적 style만 쓴다. */}
