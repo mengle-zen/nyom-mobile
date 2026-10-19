@@ -8,7 +8,6 @@
     "scheme": "nyom",
     "userInterfaceStyle": "light",
     "ios": {
-      "icon": "./assets/expo.icon",
       "bundleIdentifier": "nyom.mengle.zen",
       "buildNumber": "5",
       "supportsTablet": false,
