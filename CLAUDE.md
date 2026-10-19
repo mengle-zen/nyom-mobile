@@ -94,6 +94,22 @@ pnpm exec tsc --noEmit     # 타입 검사
 로컬 백엔드는 웹 저장소에서 `pnpm dlx supabase start`.
 `.env.local`은 `.env.example` 참고. 실기기는 `127.0.0.1` 대신 LAN IP를 써야 한다.
 
+## e2e (Maestro)
+
+`.maestro/flows/`에 로그인 → 그룹 → 보드 → 프로필 → 올리기 다섯 흐름이 있다. **실제 서버**를 쓰고,
+테스트 계정(`EXPO_PUBLIC_TEST_LOGIN_*`)으로 로그인한다. 올리기는 멤버가 가장 적은 「테스트그룹123」에만
+보내고 곧바로 되돌린다 — 나가기·강퇴처럼 되돌릴 수 없는 동작은 흐름에 넣지 않는다.
+
+1. Maestro CLI: `~/.maestro/bin/maestro` (셸 설정 파일은 건드리지 않고 릴리스 zip만 풀어 둠)
+2. 테스트 계정 버튼이 보이는 Release 시뮬레이터 빌드 — **env를 비우지 않고** 빌드해 설치한다:
+   `xcodebuild … -configuration Release -sdk iphonesimulator ONLY_ACTIVE_ARCH=YES ARCHS=arm64 build`
+   후 `xcrun simctl install`. (TestFlight용 빌드는 env를 비운다 — 아래 「TestFlight 업로드」)
+3. `MAESTRO_CLI_NO_ANALYTICS=1 ~/.maestro/bin/maestro --device <iOS 27 시뮬레이터 id> test .maestro`
+
+iOS 27 시뮬레이터에는 가상 카메라가 있어 카메라가 실제로 뜨지만, 셔터를 눌러도 사진은 안 나온다.
+올리기 흐름은 카메라가 뜨는 것(무한 로딩 회귀)까지 확인하고 닫은 뒤 갤러리 경로로 이어 간다.
+갤러리에 사진이 없으면 `xcrun simctl addmedia <id> <사진>`으로 넣어 둔다.
+
 ## TestFlight 업로드
 
 번들 ID `nyom.mengle.zen`, 팀 `8V5VNMF9JM`, App Store Connect API 키는

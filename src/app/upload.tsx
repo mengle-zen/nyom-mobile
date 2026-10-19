@@ -13,7 +13,7 @@ import {
 } from 'react-native'
 import * as ImagePicker from 'expo-image-picker'
 import { Ionicons } from '@expo/vector-icons'
-import { router, useLocalSearchParams } from 'expo-router'
+import { router, useLocalSearchParams, useNavigation } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner-native'
@@ -50,6 +50,16 @@ import { haptic } from '@/shared/ui/press'
 
 /** 보낸 직후 되돌릴 수 있는 시간 */
 const UNDO_MS = 5000
+/** 네이티브 스택이 내보내는 전환 종료 이벤트 — 이 화면이 쓰는 부분만 좁게 적는다. */
+type StackTransitionEvents = {
+  addListener: (
+    event: 'transitionEnd',
+    callback: (e: { data?: { closing: boolean } }) => void,
+  ) => () => void
+}
+
+/** 전환 종료 이벤트가 오지 않을 때 카메라를 띄울 시점. 모달 전환(~0.5초)보다 길게. */
+const CAMERA_LAUNCH_FALLBACK_MS = 700
 
 /**
  * 되돌리기로 돌아올 때 들고 오는 것 — 사진(이미 정사각으로 확정된 파일)과 입력값.
@@ -252,12 +262,29 @@ export default function UploadScreen() {
 
   // 진입하자마자 OS 카메라. 마운트당 한 번만 — 사용자가 취소한 뒤 다시 자동으로
   // 띄우면 화면을 벗어날 수 없는 덫이 된다. 되돌리기로 돌아온 경우엔 띄우지 않는다.
+  //
+  // **이 화면이 다 올라온 뒤에** 띄운다. 모달이 올라오는 도중에 카메라를 present하면
+  // iOS가 오류 없이 무시하고, launchCameraAsync가 끝나지 않아 로딩이 영원히 돈다
+  // (카메라 권한을 이미 허용한 실기기에서만 — 권한 창이 뜨면 그 사이 전환이 끝나 재현 안 됨).
+  // 전환 종료 이벤트를 기다리되, 이벤트가 안 오는 경우(딥링크 첫 화면 등)를 위해 시간으로도 받친다.
+  const navigation = useNavigation<StackTransitionEvents>()
   const autoLaunched = useRef(restored)
   useEffect(() => {
     if (autoLaunched.current) return
-    autoLaunched.current = true
-    void openCamera()
-  }, [openCamera])
+    const launch = () => {
+      if (autoLaunched.current) return
+      autoLaunched.current = true
+      void openCamera()
+    }
+    const unsubscribe = navigation.addListener('transitionEnd', (e) => {
+      if (!e.data?.closing) launch()
+    })
+    const fallbackTimer = setTimeout(launch, CAMERA_LAUNCH_FALLBACK_MS)
+    return () => {
+      unsubscribe()
+      clearTimeout(fallbackTimer)
+    }
+  }, [navigation, openCamera])
 
   /** 갤러리에서 선택 — 오늘 찍은 사진이면 그 촬영 시각을 먹은 시각으로 쓴다. */
   const handlePickGallery = async () => {
@@ -332,7 +359,8 @@ export default function UploadScreen() {
       // UX_FINDINGS E항 — 그룹 목록이 아니라 방금 올린 그룹의 보드로.
       const destination =
         search.group && groupIds.includes(search.group) ? search.group : groupIds[0]
-      router.replace(boardHref(destination))
+      // 방금 올린 끼니 칸을 연다 — 안 넘기면 보드가 아침을 열어 내 사진이 안 보인다(e2e에서 발견).
+      router.replace(boardHref(destination, { slot }))
 
       const names = groups.filter((g) => groupIds.includes(g.id)).map((g) => g.name)
       toast.success(names.length === 1 ? `${names[0]}에 올렸어요` : `${names.length}곳에 올렸어요`, {

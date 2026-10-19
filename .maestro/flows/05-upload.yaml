@@ -1,0 +1,65 @@
+# 올리기 — 탭바 카메라 → (화면 전환이 끝난 뒤) OS 카메라 → 셔터 → 사진 사용 → 미리보기 →
+# 받는 곳 고르기 → 보내기 → 보드 → 5초 안에 되돌리기 → 미리보기로 복귀 → 그만두기.
+#
+# 실제 서버에 올리므로 멤버가 가장 적은 테스트그룹123에만 보내고 곧바로 되돌린다.
+# iOS 27 시뮬레이터에는 가상 카메라가 있다(18 이하 시뮬레이터는 카메라가 없어 안내로 떨어짐).
+appId: nyom.mengle.zen
+name: 올리기
+---
+- launchApp
+- extendedWaitUntil:
+    visible: "내 그룹"
+    timeout: 20000
+- tapOn: "기록"
+# 무한 로딩 회귀 확인 — 카메라가 실제로 떠야 한다.
+- extendedWaitUntil:
+    visible: "Take Picture"
+    timeout: 10000
+- takeScreenshot: e2e/05-camera
+# 시뮬레이터의 가상 카메라는 셔터를 눌러도 사진이 나오지 않는다 — 촬영은 실기기에서 확인.
+# 여기선 카메라를 닫고(취소) 선택 화면 → 갤러리 경로로 나머지 흐름을 검증한다.
+- tapOn: "Close"
+- extendedWaitUntil:
+    visible: "갤러리에서 고르기"
+    timeout: 10000
+- tapOn: "갤러리에서 고르기"
+- waitForAnimationToEnd
+# 시스템 사진 선택기 — 가장 최근 사진(맨 위 왼쪽)
+- tapOn:
+    point: "17%,22%"
+- extendedWaitUntil:
+    visible: "받는 곳"
+    timeout: 15000
+- takeScreenshot: e2e/05-preview
+- tapOn:
+    text: "받는 곳: .*"
+- extendedWaitUntil:
+    visible: "어디에 올릴까요?"
+    timeout: 5000
+- tapOn: "테스트그룹123 그룹에 올리기"
+- tapOn: "완료"
+- extendedWaitUntil:
+    visible: "테스트그룹123에 보내기"
+    timeout: 5000
+- tapOn: "테스트그룹123에 보내기"
+- extendedWaitUntil:
+    visible: "되돌리기"
+    timeout: 20000
+- takeScreenshot: e2e/05-sent
+# 보드가 방금 올린 끼니 칸을 열어 내 사진이 보여야 한다(아침으로 열려 빈 칸이 보이던 회귀).
+- assertNotVisible: "탭해서 올리기"
+- tapOn: "되돌리기"
+- extendedWaitUntil:
+    visible: "받는 곳"
+    timeout: 15000
+- takeScreenshot: e2e/05-undone
+- tapOn: "닫기"
+- tapOn: "그만두기"
+# 되돌리기는 보드 위에 업로드를 다시 연 것이라, 닫으면 보내기 전의 보드로 돌아간다.
+- extendedWaitUntil:
+    visible: "아침 .* 올림"
+    timeout: 10000
+- tapOn: "그룹 목록으로"
+- extendedWaitUntil:
+    visible: "내 그룹"
+    timeout: 10000

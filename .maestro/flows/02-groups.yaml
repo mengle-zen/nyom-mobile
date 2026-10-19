@@ -1,0 +1,19 @@
+# 그룹 화면 — 내 그룹 ↔ 탐색 전환, 그룹 추가 시트 열고 닫기.
+appId: nyom.mengle.zen
+name: 그룹
+---
+- launchApp
+- extendedWaitUntil:
+    visible: "내 그룹"
+    timeout: 20000
+- assertVisible: "테스트그룹123, .* 보드 열기"
+- tapOn: "탐색"
+- waitForAnimationToEnd
+- takeScreenshot: e2e/02-discover
+- tapOn: "내 그룹"
+- tapOn: "그룹 추가"
+- waitForAnimationToEnd
+- takeScreenshot: e2e/02-add-sheet
+- tapOn:
+    point: "50%,10%"
+- waitForAnimationToEnd

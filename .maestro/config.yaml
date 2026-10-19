@@ -1,0 +1,13 @@
+# Maestro e2e — iOS 시뮬레이터에서 Release 빌드를 실제로 눌러 본다.
+# 실행: ~/.maestro/bin/maestro test .maestro  (README의 「e2e」 참고)
+flows:
+  - "flows/*"
+executionOrder:
+  continueOnFailure: false
+  flowsOrder:
+    # 파일 이름이 아니라 각 flow의 name — 로그인이 먼저 돌아야 나머지가 로그인 상태에서 시작한다.
+    - 로그인
+    - 그룹
+    - 보드
+    - 프로필
+    - 올리기

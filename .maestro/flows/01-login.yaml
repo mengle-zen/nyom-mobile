@@ -1,0 +1,15 @@
+# 깨끗한 상태에서 테스트 계정으로 로그인해 그룹 화면에 닿는다.
+# 테스트 계정 버튼은 EXPO_PUBLIC_TEST_LOGIN_* 를 넣고 빌드한 경우에만 보인다(배포 빌드엔 없음).
+appId: nyom.mengle.zen
+name: 로그인
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible: "카카오로 시작하기"
+    timeout: 20000
+- tapOn: "테스트 계정으로 로그인 (개발용)"
+- extendedWaitUntil:
+    visible: "내 그룹"
+    timeout: 20000
+- takeScreenshot: e2e/01-groups

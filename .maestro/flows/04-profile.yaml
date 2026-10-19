@@ -1,0 +1,24 @@
+# 프로필 — 그리드·돌아보기 전환, 프로필 수정 모달 열고 취소.
+appId: nyom.mengle.zen
+name: 프로필
+---
+- launchApp
+- extendedWaitUntil:
+    visible: "내 그룹"
+    timeout: 20000
+- tapOn: "프로필"
+- extendedWaitUntil:
+    visible: "그리드"
+    timeout: 10000
+- takeScreenshot: e2e/04-profile
+- tapOn: "돌아보기"
+- waitForAnimationToEnd
+- takeScreenshot: e2e/04-lookback
+- tapOn: "그리드"
+- tapOn: "프로필 수정"
+- extendedWaitUntil:
+    visible: "프로필 사진과 닉네임을 변경할 수 있어요."
+    timeout: 5000
+- takeScreenshot: e2e/04-edit-profile
+- tapOn: "취소"
+- assertNotVisible: "프로필 사진과 닉네임을 변경할 수 있어요."

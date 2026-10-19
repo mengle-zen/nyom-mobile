@@ -1,0 +1,24 @@
+# 보드 — 그룹을 열고 끼니 칩을 옮기고, 날짜를 하루 전으로 넘겼다가 그룹 목록으로 돌아온다.
+appId: nyom.mengle.zen
+name: 보드
+---
+- launchApp
+- extendedWaitUntil:
+    visible: "테스트그룹123, .* 보드 열기"
+    timeout: 20000
+- tapOn: "테스트그룹123, .* 보드 열기"
+- extendedWaitUntil:
+    visible: "아침 .* 올림"
+    timeout: 20000
+- takeScreenshot: e2e/03-board
+- tapOn: "저녁 .* 올림"
+- waitForAnimationToEnd
+- assertVisible: "저녁"
+- tapOn: "이전 날짜"
+- waitForAnimationToEnd
+- assertVisible: "날짜 선택 .* 현재 어제.*"
+- takeScreenshot: e2e/03-board-prev-day
+- tapOn: "그룹 목록으로"
+- extendedWaitUntil:
+    visible: "내 그룹"
+    timeout: 10000
