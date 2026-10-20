@@ -26,7 +26,8 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "app.nyom.mobile",
+      "package": "nyom.mengle.zen",
+      "versionCode": 1,
       "permissions": [
         "CAMERA",
         "READ_MEDIA_IMAGES",
