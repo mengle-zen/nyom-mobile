@@ -13,21 +13,49 @@ name: 올리기
     timeout: 20000
 - tapOn: "기록"
 # 무한 로딩 회귀 확인 — 카메라가 실제로 떠야 한다.
-- extendedWaitUntil:
-    visible: "Take Picture"
-    timeout: 10000
-- takeScreenshot: e2e/05-camera
-# 시뮬레이터의 가상 카메라는 셔터를 눌러도 사진이 나오지 않는다 — 촬영은 실기기에서 확인.
-# 여기선 카메라를 닫고(취소) 선택 화면 → 갤러리 경로로 나머지 흐름을 검증한다.
-- tapOn: "Close"
+# 시뮬레이터·에뮬레이터 카메라로는 쓸 만한 사진이 안 나오므로(촬영은 실기기에서 확인)
+# 카메라가 뜨는 것까지만 보고 닫은 뒤, 선택 화면 → 갤러리 경로로 나머지를 검증한다.
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - extendedWaitUntil:
+          visible: "Take Picture"
+          timeout: 10000
+      - takeScreenshot: e2e/05-camera
+      - tapOn: "Close"
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      # 첫 실행이면 카메라 권한 창
+      - tapOn:
+          text: "While using the app|앱 사용 중에만 허용|Only this time|이번만 허용"
+          optional: true
+      - extendedWaitUntil:
+          notVisible: "내 그룹"
+          timeout: 10000
+      - waitForAnimationToEnd
+      - takeScreenshot: e2e/05-camera
+      - back
 - extendedWaitUntil:
     visible: "갤러리에서 고르기"
     timeout: 10000
 - tapOn: "갤러리에서 고르기"
 - waitForAnimationToEnd
 # 시스템 사진 선택기 — 가장 최근 사진(맨 위 왼쪽)
-- tapOn:
-    point: "17%,22%"
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - tapOn:
+          point: "17%,22%"
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - tapOn:
+          point: "17%,26%"
 - extendedWaitUntil:
     visible: "받는 곳"
     timeout: 15000
