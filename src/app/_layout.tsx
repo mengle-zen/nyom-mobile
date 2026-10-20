@@ -23,7 +23,10 @@ export default function RootLayout() {
             <StatusBar style="auto" />
             <AuthGate />
             {/* shared/lib/error.ts의 notifyError가 이 Toaster로 뜬다. */}
-            <Toaster position="top-center" />
+            {/* 토스트는 높이 0인 컨테이너 안에 absolute로 놓인다. Android는 부모 밖으로 넘친
+                뷰를 접근성 트리에서 빼서 TalkBack·e2e가 「되돌리기」를 못 찾는다 — 토스트
+                한 장이 들어갈 높이를 준다. 컨테이너는 box-none이라 빈 곳 터치는 통과한다. */}
+            <Toaster position="top-center" style={{ minHeight: 160 }} />
             {/* 알림 탭 → 보드 딥링크. 렌더 없음, 리스너만 붙는다. */}
             <NotificationDeepLinks />
             <PushTokenSync />

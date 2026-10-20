@@ -35,7 +35,6 @@ name: 올리기
       - extendedWaitUntil:
           notVisible: "내 그룹"
           timeout: 10000
-      - waitForAnimationToEnd
       - takeScreenshot: e2e/05-camera
       - back
 - extendedWaitUntil:
@@ -55,7 +54,7 @@ name: 올리기
       platform: Android
     commands:
       - tapOn:
-          point: "17%,26%"
+          point: "17%,34%"
 - extendedWaitUntil:
     visible: "받는 곳"
     timeout: 15000
@@ -72,7 +71,11 @@ name: 올리기
     timeout: 5000
 - assertVisible: "E2E 전용 그룹에 올리기"
 - tapOn: "완료"
-- tapOn: "E2E 전용에 보내기"
+# 되돌리기 토스트는 5초뿐이다. 탭 뒤 화면이 잠잠해지길 기다리면(기본) Android
+# 에뮬레이터에선 그 사이 토스트가 사라져 놓친다.
+- tapOn:
+    text: "E2E 전용에 보내기"
+    waitToSettleTimeoutMs: 300
 - extendedWaitUntil:
     visible: "되돌리기"
     timeout: 20000
