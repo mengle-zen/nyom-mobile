@@ -9,7 +9,7 @@
     "userInterfaceStyle": "light",
     "ios": {
       "bundleIdentifier": "nyom.mengle.zen",
-      "buildNumber": "7",
+      "buildNumber": "8",
       "supportsTablet": false,
       "infoPlist": {
         "NSCameraUsageDescription": "끼니 사진을 찍어 그룹에 공유하기 위해 카메라를 사용합니다.",
