@@ -105,7 +105,11 @@ pnpm exec tsc --noEmit     # 타입 검사
 2. 테스트 계정 버튼이 보이는 Release 시뮬레이터 빌드 — **env를 비우지 않고** 빌드해 설치한다:
    `xcodebuild … -configuration Release -sdk iphonesimulator ONLY_ACTIVE_ARCH=YES ARCHS=arm64 build`
    후 `xcrun simctl install`. (TestFlight용 빌드는 env를 비운다 — 아래 「TestFlight 업로드」)
-3. `MAESTRO_CLI_NO_ANALYTICS=1 ~/.maestro/bin/maestro --device <iOS 27 시뮬레이터 id> test .maestro`
+3. **「동작 줄이기」를 켠다.** 되돌리기 스낵바의 5초 막대가 계속 움직이면 Maestro가 탭마다 애니메이션
+   종료를 최대 3초씩 기다리다 토스트가 사라진 뒤에 누른다. iOS는
+   `xcrun simctl spawn <id> defaults write com.apple.Accessibility ReduceMotionEnabled -bool true` 후
+   앱 재실행, Android는 `adb shell settings put global animator_duration_scale 0`.
+4. `MAESTRO_CLI_NO_ANALYTICS=1 ~/.maestro/bin/maestro --device <iOS 27 시뮬레이터 id> test .maestro`
 
 iOS 27 시뮬레이터에는 가상 카메라가 있어 카메라가 실제로 뜨지만, 셔터를 눌러도 사진은 안 나온다.
 올리기 흐름은 카메라가 뜨는 것(무한 로딩 회귀)까지 확인하고 닫은 뒤 갤러리 경로로 이어 간다.

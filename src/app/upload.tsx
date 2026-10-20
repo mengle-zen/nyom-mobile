@@ -16,7 +16,6 @@ import { Ionicons } from '@expo/vector-icons'
 import { router, useLocalSearchParams, useNavigation } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useQueryClient } from '@tanstack/react-query'
-import { toast } from 'sonner-native'
 
 import { defaultSlotForHour, type MealSlotKey } from '@/entities/post'
 import { hhmmFromDate } from '@/entities/post/date-range'
@@ -28,6 +27,7 @@ import { isUntouched } from '@/features/upload/lib/canvas-transform'
 import { capturedAtFromExif } from '@/features/upload/lib/captured-at'
 import { downscaleForUpload, type Shot } from '@/features/upload/lib/downscale'
 import { EDIT_SOURCE_EDGE } from '@/features/upload/lib/fit'
+import { showUndoToast } from '@/features/upload/ui/UndoToast'
 import { loadLastRecipients, saveLastRecipients } from '@/features/upload/lib/last-recipients'
 import {
   defaultRecipients,
@@ -363,26 +363,24 @@ export default function UploadScreen() {
       router.replace(boardHref(destination, { slot }))
 
       const names = groups.filter((g) => groupIds.includes(g.id)).map((g) => g.name)
-      toast.success(names.length === 1 ? `${names[0]}에 올렸어요` : `${names.length}곳에 올렸어요`, {
-        duration: UNDO_MS,
-        action: {
-          label: '되돌리기',
-          onClick: () =>
-            void undoUpload({
-              postId,
-              userId: user.id,
-              groupIds,
-              restore: {
-                restoreUri: final.uri,
-                restoreW: String(final.width),
-                restoreH: String(final.height),
-                restoreSlot: slot,
-                restoreCaption: caption,
-                restoreAt: recordedAt,
-                restoreGroups: groupIds.join(','),
-              },
-            }),
-        },
+      showUndoToast({
+        message: names.length === 1 ? `${names[0]}에 올렸어요` : `${names.length}곳에 올렸어요`,
+        durationMs: UNDO_MS,
+        onUndo: () =>
+          void undoUpload({
+            postId,
+            userId: user.id,
+            groupIds,
+            restore: {
+              restoreUri: final.uri,
+              restoreW: String(final.width),
+              restoreH: String(final.height),
+              restoreSlot: slot,
+              restoreCaption: caption,
+              restoreAt: recordedAt,
+              restoreGroups: groupIds.join(','),
+            },
+          }),
       })
     } catch (e) {
       notifyError(e, '업로드에 실패했어요. 잠시 후 다시 시도해 주세요.')
