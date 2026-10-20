@@ -28,3 +28,4 @@ export {
 } from './lib/push-url'
 export { NotificationSettingsSection } from './ui/NotificationSettingsSection'
 export { NotificationDeepLinks } from './ui/NotificationDeepLinks'
+export { PushTokenSync } from './ui/PushTokenSync'

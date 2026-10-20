@@ -11,7 +11,7 @@ import { Toaster } from 'sonner-native'
 
 import { queryClient } from '@/shared/api/query-client'
 import { AuthProvider, useAuth } from '@/features/auth'
-import { NotificationDeepLinks } from '@/features/notifications'
+import { NotificationDeepLinks, PushTokenSync } from '@/features/notifications'
 import { useReducedMotion } from '@/shared/ui/motion'
 
 export default function RootLayout() {
@@ -26,6 +26,7 @@ export default function RootLayout() {
             <Toaster position="top-center" />
             {/* 알림 탭 → 보드 딥링크. 렌더 없음, 리스너만 붙는다. */}
             <NotificationDeepLinks />
+            <PushTokenSync />
           </AuthProvider>
         </QueryClientProvider>
       </SafeAreaProvider>
