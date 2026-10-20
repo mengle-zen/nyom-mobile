@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text, View, type GestureResponderEvent } from 'react-native'
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -40,17 +40,17 @@ type FilledProps = {
   extraCount: number
   currentUserId: string
   onReact: (postId: string, emoji: string) => void
-  /** 사진 탭 → 상세 보기 */
-  onOpen: () => void
+  /** 사진 탭 → 상세 보기(가운데). 화면 끝이면 보드가 끼니를 넘긴다 — 판정은 보드 몫. */
+  onOpen: (e: GestureResponderEvent) => void
 }
 
 /**
  * 올린 사람의 타일.
  *
- * 타일 전체가 "상세 보기" 버튼이다. 웹앱에서는 사진이 아무 핸들러 없는 div라
- * 탭하면 화면 우측 30% 가장자리 탭으로 먹혀 **끼니가 넘어갔고**, 정작 사진을 크게 보는
- * 기능은 없었다(docs/UX_FINDINGS.md B항). 여기서는 탭 = 상세이고, 끼니 이동은
- * 상단 칩과 세로 스와이프만 담당하므로 둘이 겹치지 않는다.
+ * 타일을 누르면 상세 보기. 단 화면 좌우 끝(30%)을 누르면 스토리처럼 끼니가 넘어간다
+ * (2026-10 보드 시안 A안 — 사용자 선택). 웹앱은 끝 탭만 있고 사진을 크게 볼 방법이
+ * 없었다(docs/UX_FINDINGS.md B항). 여기는 가운데 = 상세, 끝 = 넘기기로 둘 다 둔다.
+ * 리액션 칩은 따로 눌리는 버튼이라 끝에 있어도 칩이 먼저 받는다.
  */
 export function FilledTile({
   member,
@@ -292,7 +292,7 @@ type EmptyProps = {
    * 백필을 지원하기 전까지는 과거 날짜에서 올리기를 제안하지 않는 게 맞다.
    */
   canUpload: boolean
-  onUpload: () => void
+  onUpload: (e: GestureResponderEvent) => void
 }
 
 /**

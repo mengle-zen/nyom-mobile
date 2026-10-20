@@ -1,9 +1,18 @@
-import { useCallback, useState } from 'react'
-import { Text, View, type LayoutChangeEvent, type ViewStyle } from 'react-native'
+import { useCallback, useRef, useState } from 'react'
+import {
+  Pressable,
+  Text,
+  View,
+  useWindowDimensions,
+  type GestureResponderEvent,
+  type LayoutChangeEvent,
+  type ViewStyle,
+} from 'react-native'
 import { slotLabel, buildSlotBoard, type MealSlotKey } from '@/entities/post'
 import type { BoardPost } from '@/entities/post/model'
 import type { GroupMemberProfile } from '@/entities/group'
 import { FilledTile, EmptyTile } from '@/widgets/meal-tile'
+import { decideAxis, edgeZone } from '@/features/board-nav'
 import { Skeleton } from '@/shared/ui/skeleton'
 import { slotBoardLayout, slotCountLabel } from './layout'
 
@@ -17,24 +26,59 @@ type Props = {
   onReact: (postId: string, emoji: string) => void
   onUpload: () => void
   onOpenPost: (post: BoardPost, member: GroupMemberProfile) => void
+  /**
+   * 화면 좌우 끝(30%)을 눌렀을 때 — 스토리처럼 이전(-1)/다음(1) 끼니로.
+   * 타일 위라도 끝이면 넘기고, 사진 상세·올리기는 가운데를 눌러야 열린다.
+   */
+  onEdgeTap: (dir: -1 | 1) => void
 }
 
 /** 타일 사이 간격(px). gap-2 = 8px과 같아야 폭 계산이 맞는다. */
 const GAP = 8
 
-/** 격자 폭을 재서 타일 하나의 폭을 낸다. 높이 상한의 기준이 된다. */
-function useGridWidth() {
-  const [width, setWidth] = useState(0)
+/** 격자 영역을 잰다 — 타일 크기는 폭과 높이 둘 다로 정한다(`slotBoardLayout`). */
+function useGridSize() {
+  const [size, setSize] = useState({ width: 0, height: 0 })
   const onLayout = useCallback((e: LayoutChangeEvent) => {
-    setWidth(e.nativeEvent.layout.width)
+    const { width, height } = e.nativeEvent.layout
+    setSize({ width, height })
   }, [])
-  return { width, onLayout }
+  return { size, onLayout }
 }
 
-function tileMaxHeight(gridWidth: number, cols: number, maxAspect: number | null) {
-  if (maxAspect === null || gridWidth <= 0) return undefined
-  const tileWidth = (gridWidth - GAP * (cols - 1)) / cols
-  return tileWidth * maxAspect
+/**
+ * 탭 위치로 "끼니 넘기기"와 "타일 동작"을 가른다. 화면 좌우 30%면 넘기고, 아니면 원래 동작.
+ * 판정은 화면 폭 기준이다 — 보드는 화면 가로를 꽉 채우므로 스토리와 같은 감각이 된다.
+ */
+function useEdgeRouter(onEdgeTap: (dir: -1 | 1) => void) {
+  const { width } = useWindowDimensions()
+  return useCallback(
+    (e: GestureResponderEvent, otherwise: () => void) => {
+      const zone = edgeZone(e.nativeEvent.pageX, width)
+      if (zone === 'left') onEdgeTap(-1)
+      else if (zone === 'right') onEdgeTap(1)
+      else otherwise()
+    },
+    [onEdgeTap, width],
+  )
+}
+
+/**
+ * 타일이 아닌 곳(남의 빈 칸·간격·여백)의 탭. 스와이프 끝에 손을 떼도 onPress가 오므로
+ * (CLAUDE.md 함정) 누른 곳과 뗀 곳이 멀면 탭이 아니라 스와이프로 본다.
+ */
+function useBackgroundTap(route: ReturnType<typeof useEdgeRouter>) {
+  const from = useRef<{ x: number; y: number } | null>(null)
+  return {
+    onPressIn: (e: GestureResponderEvent) => {
+      from.current = { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY }
+    },
+    onPress: (e: GestureResponderEvent) => {
+      const start = from.current
+      if (start && decideAxis(e.nativeEvent.pageX - start.x, e.nativeEvent.pageY - start.y, 10) !== null) return
+      route(e, () => {})
+    },
+  }
 }
 
 /** 한 끼니의 멤버 타일 격자. */
@@ -47,10 +91,13 @@ export function SlotBoard({
   onReact,
   onUpload,
   onOpenPost,
+  onEdgeTap,
 }: Props) {
   const board = buildSlotBoard(members, posts, slot)
-  const { cols, maxAspect, center } = slotBoardLayout(members.length)
-  const { width, onLayout } = useGridWidth()
+  const { size, onLayout } = useGridSize()
+  const { cols, tileWidth, tileHeight } = slotBoardLayout(members.length, size, GAP)
+  const route = useEdgeRouter(onEdgeTap)
+  const background = useBackgroundTap(route)
 
   const rows: (typeof board.tiles)[] = []
   for (let i = 0; i < board.tiles.length; i += cols) {
@@ -58,9 +105,6 @@ export function SlotBoard({
   }
 
   const allFilled = members.length > 0 && board.filledCount === members.length
-  // 상한이 있는 행은 `flex-1`로 늘어나되 여기서 멈춘다. 남는 여백은 가운데 정렬이
-  // 위아래로 나눠 가지므로, 1인 그룹의 빈 칸도 화면 한복판의 카드로 앉는다.
-  const maxHeight = tileMaxHeight(width, cols, maxAspect)
 
   return (
     <View className="flex-1 pb-2">
@@ -71,44 +115,51 @@ export function SlotBoard({
         allFilled={allFilled}
       />
 
-      <View
+      {/* 격자 영역 전체가 끝 탭을 받는다 — 타일이 아닌 곳을 눌러도 끼니가 넘어간다. */}
+      <Pressable
+        accessible={false}
         onLayout={onLayout}
-        className={`flex-1 gap-2 px-3 ${center ? 'justify-center' : ''}`}
+        onPressIn={background.onPressIn}
+        onPress={background.onPress}
+        className="flex-1 items-center justify-center gap-2 px-3"
       >
-        {rows.map((row, rowIdx) => (
-          <View key={rowIdx} className="flex-1 flex-row gap-2" style={{ maxHeight }}>
-            {row.map((tile) => {
-              const isMe = tile.member.user_id === currentUserId
-              return (
-                <View key={tile.member.user_id} className="flex-1">
-                  {tile.post ? (
-                    <FilledTile
-                      member={tile.member}
-                      post={tile.post}
-                      isMe={isMe}
-                      extraCount={tile.extraCount}
-                      currentUserId={currentUserId}
-                      onReact={onReact}
-                      onOpen={() => onOpenPost(tile.post as BoardPost, tile.member)}
-                    />
-                  ) : (
-                    <EmptyTile
-                      member={tile.member}
-                      isMe={isMe}
-                      canUpload={isToday}
-                      onUpload={onUpload}
-                    />
-                  )}
-                </View>
-              )
-            })}
-            {/* 마지막 행이 덜 찼을 때 타일 폭이 늘어나지 않도록 빈 칸을 채운다 */}
-            {Array.from({ length: cols - row.length }, (_, i) => (
-              <View key={`spacer-${i}`} className="flex-1" />
-            ))}
-          </View>
-        ))}
-      </View>
+        {tileWidth > 0 &&
+          rows.map((row, rowIdx) => (
+            <View key={rowIdx} className="flex-row gap-2">
+              {row.map((tile) => {
+                const isMe = tile.member.user_id === currentUserId
+                return (
+                  <View key={tile.member.user_id} style={{ width: tileWidth, height: tileHeight }}>
+                    {tile.post ? (
+                      <FilledTile
+                        member={tile.member}
+                        post={tile.post}
+                        isMe={isMe}
+                        extraCount={tile.extraCount}
+                        currentUserId={currentUserId}
+                        onReact={onReact}
+                        onOpen={(e) =>
+                          route(e, () => onOpenPost(tile.post as BoardPost, tile.member))
+                        }
+                      />
+                    ) : (
+                      <EmptyTile
+                        member={tile.member}
+                        isMe={isMe}
+                        canUpload={isToday}
+                        onUpload={(e) => route(e, onUpload)}
+                      />
+                    )}
+                  </View>
+                )
+              })}
+              {/* 마지막 행이 덜 찼을 때 왼쪽 정렬을 지키는 빈 칸 */}
+              {Array.from({ length: cols - row.length }, (_, i) => (
+                <View key={`spacer-${i}`} style={{ width: tileWidth, height: tileHeight }} />
+              ))}
+            </View>
+          ))}
+      </Pressable>
     </View>
   )
 }
@@ -162,29 +213,26 @@ function DarkSkeleton({ style }: { style?: ViewStyle }) {
  * (`useGroupMembers`) 로딩 중에도 몇 칸이 필요한지 알 수 있다.
  */
 export function SlotBoardSkeleton({ memberCount }: { memberCount: number }) {
-  const { cols, maxAspect, center } = slotBoardLayout(memberCount)
-  const { width, onLayout } = useGridWidth()
-  const maxHeight = tileMaxHeight(width, cols, maxAspect)
-  const rowCount = Math.max(1, Math.ceil(Math.max(memberCount, 1) / cols))
+  const { size, onLayout } = useGridSize()
+  const { cols, rows, tileWidth, tileHeight } = slotBoardLayout(memberCount, size, GAP)
 
   return (
     <View className="flex-1 pb-2">
       <View className="items-center px-4 pb-2">
         <DarkSkeleton style={{ width: 96, height: 18, borderRadius: 999 }} />
       </View>
-      <View
-        onLayout={onLayout}
-        className={`flex-1 gap-2 px-3 ${center ? 'justify-center' : ''}`}
-      >
-        {Array.from({ length: rowCount }, (_, rowIdx) => (
-          <View key={rowIdx} className="flex-1 flex-row gap-2" style={{ maxHeight }}>
-            {Array.from({ length: cols }, (__, colIdx) => (
-              <View key={colIdx} className="flex-1">
-                <DarkSkeleton style={{ flex: 1, borderRadius: 16 }} />
-              </View>
-            ))}
-          </View>
-        ))}
+      <View onLayout={onLayout} className="flex-1 items-center justify-center gap-2 px-3">
+        {tileWidth > 0 &&
+          Array.from({ length: rows }, (_, rowIdx) => (
+            <View key={rowIdx} className="flex-row gap-2">
+              {Array.from({ length: cols }, (__, colIdx) => (
+                <DarkSkeleton
+                  key={colIdx}
+                  style={{ width: tileWidth, height: tileHeight, borderRadius: 16 }}
+                />
+              ))}
+            </View>
+          ))}
       </View>
     </View>
   )

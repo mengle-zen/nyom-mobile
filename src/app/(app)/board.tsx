@@ -341,6 +341,7 @@ export default function BoardScreen() {
                 onReact={react}
                 onUpload={goUpload}
                 onOpenPost={openPost}
+                onEdgeTap={(dir) => commitSlotSwipe(slotIdx + dir)}
               />
             )}
           </Animated.View>
