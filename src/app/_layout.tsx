@@ -58,7 +58,11 @@ function AuthGate() {
       (segments[0] as string) === 'auth'
     // 루트("/")는 src/app/index.tsx가 선언적으로 갈라 준다. 여기서는 그 외 경로만 본다.
     if (!session && !inAuthFlow) router.replace('/login')
-    else if (session && segments[0] === 'login') router.replace('/(app)/groups')
+    // OAuth 콜백 화면(auth/callback)에서도 세션이 생기면 넘긴다 — Android는 카카오 로그인 뒤
+    // Custom Tab이 딥링크로 이 화면을 연다(iOS는 openAuthSessionAsync가 가로채 거치지 않음).
+    // 빠뜨리면 로그인은 됐는데 「로그인 처리 중」에 영원히 멈춘다.
+    else if (session && (segments[0] === 'login' || (segments[0] as string) === 'auth'))
+      router.replace('/(app)/groups')
   }, [session, loading, segments, router])
 
   if (loading) {
