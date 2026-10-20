@@ -4,16 +4,17 @@ name: 보드
 ---
 - launchApp
 - extendedWaitUntil:
-    visible: "테스트그룹123, .* 보드 열기"
+    visible: "E2E 전용, .* 보드 열기"
     timeout: 20000
-- tapOn: "테스트그룹123, .* 보드 열기"
+- tapOn: "E2E 전용, .* 보드 열기"
 - extendedWaitUntil:
     visible: "아침 .* 올림"
     timeout: 20000
 - takeScreenshot: e2e/03-board
 - tapOn: "저녁 .* 올림"
 - waitForAnimationToEnd
-- assertVisible: "저녁"
+# E2E 전용 그룹은 기록이 없어 끼니 칸 대신 빈 안내가 뜬다 — 칩이 그대로 있는지만 본다.
+- assertVisible: "저녁 .* 올림"
 - tapOn: "이전 날짜"
 - waitForAnimationToEnd
 - assertVisible: "날짜 선택 .* 현재 어제.*"

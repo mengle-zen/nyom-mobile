@@ -1,7 +1,8 @@
 # 올리기 — 탭바 카메라 → (화면 전환이 끝난 뒤) OS 카메라 → 셔터 → 사진 사용 → 미리보기 →
 # 받는 곳 고르기 → 보내기 → 보드 → 5초 안에 되돌리기 → 미리보기로 복귀 → 그만두기.
 #
-# 실제 서버에 올리므로 멤버가 가장 적은 테스트그룹123에만 보내고 곧바로 되돌린다.
+# 실제 서버에 올리므로 테스트 계정 혼자인 비공개 그룹 「E2E 전용」에만 보내고 곧바로 되돌린다.
+# 테스트 계정은 이 그룹 하나에만 속한다 — 친구들 그룹에 테스트 기록이 보이지 않게.
 # iOS 27 시뮬레이터에는 가상 카메라가 있다(18 이하 시뮬레이터는 카메라가 없어 안내로 떨어짐).
 appId: nyom.mengle.zen
 name: 올리기
@@ -31,17 +32,19 @@ name: 올리기
     visible: "받는 곳"
     timeout: 15000
 - takeScreenshot: e2e/05-preview
+# 그룹이 하나뿐이면 받는 곳이 처음부터 그 그룹이어야 한다(기본값 규칙).
+- extendedWaitUntil:
+    visible: "E2E 전용에 보내기"
+    timeout: 5000
+# 받는 곳 시트는 열고 닫기만 — 누르면 체크가 풀린다.
 - tapOn:
     text: "받는 곳: .*"
 - extendedWaitUntil:
     visible: "어디에 올릴까요?"
     timeout: 5000
-- tapOn: "테스트그룹123 그룹에 올리기"
+- assertVisible: "E2E 전용 그룹에 올리기"
 - tapOn: "완료"
-- extendedWaitUntil:
-    visible: "테스트그룹123에 보내기"
-    timeout: 5000
-- tapOn: "테스트그룹123에 보내기"
+- tapOn: "E2E 전용에 보내기"
 - extendedWaitUntil:
     visible: "되돌리기"
     timeout: 20000

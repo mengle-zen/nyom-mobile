@@ -6,7 +6,7 @@ name: 그룹
 - extendedWaitUntil:
     visible: "내 그룹"
     timeout: 20000
-- assertVisible: "테스트그룹123, .* 보드 열기"
+- assertVisible: "E2E 전용, .* 보드 열기"
 - tapOn: "탐색"
 - waitForAnimationToEnd
 - takeScreenshot: e2e/02-discover
