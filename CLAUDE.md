@@ -1,6 +1,6 @@
 # nyom-mobile
 
-뇸(Nyom) 모바일 앱. 웹앱 [hyorish03/nyom](https://github.com/hyorish03/nyom)의 React Native 이식판.
+뇸(Nyom) 모바일 앱. 웹앱 [mengle-zen/nyom](https://github.com/mengle-zen/nyom)의 React Native 이식판.
 
 ## 이 프로젝트를 만질 때 알아야 할 것
 

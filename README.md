@@ -1,11 +1,11 @@
 # 뇸(Nyom) — 모바일
 
 친구들과 먹는 순간을 가볍게 기록하고 흘려보는 식사 로그 앱.
-웹앱([hyorish03/nyom](https://github.com/hyorish03/nyom))의 React Native 이식판이다.
+웹앱([mengle-zen/nyom](https://github.com/mengle-zen/nyom))의 React Native 이식판이다.
 
 ## 왜 네이티브인가
 
-웹앱을 실제로 써보고 정리한 결과([`nyom/docs/UX_FINDINGS.md`](https://github.com/hyorish03/nyom/blob/main/docs/UX_FINDINGS.md)),
+웹앱을 실제로 써보고 정리한 결과([`nyom/docs/UX_FINDINGS.md`](https://github.com/mengle-zen/nyom/blob/main/docs/UX_FINDINGS.md)),
 불편함의 대부분은 웹의 한계가 아니라 구현 선택의 문제였다. 결정적인 한계는 하나다:
 
 > **iOS 웹 푸시는 PWA를 홈 화면에 추가해야만 동작한다**(16.4+).
