@@ -16,6 +16,7 @@ import { toast } from 'sonner-native'
 import { slotMeal, type Meal } from '@/entities/post'
 import {
   hhmmFromDate,
+  localDayKey,
   maxTimeForRecordedDay,
   recordedAtOnSameDay,
 } from '@/entities/post/date-range'
@@ -36,8 +37,8 @@ import {
 import { useMyGroups, type Group } from '@/entities/group'
 import { useAuth } from '@/features/auth'
 import { MealSlotChips } from '@/entities/post/ui/MealSlotChips'
-import { TimeStepper } from '@/shared/ui/TimeStepper'
-import { clampTime } from '@/shared/lib/time-step'
+import { TimeField } from '@/shared/ui/TimeField'
+import { clampTime } from '@/shared/lib/time-input'
 import { haptic } from '@/shared/ui/press'
 
 /** 편집할 기록 — 프로필 그리드/타임라인의 행에서 이 정도만 필요하다. */
@@ -209,10 +210,14 @@ function PostEditForm({
   )
   const [caption, setCaption] = useState(original.caption)
   const [recordedTime, setRecordedTime] = useState(original.recordedTime)
+  /** 시각 칸을 다 채우지 않았거나 범위를 넘으면 false — 저장을 막는다 */
+  const [timeValid, setTimeValid] = useState(true)
   const [meal, setMeal] = useState<Meal>(original.meal)
   const { data: recentTags = [] } = useMyRecentTags(userId)
 
   const maxTime = maxTimeForRecordedDay(batch.recordedAt, now)
+  // 「현재」는 오늘 기록에만 — 지난날 기록을 지금 시각으로 맞출 일은 없다
+  const isToday = localDayKey(new Date(batch.recordedAt)) === localDayKey(now)
   const busy = updateMutation.isPending || deleteMutation.isPending
 
   // 내가 나간 그룹의 행은 목록에 뜨지 않으므로 제출 대상에서 뺀다.
@@ -245,10 +250,13 @@ function PostEditForm({
       return next
     })
 
+  // 삭제는 시각과 상관없다 — 시각 칸이 덜 채워져 있어도 막지 않는다
+  const blocked = busy || !changed || (!timeValid && !isDeleting)
+
   const affectedGroupIds = diffGroupSelection(batch.groupIds, nextGroupIds).affected
 
   const handleSave = () => {
-    if (busy) return
+    if (blocked) return
     // 마지막 그룹까지 빼면 기록이 사라진다 → 확인을 받는다
     if (isDeleting) {
       askDelete()
@@ -340,16 +348,18 @@ function PostEditForm({
         </View>
 
         {/* 섭취 시각 — 기록한 날의 시:분만 (날짜 백필은 허용하지 않는다) */}
-        <View className="gap-1.5">
-          <Text className="text-sm font-medium text-muted-foreground">섭취 시각</Text>
-          <TimeStepper
-            value={recordedTime}
-            max={maxTime}
-            onChange={setRecordedTime}
-            disabled={busy}
-            variant="onLight"
-          />
-        </View>
+        <TimeField
+          label="섭취 시각"
+          value={recordedTime}
+          original={original.recordedTime}
+          max={maxTime}
+          current={isToday ? hhmmFromDate(now) : null}
+          onChange={(next) => {
+            if (next) setRecordedTime(next)
+            setTimeValid(next !== null)
+          }}
+          disabled={busy}
+        />
 
         {/* 메모 */}
         <View className="gap-1.5">
@@ -441,10 +451,10 @@ function PostEditForm({
           accessibilityRole="button"
           accessibilityLabel={isDeleting ? '기록 삭제' : '저장'}
           onPress={handleSave}
-          disabled={busy || !changed}
+          disabled={blocked}
           className={`h-control flex-1 flex-row items-center justify-center gap-2 rounded-xl active:opacity-80 ${
             isDeleting ? 'bg-destructive' : 'bg-primary'
-          } ${busy || !changed ? 'opacity-40' : ''}`}
+          } ${blocked ? 'opacity-40' : ''}`}
         >
           {busy && <ActivityIndicator color="#fff" size="small" />}
           <Text className="font-bold text-primary-foreground">

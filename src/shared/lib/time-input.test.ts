@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { canStep, clampTime, formatHHmm, parseHHmm, stepTime } from './time-step'
+import { clampTime, formatHHmm, parseHHmm, timeFromParts } from './time-input'
 
 describe('parseHHmm', () => {
   it('정상 형식을 분으로 바꾼다', () => {
@@ -52,39 +52,26 @@ describe('clampTime', () => {
   })
 })
 
-describe('stepTime', () => {
-  it('분을 더한다', () => {
-    expect(stepTime('12:00', 5, '23:59')).toBe('12:05')
-    expect(stepTime('12:00', -5, '23:59')).toBe('11:55')
+describe('timeFromParts', () => {
+  it('두 칸을 HH:mm으로 — 한 자리는 0을 채운다', () => {
+    expect(timeFromParts('12', '30', '23:59')).toEqual({ ok: true, value: '12:30' })
+    expect(timeFromParts('9', '5', '23:59')).toEqual({ ok: true, value: '09:05' })
+    expect(timeFromParts('00', '00', '23:59')).toEqual({ ok: true, value: '00:00' })
   })
 
-  it('시간 단위 스텝', () => {
-    expect(stepTime('12:34', 60, '23:59')).toBe('13:34')
-    expect(stepTime('12:34', -60, '23:59')).toBe('11:34')
+  it('비었거나 숫자가 아니면 incomplete', () => {
+    expect(timeFromParts('', '30', '23:59')).toEqual({ ok: false, reason: 'incomplete' })
+    expect(timeFromParts('12', '', '23:59')).toEqual({ ok: false, reason: 'incomplete' })
+    expect(timeFromParts('1a', '30', '23:59')).toEqual({ ok: false, reason: 'incomplete' })
   })
 
-  it('max를 넘지 않는다', () => {
-    expect(stepTime('18:28', 5, '18:30')).toBe('18:30')
-    expect(stepTime('18:30', 60, '18:30')).toBe('18:30')
+  it('범위를 넘으면 어느 칸인지 알려 준다', () => {
+    expect(timeFromParts('24', '00', '23:59')).toEqual({ ok: false, reason: 'hour' })
+    expect(timeFromParts('12', '60', '23:59')).toEqual({ ok: false, reason: 'minute' })
   })
 
-  it('자정 아래로 내려가지 않는다 — 날짜가 바뀌면 RPC가 거절한다', () => {
-    expect(stepTime('00:02', -5, '23:59')).toBe('00:00')
-    expect(stepTime('00:00', -60, '23:59')).toBe('00:00')
-  })
-
-  it('23:59에서 더해도 다음 날로 넘어가지 않는다', () => {
-    expect(stepTime('23:59', 5, '23:59')).toBe('23:59')
-  })
-})
-
-describe('canStep', () => {
-  it('값이 바뀌면 true', () => {
-    expect(canStep('12:00', 5, '23:59')).toBe(true)
-  })
-
-  it('경계에서 눌러도 안 바뀌면 false', () => {
-    expect(canStep('18:30', 5, '18:30')).toBe(false)
-    expect(canStep('00:00', -5, '23:59')).toBe(false)
+  it('max보다 늦으면 future, max와 같으면 통과', () => {
+    expect(timeFromParts('11', '41', '11:40')).toEqual({ ok: false, reason: 'future' })
+    expect(timeFromParts('11', '40', '11:40')).toEqual({ ok: true, value: '11:40' })
   })
 })

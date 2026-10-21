@@ -1,14 +1,11 @@
 /**
- * 'HH:mm' 시각 스테퍼의 순수 로직.
+ * 'HH:mm' 시각 직접 입력의 순수 로직.
  *
  * 웹은 `<input type="time">`으로 끝났지만 RN에는 그런 기본 컨트롤이 없다.
- * 네이티브 휠 피커를 띄우는 대신 ± 버튼 스테퍼를 쓴다 — 기본값이 "지금"이라
- * 실제 조작은 몇 분~한두 시간 보정이 대부분이고, 스테퍼가 탭 수가 더 적다.
+ * 처음엔 ±5분·±1시간 스테퍼를 썼는데, 12:30으로 바꾸려면 여러 번 눌러야 해서
+ * 불편했다(2026-10 시안 A′안 — 시·분 두 칸 직접 입력으로 바꿨다).
  * 계산은 전부 여기 모아 화면에서 분 단위 산술이 흩어지지 않게 한다.
  */
-
-/** 분 스테퍼의 기본 간격. */
-export const MINUTE_STEP = 5
 
 const MINUTES_PER_DAY = 24 * 60
 
@@ -43,18 +40,24 @@ export function clampTime(value: string, max: string): string {
   return formatHHmm(Math.min(minutes, maxMinutes))
 }
 
-/**
- * 'HH:mm'에 분을 더하고 [00:00, max]로 자른 결과.
- * 날짜를 넘기지 않는다 — 섭취 시각은 "기록한 날의 시:분"만 바꾸는 값이라
- * 23:59에서 +5분이 다음 날 00:04가 되면 안 된다(RPC가 RECORDED_AT_DATE_CHANGED로 거절).
- */
-export function stepTime(value: string, deltaMinutes: number, max: string): string {
-  const minutes = parseHHmm(value)
-  if (minutes === null) return clampTime(value, max)
-  return clampTime(formatHHmm(minutes + deltaMinutes), max)
-}
+export type TimeInput =
+  | { ok: true; value: string }
+  | { ok: false; reason: 'incomplete' | 'hour' | 'minute' | 'future' }
 
-/** 스테퍼 버튼 비활성 판정 — 눌러도 값이 안 바뀌면 비활성으로 보여준다. */
-export function canStep(value: string, deltaMinutes: number, max: string): boolean {
-  return stepTime(value, deltaMinutes, max) !== clampTime(value, max)
+/**
+ * 시·분 두 칸에 친 숫자를 'HH:mm'으로. 한 자리는 앞에 0을 붙여 읽는다('9' → 09).
+ * now-only 원칙 — max보다 늦으면 'future'(서버 RPC도 같은 검증을 한다).
+ */
+export function timeFromParts(hour: string, minute: string, max: string): TimeInput {
+  if (!/^\d{1,2}$/.test(hour) || !/^\d{1,2}$/.test(minute)) {
+    return { ok: false, reason: 'incomplete' }
+  }
+  const h = Number(hour)
+  const m = Number(minute)
+  if (h > 23) return { ok: false, reason: 'hour' }
+  if (m > 59) return { ok: false, reason: 'minute' }
+  const minutes = h * 60 + m
+  const maxMinutes = parseHHmm(max)
+  if (maxMinutes !== null && minutes > maxMinutes) return { ok: false, reason: 'future' }
+  return { ok: true, value: formatHHmm(minutes) }
 }
