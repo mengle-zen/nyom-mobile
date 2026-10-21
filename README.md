@@ -39,3 +39,13 @@
 - 🖼️ **여러 장 넘겨 보기** — 한 끼에 여러 장 올리면 상세에서 좌우로 넘겨 봐요.
 - 🤤 **1인 1리액션** — 🤤 ❤️ 🔥 😂 중 하나. 친구가 올리거나 내 사진에 반응하면 알림이 와요.
 - 🗓️ **돌아보기** — 프로필 그리드와 달력으로 내가 먹은 것을 돌아보고, 올린 뒤에도 끼니 · 시각 · 메모를 고칠 수 있어요.
+
+<br />
+
+<p align="center"><img src="docs/readme/brand-promise.png" width="760" alt="뇸이 지키는 것 — 대충 찍어도 한 끼, 숫자로 겨루지 않아요, 리액션은 하나만, 재촉하지 않아요" /></p>
+
+<p align="center"><img src="docs/readme/brand-moments.png" width="760" alt="이런 순간에 — 점심 메뉴 고민될 때, 야근하다 편의점 털이, 자취하는 친구 밥은 먹었나" /></p>
+
+<p align="center"><img src="docs/readme/brand-voice.png" width="760" alt="뇸의 말투 — 민지님이 방금 야식 올렸어요, 준호님이 내 사진에 군침 흘렸어요, 오늘 뭐 드셨어요? 한 끼만 남겨보세요" /></p>
+
+<p align="center"><img src="docs/readme/brand-colors.png" width="760" alt="브랜드 컬러 — 뇸 오렌지 #FF7A2E, 크림 #FFFCF8, 밀크 #F5EFE6, 보드 #1F1B16" /></p>
