@@ -265,13 +265,19 @@ export default function BoardScreen() {
   // ── 상세 ──────────────────────────────────────────────────
   // 게시물 id만 들고 있고 본문은 매 렌더 캐시에서 다시 찾는다 —
   // 리액션 낙관적 업데이트가 상세 화면에도 그대로 반영되도록.
-  const detailPost = useMemo<BoardPost | null>(
-    () => posts.find((p) => p.id === detailPostId) ?? null,
-    [posts, detailPostId],
-  )
+  //
+  // 같은 사람·같은 끼니에 여러 장을 올렸으면 상세에서 넘겨 본다. 보드 타일이
+  // 보여 주는 장(가장 최근)이 첫 장이 되도록 `buildSlotBoard`와 같은 순서로 정렬한다.
+  const detailPosts = useMemo<BoardPost[]>(() => {
+    const opened = posts.find((p) => p.id === detailPostId)
+    if (!opened) return []
+    return posts
+      .filter((p) => p.user_id === opened.user_id && p.meal_slot === opened.meal_slot)
+      .sort((a, b) => b.recorded_at.localeCompare(a.recorded_at))
+  }, [posts, detailPostId])
   const detailMember = useMemo<GroupMemberProfile | null>(
-    () => members.find((m) => m.user_id === detailPost?.user_id) ?? null,
-    [members, detailPost],
+    () => members.find((m) => m.user_id === detailPosts[0]?.user_id) ?? null,
+    [members, detailPosts],
   )
   const openPost = useCallback((post: BoardPost) => setDetailPostId(post.id), [])
 
@@ -381,10 +387,12 @@ export default function BoardScreen() {
         minDate={dateFromOffset(MAX_OFFSET, today)}
       />
 
+      {/* 열 때마다 새로 그려 첫 장(타일에 보이던 장)부터 보여 준다 */}
       <PostDetail
-        post={detailPost}
+        key={detailPostId ?? 'closed'}
+        posts={detailPosts}
         member={detailMember}
-        isMe={detailPost?.user_id === userId}
+        isMe={detailPosts[0]?.user_id === userId}
         currentUserId={userId}
         onReact={react}
         onClose={() => setDetailPostId(null)}
