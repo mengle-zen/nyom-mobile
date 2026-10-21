@@ -8,7 +8,7 @@ import {
   type LayoutChangeEvent,
   type ViewStyle,
 } from 'react-native'
-import { slotLabel, buildSlotBoard, type MealSlotKey } from '@/entities/post'
+import { mealLabel, buildSlotBoard, type Meal } from '@/entities/post'
 import type { BoardPost } from '@/entities/post/model'
 import type { GroupMemberProfile } from '@/entities/group'
 import { FilledTile, EmptyTile } from '@/widgets/meal-tile'
@@ -17,7 +17,7 @@ import { Skeleton } from '@/shared/ui/skeleton'
 import { slotBoardLayout, slotCountLabel } from './layout'
 
 type Props = {
-  slot: MealSlotKey
+  meal: Meal
   members: GroupMemberProfile[]
   posts: BoardPost[]
   currentUserId: string
@@ -83,7 +83,7 @@ function useBackgroundTap(route: ReturnType<typeof useEdgeRouter>) {
 
 /** 한 끼니의 멤버 타일 격자. */
 export function SlotBoard({
-  slot,
+  meal,
   members,
   posts,
   currentUserId,
@@ -93,7 +93,7 @@ export function SlotBoard({
   onOpenPost,
   onEdgeTap,
 }: Props) {
-  const board = buildSlotBoard(members, posts, slot)
+  const board = buildSlotBoard(members, posts, meal)
   const { size, onLayout } = useGridSize()
   const { cols, tileWidth, tileHeight } = slotBoardLayout(members.length, size, GAP)
   const route = useEdgeRouter(onEdgeTap)
@@ -109,7 +109,7 @@ export function SlotBoard({
   return (
     <View className="flex-1 pb-2">
       <SlotHeading
-        slot={slot}
+        meal={meal}
         filled={board.filledCount}
         total={members.length}
         allFilled={allFilled}
@@ -165,12 +165,12 @@ export function SlotBoard({
 }
 
 function SlotHeading({
-  slot,
+  meal,
   filled,
   total,
   allFilled,
 }: {
-  slot: MealSlotKey
+  meal: Meal
   filled: number
   total: number
   allFilled: boolean
@@ -179,7 +179,7 @@ function SlotHeading({
 
   return (
     <View className="flex-row items-center justify-center gap-2 px-4 pb-2">
-      <Text className="text-[15px] font-extrabold text-white">{slotLabel(slot)}</Text>
+      <Text className="text-[15px] font-extrabold text-white">{mealLabel(meal)}</Text>
       {count ? (
         <View
           className={`rounded-full px-2 py-0.5 ${allFilled ? 'bg-primary' : 'bg-white/10'}`}

@@ -10,6 +10,13 @@ describe('parsePushUrl', () => {
     ).toEqual({ group: 'abc-123', date: '2026-08-27', slot: 'lunch' })
   })
 
+  it('태그 URL에서 인코딩된 tag를 풀어 뽑는다', () => {
+    // 서버 public.url_encode('야식 & 술')의 실제 출력
+    expect(
+      parsePushUrl('/?group=g&date=2026-10-21&tag=%EC%95%BC%EC%8B%9D%20%26%20%EC%88%A0'),
+    ).toEqual({ group: 'g', date: '2026-10-21', tag: '야식 & 술' })
+  })
+
   it('slot이 없는 URL도 처리한다 (끼니 미지정 게시물)', () => {
     expect(parsePushUrl('/?group=abc&date=2026-08-27')).toEqual({
       group: 'abc',
@@ -51,19 +58,19 @@ describe('normalizePushTarget', () => {
         { group: 'g1', date: '2026-08-27', slot: 'dinner' },
         NOW,
       ),
-    ).toEqual({ group: 'g1', date: '2026-08-27', slot: 'dinner' })
+    ).toEqual({ group: 'g1', date: '2026-08-27', meal: { slot: 'dinner', tag: null } })
   })
 
   it('오늘 날짜도 정확히 되돌린다', () => {
     expect(
       normalizePushTarget({ group: 'g1', date: '2026-08-28', slot: 'lunch' }, NOW),
-    ).toEqual({ group: 'g1', date: '2026-08-28', slot: 'lunch' })
+    ).toEqual({ group: 'g1', date: '2026-08-28', meal: { slot: 'lunch', tag: null } })
   })
 
   it('미래 날짜는 오늘로 폴백한다', () => {
     expect(
       normalizePushTarget({ group: 'g1', date: '2026-09-01', slot: 'lunch' }, NOW),
-    ).toEqual({ group: 'g1', date: '2026-08-28', slot: 'lunch' })
+    ).toEqual({ group: 'g1', date: '2026-08-28', meal: { slot: 'lunch', tag: null } })
   })
 
   it('보드 범위를 넘는 과거는 오늘로 폴백한다', () => {
@@ -77,13 +84,19 @@ describe('normalizePushTarget', () => {
   it('알 수 없는 끼니는 첫 끼니(아침)로 폴백한다', () => {
     expect(
       normalizePushTarget({ group: 'g1', date: '2026-08-27', slot: 'brunch' }, NOW),
-    ).toEqual({ group: 'g1', date: '2026-08-27', slot: 'breakfast' })
+    ).toEqual({ group: 'g1', date: '2026-08-27', meal: { slot: 'breakfast', tag: null } })
   })
 
   it('끼니가 없으면 아침으로 폴백한다', () => {
     expect(
-      normalizePushTarget({ group: 'g1', date: '2026-08-27' }, NOW)?.slot,
-    ).toBe('breakfast')
+      normalizePushTarget({ group: 'g1', date: '2026-08-27' }, NOW)?.meal,
+    ).toEqual({ slot: 'breakfast', tag: null })
+  })
+
+  it('태그는 태그 끼니로 넘긴다', () => {
+    expect(
+      normalizePushTarget({ group: 'g1', date: '2026-08-27', tag: '야식' }, NOW)?.meal,
+    ).toEqual({ slot: null, tag: '야식' })
   })
 
   it('형식이 깨진 날짜는 오늘로 폴백한다', () => {

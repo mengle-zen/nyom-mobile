@@ -17,10 +17,10 @@ import { router, useLocalSearchParams, useNavigation } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useQueryClient } from '@tanstack/react-query'
 
-import { defaultSlotForHour, type MealSlotKey } from '@/entities/post'
+import { defaultSlotForHour, mealFromKey, mealKey, slotMeal, type Meal } from '@/entities/post'
 import { hhmmFromDate } from '@/entities/post/date-range'
 import { createPostToGroups, deletePostBatch } from '@/entities/post/model'
-import { invalidateAfterPostEdit } from '@/entities/post/queries'
+import { invalidateAfterPostEdit, useMyRecentTags } from '@/entities/post/queries'
 import { useMyGroups } from '@/entities/group'
 import { useAuth } from '@/features/auth'
 import { isUntouched } from '@/features/upload/lib/canvas-transform'
@@ -69,7 +69,8 @@ type RestoreParams = {
   restoreUri?: string
   restoreW?: string
   restoreH?: string
-  restoreSlot?: MealSlotKey
+  /** `mealKey` — 끼니 키 또는 'tag:<이름>' */
+  restoreMeal?: string
   restoreCaption?: string
   restoreAt?: string
   restoreGroups?: string
@@ -126,9 +127,10 @@ export default function UploadScreen() {
   const [capturedAt, setCapturedAt] = useState<Date>(() =>
     search.restoreAt ? new Date(search.restoreAt) : new Date(),
   )
-  const [slot, setSlot] = useState<MealSlotKey>(
-    () => search.restoreSlot ?? defaultSlotForHour(capturedAt.getHours()),
+  const [meal, setMeal] = useState<Meal>(
+    () => mealFromKey(search.restoreMeal) ?? slotMeal(defaultSlotForHour(capturedAt.getHours())),
   )
+  const { data: recentTags = [] } = useMyRecentTags(user?.id)
 
   const { data: groups = [], error: groupsError } = useMyGroups()
 
@@ -172,7 +174,7 @@ export default function UploadScreen() {
   const acceptShot = useCallback((next: Shot, takenAt: Date) => {
     setShot(next)
     setCapturedAt(takenAt)
-    setSlot(defaultSlotForHour(takenAt.getHours()))
+    setMeal(slotMeal(defaultSlotForHour(takenAt.getHours())))
     setFallback(null)
   }, [])
 
@@ -348,7 +350,7 @@ export default function UploadScreen() {
         mimeType: final.mimeType,
         caption,
         groupIds,
-        mealSlot: slot,
+        meal,
         recordedAt,
       })
 
@@ -360,7 +362,7 @@ export default function UploadScreen() {
       const destination =
         search.group && groupIds.includes(search.group) ? search.group : groupIds[0]
       // 방금 올린 끼니 칸을 연다 — 안 넘기면 보드가 아침을 열어 내 사진이 안 보인다(e2e에서 발견).
-      router.replace(boardHref(destination, { slot }))
+      router.replace(boardHref(destination, meal))
 
       const names = groups.filter((g) => groupIds.includes(g.id)).map((g) => g.name)
       showUndoToast({
@@ -375,7 +377,7 @@ export default function UploadScreen() {
               restoreUri: final.uri,
               restoreW: String(final.width),
               restoreH: String(final.height),
-              restoreSlot: slot,
+              restoreMeal: mealKey(meal),
               restoreCaption: caption,
               restoreAt: recordedAt,
               restoreGroups: groupIds.join(','),
@@ -482,8 +484,9 @@ export default function UploadScreen() {
         <View style={{ paddingBottom: insets.bottom + 20 }} className="pt-2">
           {shot ? (
             <ShotEditor
-              slot={slot}
-              onSlotChange={setSlot}
+              meal={meal}
+              onMealChange={setMeal}
+              recentTags={recentTags}
               capturedAt={hhmmFromDate(capturedAt)}
               caption={caption}
               onCaptionChange={setCaption}

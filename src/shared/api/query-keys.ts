@@ -22,6 +22,8 @@ export const queryKeys = {
   /** 사후 편집용 batch 현재 상태. myPosts 프리픽스 → 편집 후 함께 무효화된다. */
   postBatch: (userId: string, batchKey: string) =>
     ['myPosts', userId, 'batch', batchKey] as const,
+  /** 내가 최근 쓴 끼니 태그. myPosts 프리픽스 → 올리기·편집 후 함께 무효화된다. */
+  myRecentTags: (userId: string) => ['myPosts', userId, 'recentTags'] as const,
   notificationSettings: (userId: string) =>
     ['notificationSettings', userId] as const,
 } as const

@@ -1,12 +1,24 @@
 export {
   MEAL_SLOTS,
+  MEAL_TAG_MAX,
+  slotMeal,
+  mealOf,
   slotLabel,
+  mealLabel,
+  mealKey,
+  mealFromKey,
+  sameMeal,
+  parseMealTag,
   mealTimeLabel,
   defaultSlotForHour,
   buildSlotBoard,
+  boardPages,
   type MealSlotKey,
+  type Meal,
+  type MealTagInput,
+  type BoardPage,
 } from './board'
-export { slotProgress, clampSlotIdx, type SlotProgress } from './slot-progress'
+export { slotProgress, clampSlotIdx, pageIndex, type SlotProgress } from './slot-progress'
 export {
   dayRangeFromOffset,
   dateFromOffset,

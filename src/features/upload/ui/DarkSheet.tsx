@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native'
+import { KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 /**
@@ -8,6 +8,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
  *
  * 배경은 형제로 깔아 탭하면 닫힌다 — 시트를 감싸면 스크린 리더가 시트 전체를
  * 「닫기」 하나로 읽는다(프로필 상세에서 겪은 문제).
+ *
+ * 끼니 시트에서 태그를 입력하므로 키보드가 올라오면 시트도 따라 올라간다.
  */
 export function DarkSheet({
   open,
@@ -23,7 +25,10 @@ export function DarkSheet({
   const insets = useSafeAreaInsets()
   return (
     <Modal visible={open} transparent animationType="fade" onRequestClose={onClose}>
-      <View className="flex-1 justify-end">
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        className="flex-1 justify-end"
+      >
         <Pressable
           accessible={false}
           importantForAccessibility="no"
@@ -41,7 +46,7 @@ export function DarkSheet({
           </Text>
           {children}
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   )
 }

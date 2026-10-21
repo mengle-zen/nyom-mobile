@@ -1,6 +1,6 @@
 import { Text, View } from 'react-native'
 import { Image } from 'expo-image'
-import { postImageSource, slotLabel } from '@/entities/post'
+import { mealLabel, mealOf, postImageSource } from '@/entities/post'
 import { hhmmFromDate } from '@/entities/post/date-range'
 import type { DayPost } from '@/entities/post/model'
 import { PressableScale } from '@/shared/ui/press'
@@ -44,47 +44,50 @@ export function DayTimeline({ dayKey, isToday, posts, loading, onSelect }: Props
           <Text className="text-sm text-muted-foreground">이 날은 기록이 없어요</Text>
         </View>
       ) : (
-        posts.map((post) => (
-          <PressableScale
-            key={post.id}
-            accessibilityRole="button"
-            accessibilityLabel={`${post.meal_slot ? slotLabel(post.meal_slot) : '기록'} ${hhmmFromDate(new Date(post.recorded_at))} 보기`}
-            // 상세를 여는 건 보기일 뿐 — 보드 타일과 같이 햅틱 없음.
-            hapticKind={null}
-            onPress={() => onSelect(post)}
-            className="flex-row items-center gap-3 rounded-xl bg-card p-2"
-          >
-            <View className="size-16 overflow-hidden rounded-lg bg-muted">
-              {post.signedImageUrl && (
-                <Image
-                  source={postImageSource(post)}
-                  contentFit="cover"
-                  style={{ width: '100%', height: '100%' }}
-                />
-              )}
-            </View>
-            <View className="min-w-0 flex-1">
-              <View className="flex-row items-center gap-1.5">
-                {post.meal_slot && (
-                  <Text className="text-sm font-bold text-foreground">
-                    {slotLabel(post.meal_slot)}
+        posts.map((post) => {
+          const meal = mealOf(post)
+          return (
+            <PressableScale
+              key={post.id}
+              accessibilityRole="button"
+              accessibilityLabel={`${meal ? mealLabel(meal) : '기록'} ${hhmmFromDate(new Date(post.recorded_at))} 보기`}
+              // 상세를 여는 건 보기일 뿐 — 보드 타일과 같이 햅틱 없음.
+              hapticKind={null}
+              onPress={() => onSelect(post)}
+              className="flex-row items-center gap-3 rounded-xl bg-card p-2"
+            >
+              <View className="size-16 overflow-hidden rounded-lg bg-muted">
+                {post.signedImageUrl && (
+                  <Image
+                    source={postImageSource(post)}
+                    contentFit="cover"
+                    style={{ width: '100%', height: '100%' }}
+                  />
+                )}
+              </View>
+              <View className="min-w-0 flex-1">
+                <View className="flex-row items-center gap-1.5">
+                  {meal && (
+                    <Text className="text-sm font-bold text-foreground">
+                      {mealLabel(meal)}
+                    </Text>
+                  )}
+                  <Text className="text-xs text-muted-foreground">
+                    {hhmmFromDate(new Date(post.recorded_at))}
+                  </Text>
+                </View>
+                {post.caption && (
+                  <Text
+                    numberOfLines={1}
+                    className="mt-0.5 text-sm text-muted-foreground"
+                  >
+                    {post.caption}
                   </Text>
                 )}
-                <Text className="text-xs text-muted-foreground">
-                  {hhmmFromDate(new Date(post.recorded_at))}
-                </Text>
               </View>
-              {post.caption && (
-                <Text
-                  numberOfLines={1}
-                  className="mt-0.5 text-sm text-muted-foreground"
-                >
-                  {post.caption}
-                </Text>
-              )}
-            </View>
-          </PressableScale>
-        ))
+            </PressableScale>
+          )
+        })
       )}
     </View>
   )

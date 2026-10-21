@@ -12,7 +12,7 @@ import {
 import { Image } from 'expo-image'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import Ionicons from '@expo/vector-icons/Ionicons'
-import { mealTimeLabel, postImageSource } from '@/entities/post'
+import { mealOf, mealTimeLabel, postImageSource } from '@/entities/post'
 import type { BoardPost } from '@/entities/post/model'
 import type { GroupMemberProfile } from '@/entities/group'
 import { ReactionBar } from '@/widgets/meal-tile'
@@ -85,7 +85,7 @@ export function PostDetail({
                 {isMe ? '나' : member.nickname}
               </Text>
               <Text className="text-xs text-white/55">
-                {mealTimeLabel(post.recorded_at, post.meal_slot)}
+                {mealTimeLabel(post.recorded_at, mealOf(post))}
               </Text>
             </View>
           </View>

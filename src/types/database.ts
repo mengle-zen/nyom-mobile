@@ -45,7 +45,9 @@ export type Database = {
           recorded_at: string
           batch_id: string | null
           group_id: string | null
-          meal_slot: 'breakfast' | 'lunch' | 'dinner' | 'late_snack' | null
+          meal_slot: 'breakfast' | 'lunch' | 'dinner' | 'snack' | null
+          /** 사용자 태그 — meal_slot과 둘 중 하나만 (20261021000000_meal_tag.sql) */
+          meal_tag: string | null
         }
         Insert: {
           id?: string
@@ -56,7 +58,8 @@ export type Database = {
           recorded_at?: string
           batch_id?: string | null
           group_id?: string | null
-          meal_slot?: 'breakfast' | 'lunch' | 'dinner' | 'late_snack' | null
+          meal_slot?: 'breakfast' | 'lunch' | 'dinner' | 'snack' | null
+          meal_tag?: string | null
         }
         Update: {
           id?: string
@@ -67,7 +70,8 @@ export type Database = {
           recorded_at?: string
           batch_id?: string | null
           group_id?: string | null
-          meal_slot?: 'breakfast' | 'lunch' | 'dinner' | 'late_snack' | null
+          meal_slot?: 'breakfast' | 'lunch' | 'dinner' | 'snack' | null
+          meal_tag?: string | null
         }
       }
       groups: {
@@ -385,8 +389,9 @@ export type Database = {
           p_group_ids: string[]
           p_caption: string | null
           p_recorded_at: string | null
-          /** null이면 끼니 유지 (20260828050000_post_batch_meal_slot.sql) */
-          p_meal_slot: 'breakfast' | 'lunch' | 'dinner' | 'late_snack' | null
+          /** 끼니 인자는 둘 다 null이면 유지, 하나만 보낸다 (20261021000000_meal_tag.sql) */
+          p_meal_slot: 'breakfast' | 'lunch' | 'dinner' | 'snack' | null
+          p_meal_tag: string | null
         }
         Returns: void
       }

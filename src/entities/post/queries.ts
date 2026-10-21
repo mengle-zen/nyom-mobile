@@ -5,10 +5,10 @@ import { toggleReaction, nextReactions } from '@/entities/reaction'
 import {
   fetchBoardPosts, fetchGroupRecordedDays,
   fetchMyRecordedDays, fetchMyDayPosts,
-  fetchPostBatch, updatePostBatch, deletePostBatch,
+  fetchPostBatch, updatePostBatch, deletePostBatch, fetchMyRecentTags,
   type BoardPost, type PostBatchRef,
 } from './model'
-import type { MealSlotKey } from './board'
+import type { Meal } from './board'
 
 /** 특정 그룹·날짜(offset)의 보드 게시물. groupId가 없으면 비활성. */
 export function useBoardPosts(groupId: string | null, offset: number) {
@@ -16,6 +16,15 @@ export function useBoardPosts(groupId: string | null, offset: number) {
     queryKey: queryKeys.board(groupId ?? '', offset),
     queryFn: () => fetchBoardPosts(groupId as string, offset),
     enabled: !!groupId,
+  })
+}
+
+/** 내가 최근 쓴 끼니 태그(올리기·편집의 태그 칩). */
+export function useMyRecentTags(userId: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.myRecentTags(userId ?? ''),
+    queryFn: () => fetchMyRecentTags(userId as string),
+    enabled: !!userId,
   })
 }
 
@@ -92,7 +101,7 @@ export function useUpdatePostBatch(userId: string | undefined) {
       caption: string | null
       recordedAt: string | null
       /** 끼니. null이면 유지 */
-      mealSlot: MealSlotKey | null
+      meal: Meal | null
       /** 무효화 대상 = 추가·제거·유지 그룹의 합집합 */
       affectedGroupIds: string[]
     }) => updatePostBatch(vars),

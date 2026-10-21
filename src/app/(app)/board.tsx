@@ -16,8 +16,10 @@ import { useAuth } from '@/features/auth'
 import { useMyProfile } from '@/features/profile'
 import { useMyGroups, useGroupMembers, type GroupMemberProfile } from '@/entities/group'
 import {
-  MEAL_SLOTS,
   clampSlotIdx,
+  pageIndex,
+  sameMeal,
+  mealOf,
   slotProgress,
   dateHeading,
   dateFromOffset,
@@ -73,17 +75,19 @@ export default function BoardScreen() {
   const params = useLocalSearchParams()
   const groupIdParam = one(params.group)
 
-  // 푸시 딥링크(?date=&slot=)는 "초기 위치"만 정한다. 이후 칩·스와이프·달력 조작을
+  // 푸시 딥링크(?date=&slot= 또는 &tag=)는 "초기 위치"만 정한다. 이후 칩·스와이프·달력 조작을
   // URL이 되돌리면 안 되므로 lazy initializer로 첫 렌더에서만 읽는다(웹과 같은 규칙).
   const [initialTarget] = useState(() =>
     deeplinkTarget(
-      { date: one(params.date), slot: one(params.slot) },
+      { date: one(params.date), slot: one(params.slot), tag: one(params.tag) },
       new Date(),
       MAX_OFFSET,
     ),
   )
   const [dateOffset, setDateOffset] = useState(initialTarget.dateOffset)
-  const [slotIdx, setSlotIdx] = useState(initialTarget.slotIdx)
+  // 끼니는 페이지 키로 든다 — 태그 페이지는 날마다 있고 없고 순서도 달라서 번호로는
+  // 같은 끼니를 가리킬 수 없다. 번호는 그날 페이지 목록에서 매 렌더 다시 찾는다.
+  const [pageKey, setPageKey] = useState(initialTarget.pageKey)
   const [pickerOpen, setPickerOpen] = useState(false)
   const [detailPostId, setDetailPostId] = useState<string | null>(null)
 
@@ -105,6 +109,7 @@ export default function BoardScreen() {
   const error = groupsError ?? membersError ?? postsError
 
   const slots = useMemo(() => slotProgress(members, posts), [members, posts])
+  const slotIdx = pageIndex(slots, pageKey)
   const today = useMemo(() => new Date(), [])
   const selectedDate = useMemo(
     () => dateFromOffset(dateOffset, today),
@@ -116,15 +121,19 @@ export default function BoardScreen() {
    * 날짜를 옮겨도 **끼니는 그대로 둔다.**
    * 웹앱은 날짜가 바뀔 때마다 슬롯을 아침으로 리셋해서 "어제 저녁"을 보려면 조작이
    * 4번 필요했다(docs/UX_FINDINGS.md D항). 그 날 그 끼니가 비어 있으면 기존
-   * 「아직이에요」 빈 상태가 그대로 답이 된다.
+   * 「아직이에요」 빈 상태가 그대로 답이 된다. 태그 페이지는 그날 그 태그가 없으면
+   * 간식으로 보여 주되 키는 그대로 둔다(`pageIndex`).
    */
   const changeDate = useCallback((next: number) => {
     setDateOffset(clampOffset(next))
   }, [])
 
-  const changeSlot = useCallback((next: number) => {
-    setSlotIdx(clampSlotIdx(next))
-  }, [])
+  const changeSlot = useCallback(
+    (next: number) => {
+      setPageKey(slots[clampSlotIdx(next, slots.length)].key)
+    },
+    [slots],
+  )
 
   const goUpload = useCallback(() => {
     router.push(href(`/upload${activeGroupId ? `?group=${activeGroupId}` : ''}`))
@@ -201,12 +210,12 @@ export default function BoardScreen() {
   /** 세로 스와이프로 끼니를 넘길 때. 칩 탭과 같은 조작이라 같은 'select' 햅틱. */
   const commitSlotSwipe = useCallback(
     (next: number) => {
-      const clamped = clampSlotIdx(next)
+      const clamped = clampSlotIdx(next, slots.length)
       if (clamped === slotIdx) return
       void haptic('select')
-      setSlotIdx(clamped)
+      setPageKey(slots[clamped].key)
     },
-    [slotIdx],
+    [slotIdx, slots],
   )
 
   /*
@@ -272,7 +281,7 @@ export default function BoardScreen() {
     const opened = posts.find((p) => p.id === detailPostId)
     if (!opened) return []
     return posts
-      .filter((p) => p.user_id === opened.user_id && p.meal_slot === opened.meal_slot)
+      .filter((p) => p.user_id === opened.user_id && sameMeal(mealOf(p), mealOf(opened)))
       .sort((a, b) => b.recorded_at.localeCompare(a.recorded_at))
   }, [posts, detailPostId])
   const detailMember = useMemo<GroupMemberProfile | null>(
@@ -339,7 +348,7 @@ export default function BoardScreen() {
               <SlotBoardSkeleton memberCount={members.length} />
             ) : (
               <SlotBoard
-                slot={MEAL_SLOTS[slotIdx].key}
+                meal={slots[slotIdx].meal}
                 members={members}
                 posts={posts}
                 currentUserId={userId}

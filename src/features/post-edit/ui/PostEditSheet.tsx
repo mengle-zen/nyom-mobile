@@ -13,7 +13,7 @@ import {
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { toast } from 'sonner-native'
-import type { MealSlotKey } from '@/entities/post'
+import { slotMeal, type Meal } from '@/entities/post'
 import {
   hhmmFromDate,
   maxTimeForRecordedDay,
@@ -22,7 +22,7 @@ import {
 import {
   diffGroupSelection,
   hasPostBatchChanges,
-  mealSlotChange,
+  mealChange,
   postEditErrorMessage,
   type PostBatchDraft,
 } from '@/entities/post/edit'
@@ -30,6 +30,7 @@ import type { PostBatch, PostBatchRef } from '@/entities/post/model'
 import {
   usePostBatch,
   useUpdatePostBatch,
+  useMyRecentTags,
   useDeletePostBatch,
 } from '@/entities/post/queries'
 import { useMyGroups, type Group } from '@/entities/group'
@@ -200,7 +201,7 @@ function PostEditForm({
     caption: batch.caption ?? '',
     recordedTime: hhmmFromDate(new Date(batch.recordedAt)),
     // 끼니가 비어 있던 기존 행은 아침을 기본으로 보여준다(선택 없음 상태를 만들지 않는다).
-    mealSlot: batch.mealSlot ?? 'breakfast',
+    meal: batch.meal ?? slotMeal('breakfast'),
   }
 
   const [selected, setSelected] = useState<Set<string>>(
@@ -208,7 +209,8 @@ function PostEditForm({
   )
   const [caption, setCaption] = useState(original.caption)
   const [recordedTime, setRecordedTime] = useState(original.recordedTime)
-  const [slot, setSlot] = useState<MealSlotKey>(original.mealSlot)
+  const [meal, setMeal] = useState<Meal>(original.meal)
+  const { data: recentTags = [] } = useMyRecentTags(userId)
 
   const maxTime = maxTimeForRecordedDay(batch.recordedAt, now)
   const busy = updateMutation.isPending || deleteMutation.isPending
@@ -221,7 +223,7 @@ function PostEditForm({
     groupIds: nextGroupIds,
     caption,
     recordedTime,
-    mealSlot: slot,
+    meal,
   }
   const changed = hasPostBatchChanges(
     { ...original, groupIds: original.groupIds.filter((id) => myGroupIds.has(id)) },
@@ -267,7 +269,7 @@ function PostEditForm({
                 now,
               ),
         // 안 바뀌었으면 null — batch의 기존 끼니(옛 행의 null 포함)를 덮어쓰지 않는다
-        mealSlot: mealSlotChange(original.mealSlot, slot),
+        meal: mealChange(original.meal, meal),
         affectedGroupIds,
       },
       {
@@ -319,13 +321,19 @@ function PostEditForm({
 
   return (
     <>
-      <ScrollView className="flex-1" contentContainerClassName="gap-5 p-4 pb-8">
+      <ScrollView
+        className="flex-1"
+        contentContainerClassName="gap-5 p-4 pb-8"
+        // 태그를 입력하다 「붙이기」를 누르면 첫 탭이 키보드 닫기로 먹히지 않게
+        keyboardShouldPersistTaps="handled"
+      >
         {/* 끼니 — 잘못 분류된 기록을 여기서 고친다 (UX_FINDINGS C항) */}
         <View className="gap-1.5">
           <Text className="text-sm font-medium text-muted-foreground">끼니</Text>
           <MealSlotChips
-            value={slot}
-            onChange={setSlot}
+            value={meal}
+            onChange={setMeal}
+            recentTags={recentTags}
             disabled={busy}
             variant="onLight"
           />

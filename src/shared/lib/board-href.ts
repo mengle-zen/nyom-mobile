@@ -14,10 +14,12 @@ import type { Href } from 'expo-router'
  */
 export function boardHref(
   groupId: string,
-  extra?: { date?: string; slot?: string },
+  /** 끼니는 slot(기본 끼니 키)과 tag(사용자 태그) 중 하나 — 알림 딥링크와 같은 모양 */
+  extra?: { date?: string; slot?: string | null; tag?: string | null },
 ): Href {
   const params = new URLSearchParams({ group: groupId })
   if (extra?.date) params.set('date', extra.date)
   if (extra?.slot) params.set('slot', extra.slot)
+  if (extra?.tag) params.set('tag', extra.tag)
   return `/(app)/board?${params.toString()}` as unknown as Href
 }

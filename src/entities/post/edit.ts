@@ -1,4 +1,4 @@
-import type { MealSlotKey } from './board'
+import { sameMeal, type Meal } from './board'
 
 /**
  * 게시물 사후 편집의 순수 로직.
@@ -8,14 +8,14 @@ import type { MealSlotKey } from './board'
 
 /**
  * 편집 폼의 상태. recordedTime은 'HH:mm'(로컬).
- * mealSlot은 끼니가 비어 있던 옛 행에서도 "선택 없음"을 만들지 않도록 항상 값이 있다
- * (폼이 batch.mealSlot ?? 'breakfast'로 채운다).
+ * meal은 끼니가 비어 있던 옛 행에서도 "선택 없음"을 만들지 않도록 항상 값이 있다
+ * (폼이 batch.meal ?? 아침으로 채운다).
  */
 export type PostBatchDraft = {
   groupIds: string[]
   caption: string
   recordedTime: string
-  mealSlot: MealSlotKey
+  meal: Meal
 }
 
 export type GroupSelectionDiff = {
@@ -63,27 +63,25 @@ export function hasPostBatchChanges(
 ): boolean {
   if (before.caption.trim() !== after.caption.trim()) return true
   if (before.recordedTime !== after.recordedTime) return true
-  if (before.mealSlot !== after.mealSlot) return true
+  if (!sameMeal(before.meal, after.meal)) return true
   return !sameGroupSelection(before.groupIds, after.groupIds)
 }
 
 /**
  * RPC에 보낼 끼니 값. 안 바뀌었으면 null(= 서버에서 "변경 없음").
- * 굳이 구분하는 이유: 끼니를 건드리지 않은 편집이 batch 전체의 meal_slot을
- * 덮어쓰지 않게 해, 옛 행의 null 끼니가 조용히 'breakfast'로 채워지는 것을 막는다.
+ * 굳이 구분하는 이유: 끼니를 건드리지 않은 편집이 batch 전체의 끼니를
+ * 덮어쓰지 않게 해, 옛 행의 빈 끼니가 조용히 아침으로 채워지는 것을 막는다.
  */
-export function mealSlotChange(
-  before: MealSlotKey,
-  after: MealSlotKey,
-): MealSlotKey | null {
-  return before === after ? null : after
+export function mealChange(before: Meal, after: Meal): Meal | null {
+  return sameMeal(before, after) ? null : after
 }
 
 /** 사후 편집 RPC가 올리는 에러 → 사용자 문구. */
 export function postEditErrorMessage(err: unknown): string {
   const message = err instanceof Error ? err.message : String(err ?? '')
   if (message.includes('NOT_GROUP_MEMBER')) return '그룹 멤버가 아니라 올릴 수 없어요'
-  if (message.includes('INVALID_MEAL_SLOT')) return '끼니를 다시 골라주세요'
+  if (message.includes('INVALID_MEAL_TAG')) return '태그는 1~10자로, 기본 끼니와 다른 이름으로 써 주세요'
+  if (message.includes('INVALID_MEAL')) return '끼니를 다시 골라주세요'
   if (message.includes('NO_GROUP_SELECTED')) return '그룹을 하나 이상 선택해 주세요'
   if (message.includes('RECORDED_AT_FUTURE')) return '아직 오지 않은 시각은 고를 수 없어요'
   if (message.includes('RECORDED_AT_DATE_CHANGED')) return '기록한 날의 시:분만 바꿀 수 있어요'

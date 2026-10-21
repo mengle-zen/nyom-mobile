@@ -11,12 +11,14 @@ Supabase 스키마·RLS·RPC·Edge Function은 **nyom(웹) 저장소가 소유�
 
 ### 순수 로직은 웹과 같은 파일이다
 
-`entities/post/{board,date-range,dedupe,deeplink,edit}.ts`, `entities/reaction/toggle.ts`,
+`entities/post/{date-range,dedupe}.ts`, `entities/reaction/toggle.ts`,
 `features/board-nav/axis.ts`, `features/calendar/lib/month.ts`는 웹에서 그대로 가져왔고
 테스트 파일도 같다. **여기서 고치면 웹과 갈라진다** — 양쪽에 반영할지 먼저 판단할 것.
 
-한 곳은 의도적으로 다르다: `defaultSlotForHour`가 새벽 0~4시를 `late_snack`으로 본다.
-웹은 아직 `hour < 11`을 통째로 아침으로 잡는다(고쳐야 할 버그).
+`entities/post/{board,deeplink,edit}.ts`는 **2026-10-21 끼니 개편으로 웹과 갈라졌다.**
+기본 끼니가 아침·점심·저녁·간식이 되고 야식 같은 이름은 사용자 태그(`posts.meal_tag`)가 됐다.
+웹은 맞추지 않기로 했다(사용자 결정) — 웹 보드에는 간식·태그 기록이 안 보이고, 웹에서
+야식으로 올리면 DB 제약에 걸린다. `defaultSlotForHour`도 새벽 0~4시·21시 이후를 간식으로 본다.
 
 ### 함정 (실제로 밟은 것들)
 

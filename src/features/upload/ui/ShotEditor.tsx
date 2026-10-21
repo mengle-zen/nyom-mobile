@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { ActivityIndicator, Pressable, Text, TextInput, View } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
-import { slotLabel, type MealSlotKey } from '@/entities/post'
+import { mealLabel, type Meal } from '@/entities/post'
 import { MealSlotChips } from '@/entities/post/ui/MealSlotChips'
 import { DarkSheet } from './DarkSheet'
 
@@ -15,8 +15,9 @@ import { DarkSheet } from './DarkSheet'
  * - 받는 곳 이름이 보내기 버튼에 박혀 있다 — 엉뚱한 그룹에 보내는 실수를 줄인다.
  */
 export function ShotEditor({
-  slot,
-  onSlotChange,
+  meal,
+  onMealChange,
+  recentTags,
   capturedAt,
   caption,
   onCaptionChange,
@@ -28,8 +29,10 @@ export function ShotEditor({
   onRetake,
   onSend,
 }: {
-  slot: MealSlotKey
-  onSlotChange: (slot: MealSlotKey) => void
+  meal: Meal
+  onMealChange: (meal: Meal) => void
+  /** 내가 최근 쓴 끼니 태그 */
+  recentTags: string[]
   /** 찍은 시각 'HH:mm' — 먹은 시각으로 쓴다 */
   capturedAt: string
   caption: string
@@ -50,13 +53,13 @@ export function ShotEditor({
       <View className="flex-row">
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={`${slotLabel(slot)}, ${capturedAt}. 끼니 바꾸기`}
+          accessibilityLabel={`${mealLabel(meal)}, ${capturedAt}. 끼니 바꾸기`}
           onPress={() => setSlotOpen(true)}
           disabled={sending}
           className="h-chip flex-row items-center gap-1.5 rounded-full bg-white/15 px-4 active:opacity-70"
         >
           <Text className="font-bold text-white">
-            {slotLabel(slot)} · {capturedAt}
+            {mealLabel(meal)} · {capturedAt}
           </Text>
           <Ionicons name="pencil" size={12} color="rgba(255,255,255,0.6)" />
         </Pressable>
@@ -122,9 +125,10 @@ export function ShotEditor({
 
       <DarkSheet open={slotOpen} title="어느 끼니인가요?" onClose={() => setSlotOpen(false)}>
         <MealSlotChips
-          value={slot}
+          value={meal}
+          recentTags={recentTags}
           onChange={(next) => {
-            onSlotChange(next)
+            onMealChange(next)
             setSlotOpen(false)
           }}
         />

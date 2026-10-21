@@ -53,7 +53,7 @@ export function NotificationDeepLinks() {
         return
       }
       router.navigate(
-        boardHref(target.group, { date: target.date, slot: target.slot }),
+        boardHref(target.group, { date: target.date, ...target.meal }),
       )
     }
 

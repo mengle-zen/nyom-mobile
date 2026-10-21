@@ -3,7 +3,7 @@ import {
   diffGroupSelection,
   sameGroupSelection,
   hasPostBatchChanges,
-  mealSlotChange,
+  mealChange,
   postEditErrorMessage,
   type PostBatchDraft,
 } from './edit'
@@ -67,7 +67,7 @@ describe('hasPostBatchChanges', () => {
     groupIds: ['g1'],
     caption: '맛있었다',
     recordedTime: '12:30',
-    mealSlot: 'lunch',
+    meal: { slot: 'lunch', tag: null },
   }
 
   it('아무것도 안 바뀌면 false', () => {
@@ -104,17 +104,26 @@ describe('hasPostBatchChanges', () => {
   })
 
   it('끼니 변경 → true (새벽에 잘못 분류된 기록을 고치는 경로)', () => {
-    expect(hasPostBatchChanges(base, { ...base, mealSlot: 'late_snack' })).toBe(true)
+    expect(hasPostBatchChanges(base, { ...base, meal: { slot: 'snack', tag: null } })).toBe(true)
+    expect(hasPostBatchChanges(base, { ...base, meal: { slot: null, tag: '야식' } })).toBe(true)
   })
 })
 
-describe('mealSlotChange', () => {
+describe('mealChange', () => {
   it('안 바뀌었으면 null — RPC가 batch의 끼니를 덮어쓰지 않는다', () => {
-    expect(mealSlotChange('lunch', 'lunch')).toBeNull()
+    expect(mealChange({ slot: 'lunch', tag: null }, { slot: 'lunch', tag: null })).toBeNull()
+    expect(mealChange({ slot: null, tag: '야식' }, { slot: null, tag: '야식' })).toBeNull()
   })
 
   it('바뀌었으면 새 값을 그대로 보낸다', () => {
-    expect(mealSlotChange('breakfast', 'late_snack')).toBe('late_snack')
+    expect(mealChange({ slot: 'breakfast', tag: null }, { slot: 'snack', tag: null })).toEqual({
+      slot: 'snack',
+      tag: null,
+    })
+    expect(mealChange({ slot: 'dinner', tag: null }, { slot: null, tag: '술' })).toEqual({
+      slot: null,
+      tag: '술',
+    })
   })
 })
 
@@ -127,6 +136,8 @@ describe('postEditErrorMessage', () => {
     expect(postEditErrorMessage(new Error('NO_GROUP_SELECTED'))).toContain('하나 이상')
     expect(postEditErrorMessage(new Error('POST_NOT_FOUND'))).toContain('찾을 수 없어요')
     expect(postEditErrorMessage(new Error('INVALID_MEAL_SLOT'))).toContain('끼니')
+    expect(postEditErrorMessage(new Error('INVALID_MEAL'))).toContain('끼니')
+    expect(postEditErrorMessage(new Error('INVALID_MEAL_TAG'))).toContain('태그')
   })
 
   it('Postgres가 앞에 붙이는 접두사가 있어도 인식한다', () => {

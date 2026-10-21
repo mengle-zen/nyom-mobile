@@ -25,6 +25,7 @@ export type MyPost = {
   /** 끼니 섭취 시각 — 그리드 오버레이 칩과 사후 편집의 기준 */
   recorded_at: string
   meal_slot: MealSlotKey | null
+  meal_tag: string | null
   batch_id: string | null
 }
 
@@ -57,7 +58,7 @@ export async function fetchMyPostsPage(
 
   const { data, error } = await supabase
     .from('posts')
-    .select('id, image_url, caption, created_at, recorded_at, meal_slot, batch_id')
+    .select('id, image_url, caption, created_at, recorded_at, meal_slot, meal_tag, batch_id')
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
     .range(from, to)
