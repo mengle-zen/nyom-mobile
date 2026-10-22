@@ -87,8 +87,9 @@ export function PostEditSheet({
       onRequestClose={requestClose}
     >
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        className="flex-1 bg-background"
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1 }}
+        className="bg-background"
       >
         <View className="h-header flex-row items-center border-b border-border px-4">
           <Text className="text-base font-semibold text-foreground">기록 편집</Text>
