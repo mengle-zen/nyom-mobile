@@ -493,8 +493,9 @@ function EditProfileModal({
     <Modal visible={open} transparent animationType="fade" onRequestClose={onClose}>
       {/* 가운데 카드라 키보드가 올라오면 저장 버튼이 가려진다(작은 화면) — 위로 밀어 올린다. */}
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        className="flex-1 items-center justify-center bg-black/60 px-6"
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1 }}
+        className="items-center justify-center bg-black/60 px-6"
       >
         <View className="w-full gap-4 rounded-2xl bg-card p-5">
           <View className="gap-1">

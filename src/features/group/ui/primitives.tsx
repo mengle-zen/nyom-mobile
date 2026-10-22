@@ -218,7 +218,7 @@ export function Avatar({
  * 그룹 설정 · 만들기/참여 · 카드 동작이 각자 Modal을 세우면 딤 농도와 라운드가
  * 조금씩 갈린다. 껍데기를 한 곳에 두고 안쪽만 바꾼다.
  *
- * 키보드: 입력이 있는 시트는 iOS에서 키보드가 시트를 덮으므로
+ * 키보드: 입력이 있는 시트는 키보드가 시트를 덮으므로
  * KeyboardAvoidingView로 밀어 올린다.
  */
 export function BottomSheet({
@@ -236,7 +236,7 @@ export function BottomSheet({
     <Modal visible transparent animationType="slide" onRequestClose={onClose}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         {/* 웹의 backdrop-blur는 RN에 없다. 반투명 딤으로 대체한다. */}
         <Pressable
