@@ -25,6 +25,7 @@ describe('fetchPostBatch', () => {
     from.mockReset().mockReturnValue({
       select() { return this },
       eq() { return this },
+      order() { return this },
       then(resolve: (value: typeof reply) => unknown) { return Promise.resolve(reply).then(resolve) },
     })
   })

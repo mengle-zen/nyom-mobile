@@ -162,6 +162,7 @@ export async function fetchPostBatch(
     .from('posts')
     .select('id, group_id, caption, recorded_at, meal_slot, meal_tag, groups!posts_group_id_fkey(id)')
     .eq('user_id', userId)
+    .order('id', { ascending: true })
 
   const { data, error } = ref.batch_id
     ? await base.eq('batch_id', ref.batch_id)
@@ -181,7 +182,7 @@ export async function fetchPostBatch(
   const rows = (data ?? []) as unknown as Row[]
   if (rows.length === 0) throw new Error('POST_NOT_FOUND')
 
-  // groups RLS가 탈퇴한 그룹의 join을 null로 만든다. 편집 가능한 최신 맥락을 우선한다.
+  // groups RLS로 탈퇴 그룹을 제외한다. 선택한 편집 가능 행을 우선하고, 없으면 id순 첫 행을 쓴다.
   const editable = rows.filter((r) => r.group_id === null || r.groups !== null)
   const rep = editable.find((r) => r.id === ref.id) ?? editable[0]
     ?? rows.find((r) => r.id === ref.id) ?? rows[0]
