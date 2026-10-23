@@ -160,7 +160,7 @@ export async function fetchPostBatch(
 ): Promise<PostBatch> {
   const base = supabase
     .from('posts')
-    .select('id, group_id, caption, recorded_at, meal_slot, meal_tag')
+    .select('id, group_id, caption, recorded_at, meal_slot, meal_tag, groups!posts_group_id_fkey(id)')
     .eq('user_id', userId)
 
   const { data, error } = ref.batch_id
@@ -172,6 +172,7 @@ export async function fetchPostBatch(
   type Row = {
     id: string
     group_id: string | null
+    groups: { id: string } | null
     caption: string | null
     recorded_at: string
     meal_slot: MealSlotKey | null
@@ -180,16 +181,17 @@ export async function fetchPostBatch(
   const rows = (data ?? []) as unknown as Row[]
   if (rows.length === 0) throw new Error('POST_NOT_FOUND')
 
-  // 메모·시각·끼니는 batch 전체가 공유하므로 아무 행에서 읽어도 같다.
-  // 대표 행은 사용자가 고른 행을 우선(없으면 첫 행) — RPC의 p_post_id로 쓴다.
-  const rep = rows.find((r) => r.id === ref.id) ?? rows[0]
+  // groups RLS가 탈퇴한 그룹의 join을 null로 만든다. 편집 가능한 최신 맥락을 우선한다.
+  const editable = rows.filter((r) => r.group_id === null || r.groups !== null)
+  const rep = editable.find((r) => r.id === ref.id) ?? editable[0]
+    ?? rows.find((r) => r.id === ref.id) ?? rows[0]
 
   return {
     postId: rep.id,
     caption: rep.caption,
     recordedAt: rep.recorded_at,
     meal: mealOf(rep),
-    groupIds: rows
+    groupIds: editable
       .map((r) => r.group_id)
       .filter((id): id is string => id !== null),
   }
