@@ -324,14 +324,17 @@ export type Database = {
           created_by: string
           is_public: boolean
           created_at: string
-        }
+        } | null
+      }
+      rotate_group_invite_code: {
+        Args: { p_group_id: string }
+        Returns: Database['public']['Tables']['groups']['Row']
       }
       list_public_groups: {
         Args: Record<string, never>
         Returns: {
           id: string
           name: string
-          invite_code: string
           is_public: boolean
           created_by: string
           created_at: string

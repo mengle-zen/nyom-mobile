@@ -55,7 +55,7 @@ export default function GroupsScreen() {
    */
   const onRefresh = useCallback(async () => {
     setRefreshing(true)
-    const tasks = [myGroupsQuery.refetch(), statsQuery.refetch()]
+    const tasks: Promise<unknown>[] = [myGroupsQuery.refetch(), statsQuery.refetch()]
     if (tab === 'discover') tasks.push(publicQuery.refetch())
     try {
       await Promise.race([

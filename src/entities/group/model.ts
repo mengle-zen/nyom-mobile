@@ -14,7 +14,6 @@ export type GroupMemberProfile = {
 export type PublicGroup = {
   id: string
   name: string
-  invite_code: string
   is_public: boolean
   created_by: string
   created_at: string
@@ -137,7 +136,7 @@ export async function createGroup(name: string): Promise<Group> {
   return data as Group
 }
 
-export type JoinGroupError = 'NOT_FOUND' | 'ALREADY_MEMBER' | 'FULL' | 'BANNED' | 'UNKNOWN'
+export type JoinGroupError = 'NOT_FOUND' | 'ALREADY_MEMBER' | 'FULL' | 'BANNED' | 'RATE_LIMITED' | 'UNKNOWN'
 
 /** 초대코드로 가입 (RPC) */
 export async function joinByCode(code: string): Promise<Group> {
@@ -146,12 +145,14 @@ export async function joinByCode(code: string): Promise<Group> {
   } as never)
   if (error) {
     const msg = error.message
+    if (msg.includes('INVITE_RATE_LIMITED')) throw new Error('RATE_LIMITED' satisfies JoinGroupError)
     if (msg.includes('GROUP_NOT_FOUND')) throw new Error('NOT_FOUND' satisfies JoinGroupError)
     if (msg.includes('ALREADY_MEMBER')) throw new Error('ALREADY_MEMBER' satisfies JoinGroupError)
     if (msg.includes('GROUP_FULL')) throw new Error('FULL' satisfies JoinGroupError)
     if (msg.includes('BANNED')) throw new Error('BANNED' satisfies JoinGroupError)
     throw new Error('UNKNOWN' satisfies JoinGroupError)
   }
+  if (!data) throw new Error('NOT_FOUND' satisfies JoinGroupError)
   return data as Group
 }
 
