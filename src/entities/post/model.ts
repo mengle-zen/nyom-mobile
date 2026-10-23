@@ -152,7 +152,7 @@ export type PostBatch = {
 /**
  * 한 촬영(batch)의 행들을 모아 편집용 현재 상태를 만든다.
  * batch_id가 있으면 그 값으로, 없으면(기존 단일 행) 자기 id로 조회한다.
- * 조회는 RLS `posts_all_own`으로 본인 행만 보인다.
+ * 조회는 RLS `posts_select_own`으로 본인 행만 보인다.
  */
 export async function fetchPostBatch(
   userId: string,

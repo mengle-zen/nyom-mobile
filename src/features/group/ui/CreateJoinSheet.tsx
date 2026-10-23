@@ -105,8 +105,8 @@ export function CreateJoinSheet({
             returnKeyType="done"
             autoCapitalize="characters"
             autoCorrect={false}
-            maxLength={6}
-            placeholder="6자리 코드"
+            maxLength={12}
+            placeholder="12자리 코드"
             accessibilityLabel="초대코드"
             autoFocus={mode === 'join'}
             className="flex-1 tracking-widest"
