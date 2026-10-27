@@ -1,24 +1,24 @@
-import { useState } from 'react'
 import { ActivityIndicator, Pressable, Text, TextInput, View } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
-import { mealLabel, type Meal } from '@/entities/post'
-import { MealSlotChips } from '@/entities/post/ui/MealSlotChips'
-import { DarkSheet } from './DarkSheet'
+import { MealTagPicker } from '@/entities/post/ui/MealTagPicker'
+import { TimeField } from '@/shared/ui/TimeField'
 
 /**
- * 미리보기 아래 — 끼니 · 메모 · 받는 곳 · 보내기. 이 화면 하나에서 올리기가 끝난다.
+ * 미리보기 아래 — 시각 · 태그 · 메모 · 받는 곳 · 보내기. 이 화면 하나에서 올리기가 끝난다.
  *
- * 예전엔 끼니 칩 4개와 시각 버튼 4개가 늘 펼쳐져 있었고, 「다음」 뒤에 그룹 선택 화면이
- * 한 번 더 있었다. 대부분 기본값 그대로 보내는데도 고를 게 많아 보였다.
- * - 끼니는 시각으로 골라 둔 값을 「점심 · 12:34」 칩 하나로만 보여 주고, 눌러야 바꾼다.
- * - 시각은 찍은 시각으로 고정한다. 틀렸으면 올린 뒤 기록 편집에서 고친다.
+ * - 끼니는 고르지 않는다(2026-10-27 시간 띠 개편). 찍은 시각이 기본이고, 시·분 두 칸으로
+ *   바로 고친다 — 방 화면에서 사진은 이 시각 자리에 놓이고 사진 위에 새겨진다.
+ * - 태그(야식 등)는 선택이다.
  * - 받는 곳 이름이 보내기 버튼에 박혀 있다 — 엉뚱한 그룹에 보내는 실수를 줄인다.
  */
 export function ShotEditor({
-  meal,
-  onMealChange,
+  tag,
+  onTagChange,
   recentTags,
-  capturedAt,
+  time,
+  originalTime,
+  maxTime,
+  onTimeChange,
   caption,
   onCaptionChange,
   recipientSummary,
@@ -29,12 +29,18 @@ export function ShotEditor({
   onRetake,
   onSend,
 }: {
-  meal: Meal
-  onMealChange: (meal: Meal) => void
-  /** 내가 최근 쓴 끼니 태그 */
+  tag: string | null
+  onTagChange: (tag: string | null) => void
+  /** 내가 최근 쓴 태그 */
   recentTags: string[]
-  /** 찍은 시각 'HH:mm' — 먹은 시각으로 쓴다 */
-  capturedAt: string
+  /** 먹은 시각 'HH:mm' — 마지막으로 유효했던 값 */
+  time: string
+  /** 찍은 시각 'HH:mm' — 「초기화」가 되돌릴 값. 사진이 바뀌면 입력 칸도 새로 그린다. */
+  originalTime: string
+  /** 지금 'HH:mm' — 이보다 늦게는 못 고른다 */
+  maxTime: string
+  /** 유효하면 'HH:mm', 아직 쓸 수 없는 입력이면 null */
+  onTimeChange: (hhmm: string | null) => void
   caption: string
   onCaptionChange: (v: string) => void
   /** 「받는 곳」 줄에 보일 요약 (예: "점심 원정대 외 1곳") */
@@ -46,24 +52,20 @@ export function ShotEditor({
   onRetake: () => void
   onSend: () => void
 }) {
-  const [slotOpen, setSlotOpen] = useState(false)
-
   return (
     <View className="gap-3 px-4">
-      <View className="flex-row">
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`${mealLabel(meal)}, ${capturedAt}. 끼니 바꾸기`}
-          onPress={() => setSlotOpen(true)}
-          disabled={sending}
-          className="h-chip flex-row items-center gap-1.5 rounded-full bg-white/15 px-4 active:opacity-70"
-        >
-          <Text className="font-bold text-white">
-            {mealLabel(meal)} · {capturedAt}
-          </Text>
-          <Ionicons name="pencil" size={12} color="rgba(255,255,255,0.6)" />
-        </Pressable>
-      </View>
+      <TimeField
+        key={originalTime}
+        label="먹은 시각"
+        value={time}
+        original={originalTime}
+        max={maxTime}
+        current={maxTime}
+        onChange={onTimeChange}
+        disabled={sending}
+        variant="onDark"
+      />
+      <MealTagPicker value={tag} onChange={onTagChange} recentTags={recentTags} disabled={sending} />
 
       <TextInput
         value={caption}
@@ -123,20 +125,6 @@ export function ShotEditor({
         </Pressable>
       </View>
 
-      <DarkSheet open={slotOpen} title="어느 끼니인가요?" onClose={() => setSlotOpen(false)}>
-        <MealSlotChips
-          value={meal}
-          recentTags={recentTags}
-          onChange={(next) => {
-            onMealChange(next)
-            setSlotOpen(false)
-          }}
-        />
-        <Text className="text-xs leading-5 text-white/55">
-          먹은 시각은 사진을 찍은 시각({capturedAt})으로 기록해요. 다르면 올린 뒤 기록
-          편집에서 고칠 수 있어요.
-        </Text>
-      </DarkSheet>
     </View>
   )
 }

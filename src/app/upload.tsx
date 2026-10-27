@@ -17,8 +17,7 @@ import { router, useLocalSearchParams, useNavigation } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useQueryClient } from '@tanstack/react-query'
 
-import { defaultSlotForHour, mealFromKey, mealKey, slotMeal, type Meal } from '@/entities/post'
-import { hhmmFromDate } from '@/entities/post/date-range'
+import { hhmmFromDate, localDayKey, recordedAtOnSameDay } from '@/entities/post/date-range'
 import { createPostToGroups, deletePostBatch } from '@/entities/post/model'
 import { invalidateAfterPostEdit, useMyRecentTags } from '@/entities/post/queries'
 import { useMyGroups } from '@/entities/group'
@@ -69,8 +68,8 @@ type RestoreParams = {
   restoreUri?: string
   restoreW?: string
   restoreH?: string
-  /** `mealKey` — 끼니 키 또는 'tag:<이름>' */
-  restoreMeal?: string
+  /** 붙였던 태그. 없으면 빈 문자열 */
+  restoreTag?: string
   restoreCaption?: string
   restoreAt?: string
   restoreGroups?: string
@@ -127,9 +126,10 @@ export default function UploadScreen() {
   const [capturedAt, setCapturedAt] = useState<Date>(() =>
     search.restoreAt ? new Date(search.restoreAt) : new Date(),
   )
-  const [meal, setMeal] = useState<Meal>(
-    () => mealFromKey(search.restoreMeal) ?? slotMeal(defaultSlotForHour(capturedAt.getHours())),
-  )
+  /** 먹은 시각 'HH:mm' — 찍은 시각이 기본, 보내기 전에 고칠 수 있다 */
+  const [time, setTime] = useState(() => hhmmFromDate(capturedAt))
+  const [timeValid, setTimeValid] = useState(true)
+  const [tag, setTag] = useState<string | null>(search.restoreTag || null)
   const { data: recentTags = [] } = useMyRecentTags(user?.id)
 
   const { data: groups = [], error: groupsError } = useMyGroups()
@@ -174,7 +174,8 @@ export default function UploadScreen() {
   const acceptShot = useCallback((next: Shot, takenAt: Date) => {
     setShot(next)
     setCapturedAt(takenAt)
-    setMeal(slotMeal(defaultSlotForHour(takenAt.getHours())))
+    setTime(hhmmFromDate(takenAt))
+    setTimeValid(true)
     setFallback(null)
   }, [])
 
@@ -340,9 +341,9 @@ export default function UploadScreen() {
       const final = isUntouched(canvas.getTransform())
         ? await downscaleForUpload(shot)
         : await canvas.capture()
-      // 업로드는 오늘·지금까지만(now-only). 찍은 시각이 미래일 일은 없지만 시계 오차 대비.
+      // 업로드는 오늘·지금까지만(now-only). 고친 시각도 찍은 날의 시:분이고 지금을 넘지 않는다.
       const now = new Date()
-      const recordedAt = (capturedAt.getTime() > now.getTime() ? now : capturedAt).toISOString()
+      const recordedAt = recordedAtOnSameDay(capturedAt.toISOString(), time, now)
 
       const { postId } = await createPostToGroups({
         userId: user.id,
@@ -350,7 +351,7 @@ export default function UploadScreen() {
         mimeType: final.mimeType,
         caption,
         groupIds,
-        meal,
+        tag,
         recordedAt,
       })
 
@@ -361,8 +362,8 @@ export default function UploadScreen() {
       // UX_FINDINGS E항 — 그룹 목록이 아니라 방금 올린 그룹의 보드로.
       const destination =
         search.group && groupIds.includes(search.group) ? search.group : groupIds[0]
-      // 방금 올린 끼니 칸을 연다 — 안 넘기면 보드가 아침을 열어 내 사진이 안 보인다(e2e에서 발견).
-      router.replace(boardHref(destination, meal))
+      // 방금 올린 사진이 보이게 그날 보드를 연다(보드가 가장 최근 사진으로 스크롤한다).
+      router.replace(boardHref(destination, { date: localDayKey(now) }))
 
       const names = groups.filter((g) => groupIds.includes(g.id)).map((g) => g.name)
       showUndoToast({
@@ -377,7 +378,7 @@ export default function UploadScreen() {
               restoreUri: final.uri,
               restoreW: String(final.width),
               restoreH: String(final.height),
-              restoreMeal: mealKey(meal),
+              restoreTag: tag ?? '',
               restoreCaption: caption,
               restoreAt: recordedAt,
               restoreGroups: groupIds.join(','),
@@ -484,16 +485,22 @@ export default function UploadScreen() {
         <View style={{ paddingBottom: insets.bottom + 20 }} className="pt-2">
           {shot ? (
             <ShotEditor
-              meal={meal}
-              onMealChange={setMeal}
+              tag={tag}
+              onTagChange={setTag}
               recentTags={recentTags}
-              capturedAt={hhmmFromDate(capturedAt)}
+              time={time}
+              originalTime={hhmmFromDate(capturedAt)}
+              maxTime={hhmmFromDate(new Date())}
+              onTimeChange={(next) => {
+                if (next) setTime(next)
+                setTimeValid(next !== null)
+              }}
               caption={caption}
               onCaptionChange={setCaption}
               recipientSummary={recipientSummary(recipientNames)}
               onOpenRecipients={() => setRecipientsOpen(true)}
               sendLabel={sendLabel(recipientNames)}
-              canSend={recipientNames.length > 0 && lastSent !== null && !preparing}
+              canSend={recipientNames.length > 0 && lastSent !== null && !preparing && timeValid}
               sending={uploading}
               onRetake={retake}
               onSend={() => void send()}
