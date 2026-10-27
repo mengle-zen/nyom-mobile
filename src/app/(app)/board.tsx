@@ -14,13 +14,11 @@ import Ionicons from '@expo/vector-icons/Ionicons'
 
 import { useAuth } from '@/features/auth'
 import { useMyProfile } from '@/features/profile'
+import { MAX_MEMBERS } from '@/features/group'
 import { useMyGroups, useGroupMembers, type GroupMemberProfile } from '@/entities/group'
 import {
-  clampSlotIdx,
-  pageIndex,
-  sameMeal,
-  mealOf,
-  slotProgress,
+  laneMembers,
+  postsByMember,
   dateHeading,
   dateFromOffset,
   offsetFromDate,
@@ -36,12 +34,10 @@ import {
   decideAxis,
   DRAG_THRESHOLD,
   COMMIT_RATIO,
-  VERTICAL_COMMIT,
   type Axis,
 } from '@/features/board-nav'
 import { BoardHeader } from '@/widgets/board-header'
-import { SlotChips } from '@/widgets/slot-chips'
-import { SlotBoard, SlotBoardSkeleton } from '@/widgets/slot-board'
+import { TimeLanes, TimeLanesSkeleton } from '@/widgets/time-lanes'
 import { DayPicker } from '@/widgets/day-picker'
 import { PostDetail } from '@/widgets/post-detail'
 import { ErrorState } from '@/shared/ui/error-state'
@@ -75,19 +71,15 @@ export default function BoardScreen() {
   const params = useLocalSearchParams()
   const groupIdParam = one(params.group)
 
-  // 푸시 딥링크(?date=&slot= 또는 &tag=)는 "초기 위치"만 정한다. 이후 칩·스와이프·달력 조작을
-  // URL이 되돌리면 안 되므로 lazy initializer로 첫 렌더에서만 읽는다(웹과 같은 규칙).
+  // 푸시 딥링크(?date=)는 "초기 날짜"만 정한다. 이후 스와이프·달력 조작을 URL이 되돌리면
+  // 안 되므로 lazy initializer로 첫 렌더에서만 읽는다(웹과 같은 규칙). slot·tag가 실려 와도
+  // 시간 띠는 끼니로 나누지 않아 무시한다.
   const [initialTarget] = useState(() =>
-    deeplinkTarget(
-      { date: one(params.date), slot: one(params.slot), tag: one(params.tag) },
-      new Date(),
-      MAX_OFFSET,
-    ),
+    deeplinkTarget({ date: one(params.date) }, new Date(), MAX_OFFSET),
   )
   const [dateOffset, setDateOffset] = useState(initialTarget.dateOffset)
-  // 끼니는 페이지 키로 든다 — 태그 페이지는 날마다 있고 없고 순서도 달라서 번호로는
-  // 같은 끼니를 가리킬 수 없다. 번호는 그날 페이지 목록에서 매 렌더 다시 찾는다.
-  const [pageKey, setPageKey] = useState(initialTarget.pageKey)
+  /** 알림·업로드로 연 날 — 지난날이어도 그날 가장 최근 사진으로 스크롤한다. */
+  const [linkedOffset] = useState(() => (one(params.date) ? initialTarget.dateOffset : null))
   const [pickerOpen, setPickerOpen] = useState(false)
   const [detailPostId, setDetailPostId] = useState<string | null>(null)
 
@@ -108,8 +100,7 @@ export default function BoardScreen() {
   const react = useToggleReaction(activeGroupId, dateOffset, userId)
   const error = groupsError ?? membersError ?? postsError
 
-  const slots = useMemo(() => slotProgress(members, posts), [members, posts])
-  const slotIdx = pageIndex(slots, pageKey)
+  const lanes = useMemo(() => laneMembers(members, userId), [members, userId])
   const today = useMemo(() => new Date(), [])
   const selectedDate = useMemo(
     () => dateFromOffset(dateOffset, today),
@@ -117,23 +108,9 @@ export default function BoardScreen() {
   )
   const heading = useMemo(() => dateHeading(dateOffset, today), [dateOffset, today])
 
-  /**
-   * 날짜를 옮겨도 **끼니는 그대로 둔다.**
-   * 웹앱은 날짜가 바뀔 때마다 슬롯을 아침으로 리셋해서 "어제 저녁"을 보려면 조작이
-   * 4번 필요했다(docs/UX_FINDINGS.md D항). 그 날 그 끼니가 비어 있으면 기존
-   * 「아직이에요」 빈 상태가 그대로 답이 된다. 태그 페이지는 그날 그 태그가 없으면
-   * 간식으로 보여 주되 키는 그대로 둔다(`pageIndex`).
-   */
   const changeDate = useCallback((next: number) => {
     setDateOffset(clampOffset(next))
   }, [])
-
-  const changeSlot = useCallback(
-    (next: number) => {
-      setPageKey(slots[clampSlotIdx(next, slots.length)].key)
-    },
-    [slots],
-  )
 
   const goUpload = useCallback(() => {
     router.push(href(`/upload${activeGroupId ? `?group=${activeGroupId}` : ''}`))
@@ -150,10 +127,9 @@ export default function BoardScreen() {
   )
 
   // ── 제스처 ────────────────────────────────────────────────
-  // 가로 = 날짜, 세로 = 끼니. 둘 다 "움직여야" 성립하는 스와이프라 사진 탭과 겹치지
-  // 않는다. 웹앱의 보이지 않는 가장자리 탭은 옮기지 않았다 — 그게 바로 친구 사진을
-  // 탭하면 끼니가 넘어가던 원인이었고(docs/UX_FINDINGS.md B항), 이제 끼니 이동은
-  // 상단 칩이 눈에 보이게 담당한다.
+  // 가로 = 날짜, 세로 = 시간 띠 스크롤(2026-10-27). 세로로 움직이면 팬을 포기해서
+  // 띠의 ScrollView가 받는다. 끼니를 넘기던 세로 스와이프와 화면 끝 탭은 없앴다.
+  // 5명 이상인 옛 방은 띠를 가로로 밀어 봐야 해서 날짜 스와이프를 끄고 화살표만 쓴다.
   //
   // 가로 방향은 **iOS 캘린더·사진과 같은 관례**를 따른다:
   //   오른쪽으로 밀기(translationX > 0) = 과거   — 왼쪽에 있던 어제를 끌어온다
@@ -207,17 +183,6 @@ export default function BoardScreen() {
     [dateOffset, flashContent],
   )
 
-  /** 세로 스와이프로 끼니를 넘길 때. 칩 탭과 같은 조작이라 같은 'select' 햅틱. */
-  const commitSlotSwipe = useCallback(
-    (next: number) => {
-      const clamped = clampSlotIdx(next, slots.length)
-      if (clamped === slotIdx) return
-      void haptic('select')
-      setPageKey(slots[clamped].key)
-    },
-    [slotIdx, slots],
-  )
-
   /*
     eslint-disable react-hooks/refs --
     제스처 콜백은 렌더가 아니라 터치 이벤트에서 실행되므로 "렌더 중 ref 접근"이 아니다.
@@ -229,6 +194,9 @@ export default function BoardScreen() {
     () =>
       Gesture.Pan()
         .runOnJS(true)
+        .enabled(members.length <= MAX_MEMBERS)
+        .activeOffsetX([-DRAG_THRESHOLD, DRAG_THRESHOLD])
+        .failOffsetY([-DRAG_THRESHOLD, DRAG_THRESHOLD])
         .onBegin(() => {
           axisRef.current = null
         })
@@ -249,10 +217,6 @@ export default function BoardScreen() {
             const w = stageWidth || 360
             if (e.translationX > w * COMMIT_RATIO) commitDateSwipe(dateOffset + 1)
             else if (e.translationX < -w * COMMIT_RATIO) commitDateSwipe(dateOffset - 1)
-          } else if (axis === 'v') {
-            // 위로 밀면 다음 끼니, 아래로 밀면 이전 끼니
-            if (e.translationY < -VERTICAL_COMMIT) commitSlotSwipe(slotIdx + 1)
-            else if (e.translationY > VERTICAL_COMMIT) commitSlotSwipe(slotIdx - 1)
           }
         })
         .onFinalize(() => {
@@ -267,7 +231,7 @@ export default function BoardScreen() {
             useNativeDriver: false,
           }).start()
         }),
-    [dateOffset, slotIdx, stageWidth, dragX, commitDateSwipe, commitSlotSwipe],
+    [dateOffset, stageWidth, dragX, commitDateSwipe, members.length],
   )
   /* eslint-enable react-hooks/refs */
 
@@ -275,15 +239,13 @@ export default function BoardScreen() {
   // 게시물 id만 들고 있고 본문은 매 렌더 캐시에서 다시 찾는다 —
   // 리액션 낙관적 업데이트가 상세 화면에도 그대로 반영되도록.
   //
-  // 같은 사람·같은 끼니에 여러 장을 올렸으면 상세에서 넘겨 본다. 보드 타일이
-  // 보여 주는 장(가장 최근)이 첫 장이 되도록 `buildSlotBoard`와 같은 순서로 정렬한다.
+  // 상세에서는 그 사람의 그날 사진 전체를 시각순으로 넘겨 보고, 누른 사진부터 연다
+  // (예전엔 "같은 끼니"만 넘겼다 — 끼니 칸이 없어졌다).
   const detailPosts = useMemo<BoardPost[]>(() => {
     const opened = posts.find((p) => p.id === detailPostId)
-    if (!opened) return []
-    return posts
-      .filter((p) => p.user_id === opened.user_id && sameMeal(mealOf(p), mealOf(opened)))
-      .sort((a, b) => b.recorded_at.localeCompare(a.recorded_at))
+    return opened ? postsByMember(posts, opened.user_id) : []
   }, [posts, detailPostId])
+  const detailIndex = Math.max(0, detailPosts.findIndex((p) => p.id === detailPostId))
   const detailMember = useMemo<GroupMemberProfile | null>(
     () => members.find((m) => m.user_id === detailPosts[0]?.user_id) ?? null,
     [members, detailPosts],
@@ -333,8 +295,6 @@ export default function BoardScreen() {
         avatarUrl={profile?.avatar_url ?? null}
       />
 
-      <SlotChips slots={slots} activeIdx={slotIdx} onSelect={changeSlot} />
-
       <GestureDetector gesture={pan}>
         {/* NativeWind가 Animated.View까지 감싸지는 않으므로 style로 직접 쓴다 */}
         <Animated.View
@@ -345,18 +305,16 @@ export default function BoardScreen() {
             {groupHasNothing ? (
               <NoRecordEmpty onUpload={goUpload} />
             ) : postsLoading ? (
-              <SlotBoardSkeleton memberCount={members.length} />
+              <TimeLanesSkeleton memberCount={members.length} />
             ) : (
-              <SlotBoard
-                meal={slots[slotIdx].meal}
-                members={members}
+              <TimeLanes
+                key={dateOffset}
+                members={lanes}
                 posts={posts}
                 currentUserId={userId}
-                isToday={dateOffset === 0}
-                onReact={react}
-                onUpload={goUpload}
+                now={dateOffset === 0 ? new Date() : null}
+                startAtLatest={dateOffset === 0 || dateOffset === linkedOffset}
                 onOpenPost={openPost}
-                onEdgeTap={(dir) => commitSlotSwipe(slotIdx + dir)}
               />
             )}
           </Animated.View>
@@ -366,9 +324,7 @@ export default function BoardScreen() {
       {/*
         하단 촬영 버튼은 **보드의 상시 진입점**이다. 내 칸이 이미 찼을 때도, 그룹에
         기록이 하나도 없을 때도, 과거 날짜를 보고 있을 때도 여기서만 기록을 시작할 수
-        있다. 타일 안의 지름길(EmptyTile)은 "내 칸이 비어 있고 오늘일 때"만 나타나는
-        보조 액션이라 무게를 낮춰 뒀다 — 같은 크기의 1차 버튼이 둘이면 어느 쪽이
-        본선인지 알 수 없다.
+        있다.
       */}
       <View
         className="items-center pt-1"
@@ -396,10 +352,11 @@ export default function BoardScreen() {
         minDate={dateFromOffset(MAX_OFFSET, today)}
       />
 
-      {/* 열 때마다 새로 그려 첫 장(타일에 보이던 장)부터 보여 준다 */}
+      {/* 열 때마다 새로 그려 누른 사진부터 보여 준다 */}
       <PostDetail
         key={detailPostId ?? 'closed'}
         posts={detailPosts}
+        initialIndex={detailIndex}
         member={detailMember}
         isMe={detailPosts[0]?.user_id === userId}
         currentUserId={userId}

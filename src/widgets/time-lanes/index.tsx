@@ -12,9 +12,9 @@ const PAD = 12
 const GAP = 6
 const VISIBLE = 4
 const HEADER_H = 56
-/** 띠 위아래 여백. 아래는 촬영 버튼(64pt)에 사진이 가리지 않을 만큼. */
+/** 띠 위아래 여백. 촬영 버튼은 띠 아래 따로 놓여 가리지 않는다. */
 const TOP_PAD = 8
-const BOTTOM_PAD = 120
+const BOTTOM_PAD = 24
 const STAMP_FONT = Platform.select({ ios: 'Menlo', default: 'monospace' })
 const AVATAR = ['#FFA56A', '#9FD18B', '#8EC5FF', '#F7A8C4', '#C7B6F2', '#F5D06F']
 
