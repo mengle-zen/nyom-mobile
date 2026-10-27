@@ -13,7 +13,6 @@ import {
 } from 'react-native'
 import { Ionicons } from '@expo/vector-icons'
 import { toast } from 'sonner-native'
-import { slotMeal, type Meal } from '@/entities/post'
 import {
   hhmmFromDate,
   localDayKey,
@@ -23,7 +22,7 @@ import {
 import {
   diffGroupSelection,
   hasPostBatchChanges,
-  mealChange,
+  tagChange,
   postEditErrorMessage,
   type PostBatchDraft,
 } from '@/entities/post/edit'
@@ -36,7 +35,7 @@ import {
 } from '@/entities/post/queries'
 import { useMyGroups, type Group } from '@/entities/group'
 import { useAuth } from '@/features/auth'
-import { MealSlotChips } from '@/entities/post/ui/MealSlotChips'
+import { MealTagPicker } from '@/entities/post/ui/MealTagPicker'
 import { TimeField } from '@/shared/ui/TimeField'
 import { clampTime } from '@/shared/lib/time-input'
 import { haptic } from '@/shared/ui/press'
@@ -45,12 +44,11 @@ import { haptic } from '@/shared/ui/press'
 export type EditablePost = PostBatchRef
 
 /**
- * 게시물 사후 편집 (끼니 · 섭취 시각 · 메모 · 공유 그룹 + 삭제).
+ * 게시물 사후 편집 (태그 · 섭취 시각 · 메모 · 공유 그룹 + 삭제).
  *
- * 끼니 변경은 새벽에 먹은 야식이 "아침"으로 잡히면 영영 고칠 수 없던 문제를 푼다
- * (docs/UX_FINDINGS.md C항). 처음엔 RPC가 끼니를 받지 않아 posts.meal_slot을 별도
- * statement로 직접 update하는 우회를 썼는데, 지금은 update_post_batch가
- * p_meal_slot을 받아 한 트랜잭션으로 처리한다.
+ * 끼니 칸은 2026-10-27 시간 띠 개편으로 없어졌다. 방 화면은 섭취 시각 자리에 사진을
+ * 놓으므로 잘못 잡힌 시각을 여기서 고친다. 태그는 붙이기·바꾸기·빼기 모두 되고,
+ * 빼기는 update_post_batch에 빈 태그('')를 보낸다(20261027000000_time_lanes.sql).
  * 사진 교체는 여전히 범위 밖 — 스토리지 객체 관리가 얽힌다.
  */
 export function PostEditSheet({
@@ -202,8 +200,7 @@ function PostEditForm({
     groupIds: batch.groupIds,
     caption: batch.caption ?? '',
     recordedTime: hhmmFromDate(new Date(batch.recordedAt)),
-    // 끼니가 비어 있던 기존 행은 아침을 기본으로 보여준다(선택 없음 상태를 만들지 않는다).
-    meal: batch.meal ?? slotMeal('breakfast'),
+    tag: batch.tag,
   }
 
   const [selected, setSelected] = useState<Set<string>>(
@@ -213,7 +210,7 @@ function PostEditForm({
   const [recordedTime, setRecordedTime] = useState(original.recordedTime)
   /** 시각 칸을 다 채우지 않았거나 범위를 넘으면 false — 저장을 막는다 */
   const [timeValid, setTimeValid] = useState(true)
-  const [meal, setMeal] = useState<Meal>(original.meal)
+  const [tag, setTag] = useState<string | null>(original.tag)
   const { data: recentTags = [] } = useMyRecentTags(userId)
 
   const maxTime = maxTimeForRecordedDay(batch.recordedAt, now)
@@ -229,7 +226,7 @@ function PostEditForm({
     groupIds: nextGroupIds,
     caption,
     recordedTime,
-    meal,
+    tag,
   }
   const changed = hasPostBatchChanges(
     { ...original, groupIds: original.groupIds.filter((id) => myGroupIds.has(id)) },
@@ -277,8 +274,8 @@ function PostEditForm({
                 clampTime(recordedTime, maxTime),
                 now,
               ),
-        // 안 바뀌었으면 null — batch의 기존 끼니(옛 행의 null 포함)를 덮어쓰지 않는다
-        meal: mealChange(original.meal, meal),
+        // 안 바뀌었으면 null — 옛 기록에 남은 끼니 값을 덮어쓰지 않는다. 빼면 ''.
+        tag: tagChange(original.tag, tag),
         affectedGroupIds,
       },
       {
@@ -336,12 +333,12 @@ function PostEditForm({
         // 태그를 입력하다 「붙이기」를 누르면 첫 탭이 키보드 닫기로 먹히지 않게
         keyboardShouldPersistTaps="handled"
       >
-        {/* 끼니 — 잘못 분류된 기록을 여기서 고친다 (UX_FINDINGS C항) */}
+        {/* 태그 — 선택. 붙이기·바꾸기·빼기 */}
         <View className="gap-1.5">
-          <Text className="text-sm font-medium text-muted-foreground">끼니</Text>
-          <MealSlotChips
-            value={meal}
-            onChange={setMeal}
+          <Text className="text-sm font-medium text-muted-foreground">태그</Text>
+          <MealTagPicker
+            value={tag}
+            onChange={setTag}
             recentTags={recentTags}
             disabled={busy}
             variant="onLight"
