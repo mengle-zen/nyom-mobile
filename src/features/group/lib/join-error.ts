@@ -10,5 +10,9 @@ export const JOIN_ERROR_MSG: Record<JoinGroupError, string> = {
   UNKNOWN: '잠시 후 다시 시도해 주세요',
 }
 
-/** 그룹 정원 — 웹앱과 동일한 상수 */
-export const MAX_MEMBERS = 8
+/**
+ * 그룹 정원. 방 화면 시간 띠가 네 열까지 읽혀 4명으로 줄였다(2026-10-27).
+ * 서버 join_group_by_code·approve_join_request의 GROUP_FULL 기준과 같아야 한다
+ * (웹 20261027000000_time_lanes.sql). 웹앱 상수는 아직 8이다.
+ */
+export const MAX_MEMBERS = 4

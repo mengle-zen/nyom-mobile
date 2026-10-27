@@ -1,6 +1,6 @@
 import { Text, View } from 'react-native'
 import { Image } from 'expo-image'
-import { mealLabel, mealOf, postImageSource } from '@/entities/post'
+import { postImageSource, postTimeLabel } from '@/entities/post'
 import { hhmmFromDate } from '@/entities/post/date-range'
 import type { DayPost } from '@/entities/post/model'
 import { PressableScale } from '@/shared/ui/press'
@@ -45,12 +45,11 @@ export function DayTimeline({ dayKey, isToday, posts, loading, onSelect }: Props
         </View>
       ) : (
         posts.map((post) => {
-          const meal = mealOf(post)
           return (
             <PressableScale
               key={post.id}
               accessibilityRole="button"
-              accessibilityLabel={`${meal ? mealLabel(meal) : '기록'} ${hhmmFromDate(new Date(post.recorded_at))} 보기`}
+              accessibilityLabel={`${postTimeLabel(post.recorded_at, post.meal_tag)} 기록 보기`}
               // 상세를 여는 건 보기일 뿐 — 보드 타일과 같이 햅틱 없음.
               hapticKind={null}
               onPress={() => onSelect(post)}
@@ -67,9 +66,9 @@ export function DayTimeline({ dayKey, isToday, posts, loading, onSelect }: Props
               </View>
               <View className="min-w-0 flex-1">
                 <View className="flex-row items-center gap-1.5">
-                  {meal && (
+                  {post.meal_tag && (
                     <Text className="text-sm font-bold text-foreground">
-                      {mealLabel(meal)}
+                      {post.meal_tag}
                     </Text>
                   )}
                   <Text className="text-xs text-muted-foreground">

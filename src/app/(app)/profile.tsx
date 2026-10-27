@@ -22,10 +22,8 @@ import { useQueryClient } from '@tanstack/react-query'
 
 import {
   dedupeByBatch,
-  mealOf,
-  mealTimeLabel,
+  postTimeLabel,
   postImageSource,
-  type MealSlotKey,
 } from '@/entities/post'
 import { useMyRecordedDays } from '@/entities/post/queries'
 import { useMyGroups } from '@/entities/group'
@@ -66,7 +64,6 @@ type DetailPost = {
   signedImageUrl: string | null
   caption: string | null
   recorded_at: string
-  meal_slot: MealSlotKey | null
   meal_tag: string | null
 }
 
@@ -345,9 +342,9 @@ function MyPostsGrid({
     <View className="gap-3">
       <View className="-m-0.5 flex-row flex-wrap">
         {posts.map((post) => {
-          // 끼니 · 시각 칩 — 웹 그리드에도 있는 오버레이. 사진만으론 언제 먹은 건지
+          // 시각(태그가 있으면 태그 · 시각) 칩 — 웹 그리드에도 있는 오버레이. 사진만으론 언제 먹은 건지
           // 알 수 없어서 회고에서 이 한 줄이 가장 많은 정보를 준다.
-          const label = mealTimeLabel(post.recorded_at, mealOf(post))
+          const label = postTimeLabel(post.recorded_at, post.meal_tag)
           return (
             <View key={post.id} style={{ width: '33.3333%' }} className="p-0.5">
               <PressableScale
@@ -408,7 +405,7 @@ function PostDetailModal({
   onClose: () => void
   onEdit: (post: DetailPost) => void
 }) {
-  const label = post ? mealTimeLabel(post.recorded_at, mealOf(post)) : ''
+  const label = post ? postTimeLabel(post.recorded_at, post.meal_tag) : ''
 
   return (
     <Modal

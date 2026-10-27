@@ -228,6 +228,11 @@ export function GroupSettingsSheet({
                 </Text>
               ) : (
                 <View className="gap-2">
+                  {members.length >= MAX_MEMBERS && (
+                    <Text className="text-sm text-muted-foreground">
+                      {`방은 ${MAX_MEMBERS}명까지예요. 누가 나가면 수락할 수 있어요.`}
+                    </Text>
+                  )}
                   {requests.map((req) => (
                     <View
                       key={req.id}
@@ -248,7 +253,8 @@ export function GroupSettingsSheet({
                         accessibilityLabel={`${req.requester.nickname} 수락`}
                         color="#FF7A2E"
                         bg="#FFF4EC"
-                        disabled={pending.has(req.id)}
+                        // 정원이 찼으면 서버가 GROUP_FULL로 거절한다 — 누르기 전에 막는다
+                        disabled={pending.has(req.id) || members.length >= MAX_MEMBERS}
                         onPress={() => void handleApprove(req.id)}
                       />
                       <IconButton
