@@ -35,7 +35,7 @@ pnpm lint
 - Supabase 스키마·RLS·RPC·Edge Function·마이그레이션은 **웹 저장소가 소유한다**. 새 마이그레이션은 이 저장소에 만들거나 적용하지 않고 웹 저장소에서 작성·적용한다. 기존 `supabase/migrations/` 파일은 백엔드 소유권의 근거가 아니다.
 - 백엔드 변경이 필요한 기능은 모바일 코드만 수정하고 완료 처리하지 않는다. 웹 저장소의 변경 필요성과 적용 여부를 명시한다.
 - 웹에서 가져온 `entities/post/{date-range,dedupe}.ts`, `entities/reaction/toggle.ts`, `features/board-nav/axis.ts`, `features/calendar/lib/month.ts`를 변경할 때는 웹에도 반영할지 판단한다.
-- `entities/post/{board,deeplink,edit}.ts`는 모바일 끼니 개편으로 웹과 갈라졌다. 기본 끼니는 아침·점심·저녁·간식이며 별도 이름은 `meal_tag`다. 웹과 자동으로 동기화하지 않는다.
+- 방 화면은 2026-10-27부터 멤버별 **시간 띠**다(`docs/superpowers/specs/2026-10-27-time-lanes-room-design.md`). 앱에서 끼니 칸(아침·점심·저녁·간식)을 없애 새 기록은 `meal_slot = null`, 태그(`meal_tag`)는 선택이다. 웹 쪽 `board.ts`는 모바일에서 지웠고 `deeplink`·`edit`도 웹과 갈라졌다. 웹은 맞추지 않으며 방 정원은 서버·앱 모두 4명이다.
 
 ## 반복해서 주의할 점
 

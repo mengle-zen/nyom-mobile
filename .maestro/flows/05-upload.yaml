@@ -80,8 +80,8 @@ name: 올리기
     visible: "되돌리기"
     timeout: 20000
 - takeScreenshot: e2e/05-sent
-# 보드가 방금 올린 끼니 칸을 열어 내 사진이 보여야 한다(아침으로 열려 빈 칸이 보이던 회귀).
-- assertNotVisible: "탭해서 올리기"
+# 보드가 그날 시간 띠를 열어 내 사진이 보여야 한다(예전엔 아침 칸이 열려 내 사진이 안 보였다).
+- assertVisible: "나 .*사진 보기"
 - tapOn: "되돌리기"
 - extendedWaitUntil:
     visible: "받는 곳"
@@ -91,7 +91,7 @@ name: 올리기
 - tapOn: "그만두기"
 # 되돌리기는 보드 위에 업로드를 다시 연 것이라, 닫으면 보내기 전의 보드로 돌아간다.
 - extendedWaitUntil:
-    visible: "아침 .* 올림"
+    visible: "날짜 선택 .* 현재 오늘.*"
     timeout: 10000
 - tapOn: "그룹 목록으로"
 - extendedWaitUntil:
