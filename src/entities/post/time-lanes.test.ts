@@ -61,6 +61,11 @@ describe('timeLanesLayout', () => {
     ])
   })
 
+  it('자정을 넘는 눈금은 없다(23:40 사진의 30분 자리가 24:10까지여도)', () => {
+    const r = run([[['a', 23, 40]]])
+    expect(r.marks.filter((m) => m.kind === 'tick')).toEqual([])
+  })
+
   it('지금 선 — 구간 안 / 조금 뒤 / 한참 뒤', () => {
     expect(run([[['a', 12, 0]]], new Date(2026, 9, 27, 12, 10)).nowY).toBe(20)
     const soon = run([[['a', 12, 0]]], new Date(2026, 9, 27, 12, 50))

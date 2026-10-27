@@ -70,7 +70,8 @@ export function timeLanesLayout(input: {
       laneBottom.set(e.lane, y + photo)
       windowBottom = Math.max(windowBottom, y + photo)
     }
-    for (let h = Math.floor(w.start / 60) + 1; h * 60 <= w.end; h++) {
+    // 정시 눈금. 하루는 자정에서 끝난다 — 23:40 사진의 30분 자리가 24:10까지여도 24:00은 없다.
+    for (let h = Math.floor(w.start / 60) + 1; h * 60 <= w.end && h < 24; h++) {
       marks.push({ kind: 'tick', y: top + (h * 60 - w.start) * scale, label: hhmm(h * 60) })
     }
     bottom = windowBottom
