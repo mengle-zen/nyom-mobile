@@ -101,6 +101,15 @@ export function TimeLanes({ members, posts, currentUserId, now, startAtLatest, o
                     </View>
                   ),
                 )}
+                {/* 지금 선은 사진 뒤에 — 방금 올린 사진의 각인 시각을 가리지 않게 */}
+                {layout.nowY !== null && (
+                  <View pointerEvents="none" style={{ position: 'absolute', left: 6, right: PAD, top: layout.nowY - 8 }} className="flex-row items-center">
+                    <View className="rounded-full bg-primary px-1.5">
+                      <Text className="text-[10px] font-extrabold text-neutral-900">지금</Text>
+                    </View>
+                    <View className="h-0.5 flex-1 rounded-full bg-primary" />
+                  </View>
+                )}
                 {layout.items.map((item) => {
                   const post = byId.get(item.postId)!
                   const who = members[item.lane]
@@ -136,14 +145,6 @@ export function TimeLanes({ members, posts, currentUserId, now, startAtLatest, o
                     </PressableScale>
                   )
                 })}
-                {layout.nowY !== null && (
-                  <View pointerEvents="none" style={{ position: 'absolute', left: 6, right: PAD, top: layout.nowY - 8 }} className="flex-row items-center">
-                    <View className="rounded-full bg-primary px-1.5">
-                      <Text className="text-[10px] font-extrabold text-neutral-900">지금</Text>
-                    </View>
-                    <View className="h-0.5 flex-1 rounded-full bg-primary" />
-                  </View>
-                )}
               </View>
             </ScrollView>
           </View>
