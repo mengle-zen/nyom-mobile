@@ -18,7 +18,7 @@ const CONSUMED_KEY = 'nyom:consumed-notification-id'
  *  - 앱이 살아 있을 때 알림 탭:      `addNotificationResponseReceivedListener`
  *
  * 목적지 계산은 `lib/push-url`이 하고, 그 안에서 웹과 공유하는 순수 로직
- * `deeplinkTarget()`으로 미래·범위 초과·알 수 없는 끼니를 폴백시킨다.
+ * `deeplinkTarget()`으로 미래·범위 초과 날짜를 폴백시킨다.
  *
  * 주의 — `getLastNotificationResponseAsync()`는 "마지막 응답"을 OS가 계속 들고 있어서
  * 앱을 다시 켤 때마다 같은 값을 돌려준다. 처리 여부를 메모리에만 두면 실행할 때마다,
@@ -53,7 +53,7 @@ export function NotificationDeepLinks() {
         return
       }
       router.navigate(
-        boardHref(target.group, { date: target.date, ...target.meal }),
+        boardHref(target.group, { date: target.date }),
       )
     }
 

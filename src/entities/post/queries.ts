@@ -8,7 +8,6 @@ import {
   fetchPostBatch, updatePostBatch, deletePostBatch, fetchMyRecentTags,
   type BoardPost, type PostBatchRef,
 } from './model'
-import type { Meal } from './board'
 
 /** 특정 그룹·날짜(offset)의 보드 게시물. groupId가 없으면 비활성. */
 export function useBoardPosts(groupId: string | null, offset: number) {
@@ -100,8 +99,8 @@ export function useUpdatePostBatch(userId: string | undefined) {
       groupIds: string[]
       caption: string | null
       recordedAt: string | null
-      /** 끼니. null이면 유지 */
-      meal: Meal | null
+      /** 태그. null이면 유지, ''이면 지우기 */
+      tag: string | null
       /** 무효화 대상 = 추가·제거·유지 그룹의 합집합 */
       affectedGroupIds: string[]
     }) => updatePostBatch(vars),

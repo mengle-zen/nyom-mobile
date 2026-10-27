@@ -8,7 +8,6 @@ import { decode as decodeBase64 } from 'base64-arraybuffer'
 import { supabase } from '@/shared/api/supabase'
 import { dayRangeFromOffset, localDayKey } from './date-range'
 import { dedupeByBatch } from './dedupe'
-import { mealOf, type Meal, type MealSlotKey } from './board'
 
 export type BoardPost = {
   id: string
@@ -16,7 +15,6 @@ export type BoardPost = {
   image_url: string
   signedImageUrl: string | null
   caption: string | null
-  meal_slot: MealSlotKey | null
   meal_tag: string | null
   created_at: string
   recorded_at: string
@@ -43,8 +41,8 @@ type CreatePostParams = {
   caption?: string | null
   /** 어느 그룹들에 올릴지 — 최소 1개. 각 그룹에 posts 행이 생기고 batch_id를 공유. */
   groupIds: string[]
-  /** 끼니 — 기본 끼니 또는 사용자 태그 */
-  meal: Meal
+  /** 선택 태그(야식 등). 끼니 칸은 비워 둔다. */
+  tag: string | null
   /** 섭취 시각(ISO). 미지정 시 DB default now(). */
   recordedAt?: string
 }
@@ -61,7 +59,7 @@ export async function createPostToGroups({
   mimeType,
   caption,
   groupIds,
-  meal,
+  tag,
   recordedAt,
 }: CreatePostParams): Promise<{ postId: string }> {
   if (groupIds.length === 0) throw new Error('NO_GROUP_SELECTED')
@@ -89,8 +87,8 @@ export async function createPostToGroups({
     image_url: path,
     caption: trimmed ? trimmed : null,
     group_id: groupId,
-    meal_slot: meal.slot,
-    meal_tag: meal.tag,
+    meal_slot: null,
+    meal_tag: tag,
     batch_id: batchId,
     ...(recordedAt ? { recorded_at: recordedAt } : {}),
   }))
@@ -144,7 +142,7 @@ export type PostBatch = {
   postId: string
   caption: string | null
   recordedAt: string
-  meal: Meal | null
+  tag: string | null
   /** 현재 이 기록이 올라가 있는 그룹들 */
   groupIds: string[]
 }
@@ -160,7 +158,7 @@ export async function fetchPostBatch(
 ): Promise<PostBatch> {
   const base = supabase
     .from('posts')
-    .select('id, group_id, caption, recorded_at, meal_slot, meal_tag, groups!posts_group_id_fkey(id)')
+    .select('id, group_id, caption, recorded_at, meal_tag, groups!posts_group_id_fkey(id)')
     .eq('user_id', userId)
     .order('id', { ascending: true })
 
@@ -176,7 +174,6 @@ export async function fetchPostBatch(
     groups: { id: string } | null
     caption: string | null
     recorded_at: string
-    meal_slot: MealSlotKey | null
     meal_tag: string | null
   }
   const rows = (data ?? []) as unknown as Row[]
@@ -191,7 +188,7 @@ export async function fetchPostBatch(
     postId: rep.id,
     caption: rep.caption,
     recordedAt: rep.recorded_at,
-    meal: mealOf(rep),
+    tag: rep.meal_tag,
     groupIds: editable
       .map((r) => r.group_id)
       .filter((id): id is string => id !== null),
@@ -206,8 +203,8 @@ type UpdatePostBatchParams = {
   caption: string | null
   /** 섭취 시각(ISO). null이면 유지 */
   recordedAt: string | null
-  /** 끼니. null이면 유지 (mealChange가 계산) */
-  meal: Meal | null
+  /** 태그. null이면 유지, ''이면 지우기 (tagChange가 계산) */
+  tag: string | null
 }
 
 /**
@@ -218,14 +215,15 @@ type UpdatePostBatchParams = {
  * 끼니는 20260828050000_post_batch_meal_slot.sql에서 p_meal_slot으로 들어왔다.
  * 그 전에는 posts.meal_slot을 별도 statement로 직접 update하는 우회가 있었는데,
  * RPC와 원자적이지 않아 "끼니만 반영되고 나머지가 실패"하는 어긋남이 생겼다.
- * 태그(p_meal_tag)는 20261021000000_meal_tag.sql — 둘 중 하나만 보낸다.
+ * 태그(p_meal_tag)는 20261021000000_meal_tag.sql. 2026-10-27 시간 띠 개편부터 앱은 태그만 보내고,
+ * 빈 문자열은 끼니·태그 지우기다(20261027000000_time_lanes.sql).
  */
 export async function updatePostBatch({
   postId,
   groupIds,
   caption,
   recordedAt,
-  meal,
+  tag,
 }: UpdatePostBatchParams): Promise<void> {
   if (groupIds.length === 0) throw new Error('NO_GROUP_SELECTED')
 
@@ -235,8 +233,7 @@ export async function updatePostBatch({
     p_group_ids: groupIds,
     p_caption: caption,
     p_recorded_at: recordedAt,
-    p_meal_slot: meal?.slot ?? null,
-    p_meal_tag: meal?.tag ?? null,
+    p_meal_tag: tag,
   } as never)
   if (error) throw error
 }
@@ -267,7 +264,6 @@ export type DayPost = {
   image_url: string
   signedImageUrl: string | null
   caption: string | null
-  meal_slot: MealSlotKey | null
   meal_tag: string | null
   created_at: string
   recorded_at: string
@@ -312,7 +308,7 @@ export async function fetchMyDayPosts(
 
   const { data, error } = await supabase
     .from('posts')
-    .select('id, image_url, caption, meal_slot, meal_tag, created_at, recorded_at, batch_id')
+    .select('id, image_url, caption, meal_tag, created_at, recorded_at, batch_id')
     .eq('user_id', userId)
     .gte('created_at', start.toISOString())
     .lt('created_at', end.toISOString())
@@ -370,7 +366,7 @@ export async function fetchBoardPosts(
   const { data, error } = await supabase
     .from('posts')
     .select(`
-      id, user_id, image_url, caption, meal_slot, meal_tag, created_at, recorded_at,
+      id, user_id, image_url, caption, meal_tag, created_at, recorded_at,
       reactions ( emoji, user_id )
     `)
     .eq('group_id', groupId)

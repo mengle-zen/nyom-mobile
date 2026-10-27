@@ -12,7 +12,6 @@ import {
   avatarObjectPath,
   orphanAvatarPaths,
 } from './avatar'
-import type { MealSlotKey } from '@/entities/post'
 import type { Profile } from '@/types/database'
 
 /** 마이페이지 그리드에 쓰는 내 게시물 최소 형태 */
@@ -24,7 +23,6 @@ export type MyPost = {
   created_at: string
   /** 끼니 섭취 시각 — 그리드 오버레이 칩과 사후 편집의 기준 */
   recorded_at: string
-  meal_slot: MealSlotKey | null
   meal_tag: string | null
   batch_id: string | null
 }
@@ -58,7 +56,7 @@ export async function fetchMyPostsPage(
 
   const { data, error } = await supabase
     .from('posts')
-    .select('id, image_url, caption, created_at, recorded_at, meal_slot, meal_tag, batch_id')
+    .select('id, image_url, caption, created_at, recorded_at, meal_tag, batch_id')
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
     .range(from, to)

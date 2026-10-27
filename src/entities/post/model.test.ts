@@ -34,7 +34,7 @@ describe('fetchPostBatch', () => {
     const result = await fetchPostBatch('author', { id: 'departed', batch_id: 'batch' })
     expect(result).toEqual({
       postId: 'current', caption: 'saved caption', recordedAt: current.recorded_at,
-      meal: { slot: 'dinner', tag: null },
+      tag: null,
       groupIds: ['current-group'],
     })
   })

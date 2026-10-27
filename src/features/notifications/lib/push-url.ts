@@ -1,12 +1,12 @@
-import { deeplinkTarget, mealFromKey, type Meal } from '@/entities/post'
+import { deeplinkTarget } from '@/entities/post'
 import { dateFromOffset, localDayKey } from '@/entities/post/date-range'
 
 /**
  * 푸시 페이로드의 딥링크 파싱·정규화.
  *
  * 발송 트리거(SQL)가 만드는 URL은 웹 라우트 형식 그대로다:
- *   `/?group=<uuid>&date=YYYY-MM-DD&slot=lunch`  (태그면 `&tag=<인코딩된 이름>`,
- *   리마인더는 그냥 `/`)
+ *   `/?group=<uuid>&date=YYYY-MM-DD&slot=lunch`  (태그면 `&tag=…`, 리마인더는 그냥 `/`)
+ * 시간 띠 보드(2026-10-27)는 끼니로 나누지 않아 group·date만 쓴다.
  * 네이티브에서는 이걸 보드 화면의 파라미터로 바꿔야 한다. 서버 문구·URL 생성은
  * 웹과 공유하는 자산이라 형식을 바꾸지 않고 클라이언트에서 해석한다.
  */
@@ -17,13 +17,11 @@ export const MAX_DATE_OFFSET = 13
 export type PushLinkParams = {
   group?: string
   date?: string
-  slot?: string
-  tag?: string
 }
 
 /**
  * 푸시 url에서 쿼리 파라미터를 뽑는다. 경로 부분은 무시한다 — 웹 라우트 구조와
- * 네이티브 라우트 구조가 다르고, 우리에게 필요한 건 어느 그룹·언제·어느 끼니뿐이다.
+ * 네이티브 라우트 구조가 다르고, 우리에게 필요한 건 어느 그룹·언제뿐이다.
  */
 export function parsePushUrl(url: unknown): PushLinkParams {
   if (typeof url !== 'string' || url.length === 0) return {}
@@ -39,8 +37,6 @@ export function parsePushUrl(url: unknown): PushLinkParams {
     if (!value) continue
     if (key === 'group') out.group = value
     else if (key === 'date') out.date = value
-    else if (key === 'slot') out.slot = value
-    else if (key === 'tag') out.tag = value
   }
   return out
 }
@@ -48,8 +44,8 @@ export function parsePushUrl(url: unknown): PushLinkParams {
 /**
  * 알림이 가리키는 보드 위치를 검증·정규화한다.
  *
- * `deeplinkTarget`으로 미래 날짜·범위 초과·알 수 없는
- * 끼니를 오늘/첫 끼니로 폴백시킨 뒤, 그 결과를 다시 'YYYY-MM-DD' + 끼니로
+ * `deeplinkTarget`으로 미래 날짜·범위 초과를 오늘로
+ * 폴백시킨 뒤, 그 결과를 다시 'YYYY-MM-DD'로
  * 되돌려 보드 링크에 싣는다. 정규화를 여기서 끝내야 보드 화면이 깨진 값을
  * 방어할 필요가 없다.
  *
@@ -60,17 +56,11 @@ export function normalizePushTarget(
   params: PushLinkParams,
   now: Date,
   maxOffset: number = MAX_DATE_OFFSET,
-): { group: string; date: string; meal: Meal } | null {
+): { group: string; date: string } | null {
   if (!params.group) return null
-  const target = deeplinkTarget(
-    { date: params.date, slot: params.slot, tag: params.tag },
-    now,
-    maxOffset,
-  )
+  const target = deeplinkTarget({ date: params.date }, now, maxOffset)
   return {
     group: params.group,
     date: localDayKey(dateFromOffset(target.dateOffset, now)),
-    // deeplinkTarget이 이미 아는 끼니로 정규화했으므로 null이 될 일은 없다.
-    meal: mealFromKey(target.pageKey) ?? { slot: 'breakfast', tag: null },
   }
 }

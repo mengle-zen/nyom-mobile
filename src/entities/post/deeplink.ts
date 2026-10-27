@@ -1,12 +1,7 @@
-import { MEAL_SLOTS, mealFromKey, mealKey } from './board'
 import { offsetFromDate } from './date-range'
 
 /** 푸시 알림 딥링크가 가리키는 보드 위치. */
-export type DeeplinkTarget = {
-  dateOffset: number
-  /** 보드 페이지 키(`mealKey`) — 기본 끼니 키 또는 'tag:<이름>' */
-  pageKey: string
-}
+export type DeeplinkTarget = { dateOffset: number }
 
 /**
  * 'YYYY-MM-DD' → 로컬 자정 Date. 형식이 틀리거나 실재하지 않는 날짜면 null.
@@ -30,22 +25,15 @@ export function parseLocalDate(value: string | undefined | null): Date | null {
 }
 
 /**
- * 알림 딥링크의 date/slot/tag 파라미터 → 보드 초기 위치.
- * 값이 없거나 미래·범위 초과면 오늘, 끼니를 모르면 첫 끼니로 폴백한다.
- * slot과 tag가 함께 오면 slot을 따른다(서버는 둘 중 하나만 싣는다).
+ * 알림 딥링크의 date 파라미터 → 보드 초기 날짜. 값이 없거나 미래·범위 초과면 오늘.
+ * 서버 URL에는 아직 slot·tag가 실리지만 시간 띠 보드(2026-10-27)는 끼니로 나누지 않아 무시한다.
  */
 export function deeplinkTarget(
-  params: { date?: string; slot?: string; tag?: string },
+  params: { date?: string },
   now: Date,
   maxOffset: number,
 ): DeeplinkTarget {
   const date = parseLocalDate(params.date)
   const offset = date === null ? -1 : offsetFromDate(date, now)
-  const meal =
-    mealFromKey(params.slot && !params.slot.startsWith('tag:') ? params.slot : null) ??
-    (params.tag ? mealFromKey(`tag:${params.tag}`) : null)
-  return {
-    dateOffset: offset >= 0 && offset <= maxOffset ? offset : 0,
-    pageKey: meal ? mealKey(meal) : MEAL_SLOTS[0].key,
-  }
+  return { dateOffset: offset >= 0 && offset <= maxOffset ? offset : 0 }
 }

@@ -1,24 +1,14 @@
+export { MEAL_TAG_MAX, parseMealTag, postTimeLabel, type MealTagInput } from './meal-tag'
 export {
-  MEAL_SLOTS,
-  MEAL_TAG_MAX,
-  slotMeal,
-  mealOf,
-  slotLabel,
-  mealLabel,
-  mealKey,
-  mealFromKey,
-  sameMeal,
-  parseMealTag,
-  mealTimeLabel,
-  defaultSlotForHour,
-  buildSlotBoard,
-  boardPages,
-  type MealSlotKey,
-  type Meal,
-  type MealTagInput,
-  type BoardPage,
-} from './board'
-export { slotProgress, clampSlotIdx, pageIndex, type SlotProgress } from './slot-progress'
+  timeLanesLayout,
+  laneMembers,
+  postsByMember,
+  LANE_GAP,
+  FOLD_HEIGHT,
+  type LanesLayout,
+  type LaneMark,
+  type LaneItem,
+} from './time-lanes'
 export {
   dayRangeFromOffset,
   dateFromOffset,
