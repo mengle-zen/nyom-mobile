@@ -9,7 +9,7 @@
     "userInterfaceStyle": "light",
     "ios": {
       "bundleIdentifier": "nyom.mengle.zen",
-      "buildNumber": "12",
+      "buildNumber": "13",
       "appleTeamId": "8V5VNMF9JM",
       "supportsTablet": false,
       "infoPlist": {

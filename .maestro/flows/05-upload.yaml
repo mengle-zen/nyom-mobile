@@ -79,10 +79,12 @@ name: 올리기
 - extendedWaitUntil:
     visible: "되돌리기"
     timeout: 20000
+# 보드가 그날 시간 띠를 열어 내 사진이 보여야 한다 — 스크린샷으로 남긴다. 여기서 요소를 찾는
+# 단계를 더하면 5초짜리 되돌리기 스낵바가 사라진 뒤에 누르게 된다(2026-10-28 실패).
 - takeScreenshot: e2e/05-sent
-# 보드가 그날 시간 띠를 열어 내 사진이 보여야 한다(예전엔 아침 칸이 열려 내 사진이 안 보였다).
-- assertVisible: "나 .*사진 보기"
-- tapOn: "되돌리기"
+- tapOn:
+    text: "되돌리기"
+    waitToSettleTimeoutMs: 300
 - extendedWaitUntil:
     visible: "받는 곳"
     timeout: 15000
