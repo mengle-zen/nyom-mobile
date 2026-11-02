@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { AppState } from 'react-native'
 import { useAuth } from '@/features/auth'
 import { getPushPermissionStatus, registerForPushNotifications } from '../register'
 
@@ -11,6 +12,8 @@ import { getPushPermissionStatus, registerForPushNotifications } from '../regist
  * 그런 기기는 버튼이 없어 다시 등록할 길이 없었다(빌드 8에서 실제로 발생).
  *
  * 권한을 **새로 묻지는 않는다** — 허용된 경우에만 조용히 등록한다(토큰 저장은 upsert).
+ * 앱으로 돌아올 때도 다시 본다 — 알림 안내 모달에서 설정 앱으로 가 켜고 돌아온 경우.
+ * 이미 허용 상태였으면 다시 등록하지 않는다(포그라운드마다 쓰기 요청이 나가지 않게).
  * 화면을 그리지 않는다.
  */
 export function PushTokenSync() {
@@ -20,11 +23,20 @@ export function PushTokenSync() {
   useEffect(() => {
     if (!userId) return
     let alive = true
-    void getPushPermissionStatus().then((status) => {
-      if (alive && status === 'granted') void registerForPushNotifications(userId)
+    let wasGranted = false
+    const sync = () =>
+      void getPushPermissionStatus().then((status) => {
+        if (!alive) return
+        if (status === 'granted' && !wasGranted) void registerForPushNotifications(userId)
+        wasGranted = status === 'granted'
+      })
+    sync()
+    const sub = AppState.addEventListener('change', (next) => {
+      if (next === 'active') sync()
     })
     return () => {
       alive = false
+      sub.remove()
     }
   }, [userId])
 

@@ -9,6 +9,13 @@ name: 로그인
     visible: "카카오로 시작하기"
     timeout: 20000
 - tapOn: "테스트 계정으로 로그인 (개발용)"
+# 깨끗한 상태라 알림이 꺼져 있어 그룹 화면에 알림 켜기 안내 모달이 뜬다. 확인하고 미룬다 —
+# 미루면 7일 동안 다시 뜨지 않아 뒤 흐름에는 나오지 않는다.
+- extendedWaitUntil:
+    visible: "알림을 켜 주세요"
+    timeout: 20000
+- takeScreenshot: e2e/01-push-ask
+- tapOn: "다음에 할게요"
 - extendedWaitUntil:
     visible: "내 그룹"
     timeout: 20000

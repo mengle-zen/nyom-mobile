@@ -55,6 +55,18 @@ function easProjectId(): string | undefined {
   return fromConfig?.projectId ?? Constants.easConfig?.projectId
 }
 
+/**
+ * Android 기본 알림 채널. Android 13 이상은 채널이 하나도 없으면 권한 요청 창을 띄우지 않으므로
+ * 권한을 묻기 **전에** 만든다.
+ */
+export async function ensureAndroidChannel(): Promise<void> {
+  if (Platform.OS !== 'android') return
+  await Notifications.setNotificationChannelAsync('default', {
+    name: '기본',
+    importance: Notifications.AndroidImportance.DEFAULT,
+  })
+}
+
 export async function registerForPushNotifications(
   userId: string,
 ): Promise<RegisterResult> {
@@ -62,6 +74,7 @@ export async function registerForPushNotifications(
   // 토큰 발급에서 예외가 나므로 미리 걸러 정확한 사유를 돌려준다.
   if (!Device.isDevice) return 'unsupported'
 
+  await ensureAndroidChannel()
   const existing = await Notifications.getPermissionsAsync()
   let granted = existing.granted
   if (!granted && existing.canAskAgain) {
@@ -69,13 +82,6 @@ export async function registerForPushNotifications(
     granted = asked.granted
   }
   if (!granted) return 'denied'
-
-  if (Platform.OS === 'android') {
-    await Notifications.setNotificationChannelAsync('default', {
-      name: '기본',
-      importance: Notifications.AndroidImportance.DEFAULT,
-    })
-  }
 
   let token: string
   try {

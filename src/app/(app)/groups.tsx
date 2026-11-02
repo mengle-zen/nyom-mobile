@@ -6,6 +6,7 @@ import Feather from '@expo/vector-icons/Feather'
 
 import { useGroupStats, useMyGroups, usePublicGroups } from '@/entities/group'
 import { useAuth } from '@/features/auth'
+import { PushAskModal } from '@/features/notifications'
 import {
   CreateJoinSheet,
   DiscoverTab,
@@ -178,6 +179,9 @@ export default function GroupsScreen() {
           }}
         />
       )}
+
+      {/* 알림이 꺼진 사람에게 한 번 — 7일 간격, 세 번 미루면 그만 묻는다 */}
+      <PushAskModal />
     </View>
   )
 }
