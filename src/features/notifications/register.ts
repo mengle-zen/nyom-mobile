@@ -3,6 +3,8 @@ import Constants from 'expo-constants'
 import * as Device from 'expo-device'
 import * as Notifications from 'expo-notifications'
 import { saveExpoPushToken } from './api'
+import { getActiveChatGroup } from './lib/active-chat'
+import { parsePushUrl } from './lib/push-url'
 
 /**
  * 권한 요청 → Expo push token 획득 → 서버 저장.
@@ -22,15 +24,23 @@ export type RegisterResult =
   /** 토큰은 받았지만 저장에 실패 (테이블 미적용 등) */
   | 'save-failed'
 
-/** 알림 표시 방식 — 앱이 떠 있을 때도 배너를 띄운다. */
+/**
+ * 알림 표시 방식 — 앱이 떠 있을 때도 배너를 띄운다.
+ * 단, 지금 보고 있는 방의 채팅 알림은 띄우지 않는다(목록에 이미 실시간으로 들어온다).
+ */
 export function configureNotificationHandler(): void {
   Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowBanner: true,
-      shouldShowList: true,
-      shouldPlaySound: true,
-      shouldSetBadge: false,
-    }),
+    handleNotification: async (notification) => {
+      const data = notification.request.content.data as { url?: unknown } | undefined
+      const link = parsePushUrl(data?.url)
+      const show = !(link.chat && link.group && link.group === getActiveChatGroup())
+      return {
+        shouldShowBanner: show,
+        shouldShowList: show,
+        shouldPlaySound: show,
+        shouldSetBadge: false,
+      }
+    },
   })
 }
 

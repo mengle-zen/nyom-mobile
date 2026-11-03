@@ -11,7 +11,7 @@ export async function fetchNotificationSettings(
 ): Promise<NotificationSettingsRow | null> {
   const { data, error } = await supabase
     .from('notification_settings')
-    .select('user_id, post_enabled, reaction_enabled, reminder_enabled, updated_at')
+    .select('user_id, post_enabled, reaction_enabled, chat_enabled, reminder_enabled, updated_at')
     .eq('user_id', userId)
     .maybeSingle()
   if (error) throw error
@@ -20,7 +20,7 @@ export async function fetchNotificationSettings(
 
 /**
  * 내 알림 설정 저장. 행이 없을 수 있으므로 upsert(PK = user_id).
- * 한 종류만 바뀌어도 세 값을 함께 쓴다 — 부분 업데이트로는 행이 없을 때
+ * 한 종류만 바뀌어도 모든 값을 함께 쓴다 — 부분 업데이트로는 행이 없을 때
  * 나머지 컬럼이 DB default(true)로 채워져 화면과 어긋날 수 있다.
  */
 export async function updateNotificationSettings(

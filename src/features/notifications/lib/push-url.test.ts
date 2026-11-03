@@ -20,6 +20,10 @@ describe('parsePushUrl', () => {
     })
   })
 
+  it('채팅 알림 URL은 chat을 켠다', () => {
+    expect(parsePushUrl('/?group=g&chat=1')).toEqual({ group: 'g', chat: true })
+  })
+
   it('리마인더의 루트 URL은 빈 객체', () => {
     expect(parsePushUrl('/')).toEqual({})
   })
@@ -75,6 +79,14 @@ describe('normalizePushTarget', () => {
     expect(normalizePushTarget({ group: 'g1', date: key }, NOW)?.date).toBe(
       '2026-08-28',
     )
+  })
+
+  it('채팅 알림은 그 방 채팅으로 간다', () => {
+    expect(normalizePushTarget({ group: 'g1', chat: true }, NOW)).toEqual({
+      group: 'g1',
+      date: '2026-08-28',
+      chat: true,
+    })
   })
 
   it('형식이 깨진 날짜는 오늘로 폴백한다', () => {

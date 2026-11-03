@@ -1,7 +1,7 @@
 import type { NotificationSettingsRow } from '@/types/database'
 
 /** 알림 종류 키 — DB 컬럼명(`*_enabled`)에서 접미사를 뗀 값과 1:1 대응한다. */
-export type NotificationKind = 'post' | 'reaction' | 'reminder'
+export type NotificationKind = 'post' | 'reaction' | 'chat' | 'reminder'
 
 /** 종류별 on/off. 화면과 mutation이 공통으로 쓰는 형태. */
 export type NotificationSettings = Record<NotificationKind, boolean>
@@ -14,6 +14,7 @@ export type NotificationSettings = Record<NotificationKind, boolean>
 export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
   post: true,
   reaction: true,
+  chat: true,
   reminder: true,
 }
 
@@ -34,6 +35,11 @@ export const NOTIFICATION_KIND_META: readonly {
     description: '내 기록에 반응이 달렸을 때 알려드려요',
   },
   {
+    kind: 'chat',
+    label: '채팅 알림',
+    description: '방 대화방에 메시지나 내 기록에 답장이 오면 알려드려요',
+  },
+  {
     kind: 'reminder',
     label: '리마인더',
     description: '저녁에 오늘 기록이 없으면 한 번만 알려드려요',
@@ -51,6 +57,7 @@ export function toNotificationSettings(
   return {
     post: row.post_enabled ?? DEFAULT_NOTIFICATION_SETTINGS.post,
     reaction: row.reaction_enabled ?? DEFAULT_NOTIFICATION_SETTINGS.reaction,
+    chat: row.chat_enabled ?? DEFAULT_NOTIFICATION_SETTINGS.chat,
     reminder: row.reminder_enabled ?? DEFAULT_NOTIFICATION_SETTINGS.reminder,
   }
 }
@@ -60,11 +67,12 @@ export function toSettingsColumns(
   settings: NotificationSettings,
 ): Pick<
   NotificationSettingsRow,
-  'post_enabled' | 'reaction_enabled' | 'reminder_enabled'
+  'post_enabled' | 'reaction_enabled' | 'chat_enabled' | 'reminder_enabled'
 > {
   return {
     post_enabled: settings.post,
     reaction_enabled: settings.reaction,
+    chat_enabled: settings.chat,
     reminder_enabled: settings.reminder,
   }
 }

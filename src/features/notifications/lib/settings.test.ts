@@ -12,11 +12,13 @@ describe('toNotificationSettings', () => {
     expect(toNotificationSettings(null)).toEqual({
       post: true,
       reaction: true,
+      chat: true,
       reminder: true,
     })
     expect(toNotificationSettings(undefined)).toEqual({
       post: true,
       reaction: true,
+      chat: true,
       reminder: true,
     })
   })
@@ -33,15 +35,17 @@ describe('toNotificationSettings', () => {
       toNotificationSettings({
         post_enabled: false,
         reaction_enabled: true,
+        chat_enabled: false,
         reminder_enabled: false,
       }),
-    ).toEqual({ post: false, reaction: true, reminder: false })
+    ).toEqual({ post: false, reaction: true, chat: false, reminder: false })
   })
 
   it('일부 컬럼만 있어도 나머지는 기본값 true로 메운다', () => {
     expect(toNotificationSettings({ reaction_enabled: false })).toEqual({
       post: true,
       reaction: false,
+      chat: true,
       reminder: true,
     })
   })
@@ -54,42 +58,44 @@ describe('toNotificationSettings', () => {
 describe('toSettingsColumns', () => {
   it('화면 형태를 DB 컬럼명으로 옮긴다', () => {
     expect(
-      toSettingsColumns({ post: false, reaction: true, reminder: false }),
+      toSettingsColumns({ post: false, reaction: true, chat: false, reminder: false }),
     ).toEqual({
       post_enabled: false,
       reaction_enabled: true,
+      chat_enabled: false,
       reminder_enabled: false,
     })
   })
 
   it('toNotificationSettings와 왕복해도 값이 유지된다', () => {
-    const settings = { post: false, reaction: true, reminder: false }
+    const settings = { post: false, reaction: true, chat: false, reminder: false }
     expect(toNotificationSettings(toSettingsColumns(settings))).toEqual(settings)
   })
 })
 
 describe('withKind', () => {
   it('해당 종류만 바꾸고 나머지는 유지한다', () => {
-    const before = { post: true, reaction: true, reminder: true }
+    const before = { post: true, reaction: true, chat: true, reminder: true }
     expect(withKind(before, 'reaction', false)).toEqual({
       post: true,
       reaction: false,
+      chat: true,
       reminder: true,
     })
   })
 
   it('원본을 변형하지 않는다', () => {
-    const before = { post: true, reaction: true, reminder: true }
+    const before = { post: true, reaction: true, chat: true, reminder: true }
     withKind(before, 'post', false)
     expect(before.post).toBe(true)
   })
 })
 
 describe('NOTIFICATION_KIND_META', () => {
-  it('세 종류를 모두 덮고 중복이 없다', () => {
+  it('모든 종류를 덮고 중복이 없다', () => {
     const kinds = NOTIFICATION_KIND_META.map((m) => m.kind)
-    expect(kinds).toEqual(['post', 'reaction', 'reminder'])
-    expect(new Set(kinds).size).toBe(3)
+    expect(kinds).toEqual(['post', 'reaction', 'chat', 'reminder'])
+    expect(new Set(kinds).size).toBe(4)
   })
 
   it('모든 항목에 라벨과 설명이 있다', () => {

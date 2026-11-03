@@ -2,8 +2,10 @@ import { useEffect, useRef } from 'react'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import * as Notifications from 'expo-notifications'
 import { router } from 'expo-router'
+import { useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/features/auth'
-import { boardHref } from '@/shared/lib/board-href'
+import { queryKeys } from '@/shared/api/query-keys'
+import { boardHref, chatHref } from '@/shared/lib/board-href'
 import { configureNotificationHandler } from '../register'
 import { normalizePushTarget, parsePushUrl } from '../lib/push-url'
 
@@ -11,7 +13,7 @@ import { normalizePushTarget, parsePushUrl } from '../lib/push-url'
 const CONSUMED_KEY = 'nyom:consumed-notification-id'
 
 /**
- * 알림 탭 → 보드 이동. 렌더는 하지 않고 리스너만 붙인다.
+ * 알림 탭 → 보드(채팅 알림이면 그 방 채팅) 이동. 렌더는 하지 않고 리스너만 붙인다.
  *
  * 두 경로를 모두 다룬다.
  *  - 앱이 죽어 있을 때 알림으로 실행: `getLastNotificationResponseAsync()`
@@ -30,10 +32,22 @@ export function NotificationDeepLinks() {
   const signedIn = !!session
   /** 이번 프로세스에서 이미 처리한 id — 초기 응답과 리스너가 겹칠 때의 중복 방지. */
   const handled = useRef<Set<string>>(new Set())
+  const qc = useQueryClient()
 
   useEffect(() => {
     configureNotificationHandler()
   }, [])
+
+  // 앱이 떠 있을 때 채팅 알림이 오면 방 목록·방 화면의 안 읽음 점을 다시 계산한다.
+  useEffect(() => {
+    const sub = Notifications.addNotificationReceivedListener((notification) => {
+      const data = notification.request.content.data as { url?: unknown } | undefined
+      if (parsePushUrl(data?.url).chat) {
+        void qc.invalidateQueries({ queryKey: queryKeys.roomUnreadAll })
+      }
+    })
+    return () => sub.remove()
+  }, [qc])
 
   useEffect(() => {
     // 로그인 전에는 보드로 보낼 수 없다(AuthGate가 즉시 로그인으로 되돌린다).
@@ -53,7 +67,7 @@ export function NotificationDeepLinks() {
         return
       }
       router.navigate(
-        boardHref(target.group, { date: target.date }),
+        target.chat ? chatHref(target.group) : boardHref(target.group, { date: target.date }),
       )
     }
 

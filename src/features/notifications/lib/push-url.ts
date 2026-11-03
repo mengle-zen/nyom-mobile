@@ -6,6 +6,7 @@ import { dateFromOffset, localDayKey } from '@/entities/post/date-range'
  *
  * 발송 트리거(SQL)가 만드는 URL은 웹 라우트 형식 그대로다:
  *   `/?group=<uuid>&date=YYYY-MM-DD&slot=lunch`  (태그면 `&tag=…`, 리마인더는 그냥 `/`)
+ *   `/?group=<uuid>&chat=1`  (방 채팅 메시지·기록 답장. 웹은 chat을 몰라 그 방 보드를 연다)
  * 시간 띠 보드(2026-10-27)는 끼니로 나누지 않아 group·date만 쓴다.
  * 네이티브에서는 이걸 보드 화면의 파라미터로 바꿔야 한다. 서버 문구·URL 생성은
  * 웹과 공유하는 자산이라 형식을 바꾸지 않고 클라이언트에서 해석한다.
@@ -17,6 +18,8 @@ export const MAX_DATE_OFFSET = 13
 export type PushLinkParams = {
   group?: string
   date?: string
+  /** 채팅 알림 — 보드가 아니라 그 방 채팅을 연다 */
+  chat?: boolean
 }
 
 /**
@@ -37,6 +40,7 @@ export function parsePushUrl(url: unknown): PushLinkParams {
     if (!value) continue
     if (key === 'group') out.group = value
     else if (key === 'date') out.date = value
+    else if (key === 'chat') out.chat = value === '1'
   }
   return out
 }
@@ -56,8 +60,9 @@ export function normalizePushTarget(
   params: PushLinkParams,
   now: Date,
   maxOffset: number = MAX_DATE_OFFSET,
-): { group: string; date: string } | null {
+): { group: string; date: string; chat?: true } | null {
   if (!params.group) return null
+  if (params.chat) return { group: params.group, date: localDayKey(now), chat: true }
   const target = deeplinkTarget({ date: params.date }, now, maxOffset)
   return {
     group: params.group,
