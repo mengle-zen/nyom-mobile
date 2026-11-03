@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ActivityIndicator,
   Animated,
@@ -83,9 +83,25 @@ export default function BoardScreen() {
   /** 알림·업로드로 연 날 — 지난날이어도 그날 가장 최근 사진으로 스크롤한다. */
   const [linkedOffset] = useState(() => (one(params.date) ? initialTarget.dateOffset : null))
   const [pickerOpen, setPickerOpen] = useState(false)
-  // 채팅의 답장 인용(?post=)으로 오면 그 기록의 상세를 연다. 날짜와 같은 이유로 첫 렌더에서만
-  // 읽는다 — 닫은 뒤 URL이 상세를 다시 열면 안 된다. 기록이 불러와지면 detailPosts가 채워진다.
-  const [detailPostId, setDetailPostId] = useState<string | null>(() => one(params.post) ?? null)
+  const [detailPostId, setDetailPostId] = useState<string | null>(null)
+
+  // 채팅의 답장 인용(?post=&date=)으로 오면 그날로 가서 그 기록의 상세를 연다. 보드는 대화방
+  // 아래에 이미 떠 있어 다시 마운트되지 않으므로 첫 렌더가 아니라 파라미터가 올 때마다 읽고,
+  // 읽은 뒤 post를 지운다 — 남겨 두면 같은 인용을 다시 눌러도 값이 그대로라 열리지 않는다.
+  // 기록이 불러와지면 detailPosts가 채워진다.
+  const linkedPost = one(params.post)
+  const [seenPost, setSeenPost] = useState<string | undefined>(undefined)
+  if (linkedPost !== seenPost) {
+    // 렌더 중 상태 맞추기(React 문서의 "prop이 바뀔 때 state 조정" 패턴) — effect로 하면 한 번 더 그린다.
+    setSeenPost(linkedPost)
+    if (linkedPost) {
+      setDateOffset(deeplinkTarget({ date: one(params.date) }, new Date(), MAX_OFFSET).dateOffset)
+      setDetailPostId(linkedPost)
+    }
+  }
+  useEffect(() => {
+    if (linkedPost) router.setParams({ post: undefined })
+  }, [linkedPost])
 
   const { data: groups, error: groupsError, isLoading: groupsLoading } = useMyGroups()
   const activeGroupId = useMemo(() => {

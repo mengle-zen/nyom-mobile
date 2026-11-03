@@ -3,6 +3,7 @@ import { Platform, TextInput, View } from 'react-native'
 import Ionicons from '@expo/vector-icons/Ionicons'
 import { canSendMessage, MESSAGE_MAX_LENGTH } from '@/entities/message'
 import { PressableScale } from '@/shared/ui/press'
+import { useKeyboardShown } from '@/shared/ui/use-keyboard-shown'
 
 type Props = {
   /** 보낸 내용이 서버에 닿으면 resolve, 실패하면 reject. 실패하면 입력을 지우지 않는다. */
@@ -14,6 +15,7 @@ type Props = {
 /** 채팅 입력줄. 여러 줄로 늘어나다 몇 줄 넘으면 안에서 스크롤한다. */
 export function Composer({ onSend, sending, bottomInset }: Props) {
   const [text, setText] = useState('')
+  const keyboardShown = useKeyboardShown()
   const enabled = canSendMessage(text) && !sending
 
   const send = () => {
@@ -29,7 +31,7 @@ export function Composer({ onSend, sending, bottomInset }: Props) {
   return (
     <View
       className="flex-row items-end gap-2 border-t border-white/10 bg-board-bg px-3 pt-2"
-      style={{ paddingBottom: Math.max(bottomInset, 8) }}
+      style={{ paddingBottom: keyboardShown ? 8 : Math.max(bottomInset, 8) }}
     >
       <TextInput
         value={text}

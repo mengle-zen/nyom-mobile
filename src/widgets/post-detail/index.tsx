@@ -23,6 +23,7 @@ import type { GroupMemberProfile } from '@/entities/group'
 import { canSendMessage, MESSAGE_MAX_LENGTH } from '@/entities/message'
 import { ReactionBar } from '@/widgets/meal-tile'
 import { PressableScale } from '@/shared/ui/press'
+import { useKeyboardShown } from '@/shared/ui/use-keyboard-shown'
 
 type Props = {
   /** 그 사람의 그날 기록, 시각순. 비어 있으면 닫힌 상태. */
@@ -195,21 +196,15 @@ function ReplyComposer({
   const [text, setText] = useState('')
   const [sending, setSending] = useState(false)
   const [notice, setNotice] = useState<'sent' | 'failed' | null>(null)
-  const [keyboardShown, setKeyboardShown] = useState(false)
+  const keyboardShown = useKeyboardShown()
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  useEffect(() => {
-    // 키보드가 올라오면 홈 인디케이터 여백은 키보드에 가려 필요 없다 — 입력칸을 키보드에 붙인다.
-    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow'
-    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide'
-    const show = Keyboard.addListener(showEvent, () => setKeyboardShown(true))
-    const hide = Keyboard.addListener(hideEvent, () => setKeyboardShown(false))
-    return () => {
-      show.remove()
-      hide.remove()
+  useEffect(
+    () => () => {
       if (noticeTimer.current) clearTimeout(noticeTimer.current)
-    }
-  }, [])
+    },
+    [],
+  )
 
   const canSend = canSendMessage(text) && !sending
 
