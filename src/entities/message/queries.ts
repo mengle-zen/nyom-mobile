@@ -21,6 +21,13 @@ import {
 } from './model'
 import { MESSAGE_PAGE_SIZE, type RoomMessage } from './types'
 
+/**
+ * 구독마다 채널 이름을 다르게 한다. supabase-js는 같은 이름이면 이미 구독한 채널을 돌려주고,
+ * 거기에 `.on()`을 붙이면 throw한다 — 채팅 → 인용 기록(보드) → 말풍선으로 같은 방 채팅이
+ * 스택에 두 번 쌓이면 앱이 죽었다.
+ */
+let channelSeq = 0
+
 type Pages = InfiniteData<RoomMessage[], string | undefined>
 
 function updatePages(qc: QueryClient, groupId: string, fn: (pages: RoomMessage[][]) => RoomMessage[][]) {
@@ -56,7 +63,7 @@ export function useRoomRealtime(groupId: string | null, onIncoming?: (message: R
   useEffect(() => {
     if (!groupId) return
     const channel = supabase
-      .channel(`room-messages-${groupId}`)
+      .channel(`room-messages-${groupId}-${++channelSeq}`)
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'room_messages', filter: `group_id=eq.${groupId}` },
