@@ -26,6 +26,7 @@ export {
   MAX_DATE_OFFSET,
   type PushLinkParams,
 } from './lib/push-url'
+export { setActiveChatGroup } from './lib/active-chat'
 export { NotificationSettingsSection } from './ui/NotificationSettingsSection'
 export { NotificationDeepLinks } from './ui/NotificationDeepLinks'
 export { PushTokenSync } from './ui/PushTokenSync'
