@@ -38,6 +38,9 @@ export function useRoomMessages(groupId: string | null) {
     getNextPageParam: (last) =>
       last.length < MESSAGE_PAGE_SIZE ? undefined : last[last.length - 1].created_at,
     enabled: !!groupId,
+    // 실시간 구독은 화면이 열려 있을 때만 받는다. 닫혀 있던 사이 온 메시지·지워진 기록을
+    // 놓치지 않게, 전역 30초 staleTime을 쓰지 않고 들어올 때마다 다시 받는다.
+    staleTime: 0,
   })
 }
 

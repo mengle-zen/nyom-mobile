@@ -46,6 +46,9 @@ export default function AppLayout() {
   return (
     <Tabs
       tabBar={() => <BottomNav />}
+      // 뒤로 가기는 방문한 순서대로. 기본값(첫 탭으로)이면 보드 → 대화방에서 뒤로 갈 때
+      // 보드가 아니라 그룹 목록으로 튕긴다 — 대화방도 이 탭 레이아웃 안의 화면이다.
+      backBehavior="history"
       screenOptions={{
         headerShown: false,
         sceneStyle: { backgroundColor: '#FFFCF8' },
