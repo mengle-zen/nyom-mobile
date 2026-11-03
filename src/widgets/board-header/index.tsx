@@ -16,13 +16,16 @@ type Props = {
   onNewer: () => void
   onDatePress: () => void
   onBack: () => void
+  onChat: () => void
+  /** 방 채팅에 안 읽은 메시지가 있나 — 말풍선에 점 하나(개수는 보이지 않는다) */
+  hasUnread: boolean
   onProfile: () => void
   avatarInitial: string
   avatarUrl: string | null
 }
 
 /**
- * 보드 상단 앱바 — 그룹 목록으로 / `< 날짜 >` / 달력 / 내 프로필.
+ * 보드 상단 앱바 — 그룹 목록으로 / `< 날짜 >` / 달력 / 대화방 / 내 프로필.
  *
  * 웹에 있던 4칸 슬롯 진행바는 여기서 없앴다. 위치만 보여주고 눌리지 않아
  * "하루가 4끼니"라는 사실을 전달하지 못했기 때문이다(docs/UX_FINDINGS.md B항).
@@ -30,6 +33,9 @@ type Props = {
  *
  * 뒤로가기 화살표와 날짜 알약 사이는 넉넉히 벌렸다. 둘은 결과가 전혀 다른 버튼인데
  * (화면을 떠나기 / 하루 거슬러 가기) 8px 간격으로 붙어 있어 오타가 잦았다.
+ *
+ * 말풍선(방 채팅, 2026-11-03)은 날짜 알약이 아니라 아바타 쪽에 붙였다. 둘 다 "다른 화면으로
+ * 가기"라 옆에 있어도 잘못 눌렀을 때 손해가 작고, 날짜 컨트롤 곁의 안전 지대를 지킨다.
  */
 export function BoardHeader({
   dateLabelText,
@@ -40,6 +46,8 @@ export function BoardHeader({
   onNewer,
   onDatePress,
   onBack,
+  onChat,
+  hasUnread,
   onProfile,
   avatarInitial,
   avatarUrl,
@@ -112,26 +120,45 @@ export function BoardHeader({
         </View>
       </View>
 
-      <PressableScale
-        onPress={onProfile}
-        hapticKind={null}
-        accessibilityRole="button"
-        accessibilityLabel="내 프로필"
-        hitSlop={4}
-        className="size-9 items-center justify-center overflow-hidden rounded-full bg-primary"
-      >
-        {avatarUrl ? (
-          <Image
-            source={{ uri: avatarUrl }}
-            style={{ width: 36, height: 36 }}
-            contentFit="cover"
-          />
-        ) : (
-          <Text className="text-sm font-bold text-primary-foreground">
-            {avatarInitial}
-          </Text>
-        )}
-      </PressableScale>
+      <View className="flex-row items-center gap-3">
+        <PressableScale
+          onPress={onChat}
+          hapticKind={null}
+          accessibilityRole="button"
+          accessibilityLabel={hasUnread ? '대화방, 안 읽은 메시지 있음' : '대화방'}
+          hitSlop={4}
+          className="size-9 items-center justify-center rounded-full bg-white/10"
+        >
+          <Ionicons name="chatbubble-outline" size={18} color="#fff" />
+          {hasUnread && (
+            <View
+              pointerEvents="none"
+              className="absolute right-0.5 top-0.5 size-2 rounded-full bg-primary"
+            />
+          )}
+        </PressableScale>
+
+        <PressableScale
+          onPress={onProfile}
+          hapticKind={null}
+          accessibilityRole="button"
+          accessibilityLabel="내 프로필"
+          hitSlop={4}
+          className="size-9 items-center justify-center overflow-hidden rounded-full bg-primary"
+        >
+          {avatarUrl ? (
+            <Image
+              source={{ uri: avatarUrl }}
+              style={{ width: 36, height: 36 }}
+              contentFit="cover"
+            />
+          ) : (
+            <Text className="text-sm font-bold text-primary-foreground">
+              {avatarInitial}
+            </Text>
+          )}
+        </PressableScale>
+      </View>
     </View>
   )
 }

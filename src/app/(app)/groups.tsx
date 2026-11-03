@@ -1,10 +1,12 @@
 import { useCallback, useState } from 'react'
 import { RefreshControl, ScrollView, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { useFocusEffect } from 'expo-router'
 import { useQueryClient } from '@tanstack/react-query'
 import Feather from '@expo/vector-icons/Feather'
 
 import { useGroupStats, useMyGroups, usePublicGroups } from '@/entities/group'
+import { useRoomUnread } from '@/entities/message'
 import { useAuth } from '@/features/auth'
 import { PushAskModal } from '@/features/notifications'
 import {
@@ -43,6 +45,16 @@ export default function GroupsScreen() {
   const publicQuery = usePublicGroups(tab === 'discover')
   // 카드에 붙는 멤버 수·오늘 올린 사람 수. 그룹 수와 무관하게 왕복 2번.
   const statsQuery = useGroupStats(myGroups.map((g) => g.id))
+  // 대화방에 안 읽은 메시지가 있는 그룹 — 카드에 점 하나(개수는 보이지 않는다).
+  const unreadQuery = useRoomUnread(myGroups.map((g) => g.id))
+  // 대화방·보드에서 돌아오면 읽음이 바뀌었을 수 있다.
+  const refetchUnread = unreadQuery.refetch
+  const hasGroups = myGroups.length > 0
+  useFocusEffect(
+    useCallback(() => {
+      if (hasGroups) void refetchUnread()
+    }, [hasGroups, refetchUnread]),
+  )
 
   const actionGroup = myGroups.find((g) => g.id === actionGroupId) ?? null
   const settingsGroup = myGroups.find((g) => g.id === settingsGroupId) ?? null
@@ -56,7 +68,11 @@ export default function GroupsScreen() {
    */
   const onRefresh = useCallback(async () => {
     setRefreshing(true)
-    const tasks: Promise<unknown>[] = [myGroupsQuery.refetch(), statsQuery.refetch()]
+    const tasks: Promise<unknown>[] = [
+      myGroupsQuery.refetch(),
+      statsQuery.refetch(),
+      unreadQuery.refetch(),
+    ]
     if (tab === 'discover') tasks.push(publicQuery.refetch())
     try {
       await Promise.race([
@@ -66,7 +82,7 @@ export default function GroupsScreen() {
     } finally {
       setRefreshing(false)
     }
-  }, [myGroupsQuery, publicQuery, statsQuery, tab])
+  }, [myGroupsQuery, publicQuery, statsQuery, unreadQuery, tab])
 
   return (
     <View className="flex-1 bg-background">
@@ -139,6 +155,7 @@ export default function GroupsScreen() {
             groups={myGroups}
             loading={myGroupsQuery.isLoading}
             stats={statsQuery.data}
+            unread={unreadQuery.data}
             onOpenActions={setActionGroupId}
             onAdd={setAddMode}
           />

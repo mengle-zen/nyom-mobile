@@ -18,12 +18,15 @@ export function MyGroupsTab({
   groups,
   loading,
   stats,
+  unread,
   onOpenActions,
   onAdd,
 }: {
   groups: Group[]
   loading: boolean
   stats: Record<string, GroupStats> | undefined
+  /** 대화방에 안 읽은 메시지가 있는 그룹 id */
+  unread: Set<string> | undefined
   onOpenActions: (id: string) => void
   onAdd: (mode: 'create' | 'join') => void
 }) {
@@ -59,6 +62,7 @@ export function MyGroupsTab({
           group={g}
           isOwner={g.created_by === user?.id}
           stats={stats?.[g.id]}
+          hasUnread={unread?.has(g.id) ?? false}
           onOpenActions={onOpenActions}
         />
       ))}

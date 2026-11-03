@@ -7,7 +7,7 @@ import {
   View,
   type LayoutChangeEvent,
 } from 'react-native'
-import { router, useLocalSearchParams, type Href } from 'expo-router'
+import { router, useFocusEffect, useLocalSearchParams, type Href } from 'expo-router'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import Ionicons from '@expo/vector-icons/Ionicons'
@@ -30,6 +30,7 @@ import {
   useToggleReaction,
   useGroupRecordedDays,
 } from '@/entities/post/queries'
+import { useRoomUnread, useSendMessage } from '@/entities/message'
 import {
   decideAxis,
   DRAG_THRESHOLD,
@@ -40,6 +41,7 @@ import { BoardHeader } from '@/widgets/board-header'
 import { TimeLanes, TimeLanesSkeleton } from '@/widgets/time-lanes'
 import { DayPicker } from '@/widgets/day-picker'
 import { PostDetail } from '@/widgets/post-detail'
+import { chatHref } from '@/shared/lib/board-href'
 import { ErrorState } from '@/shared/ui/error-state'
 import { EASE_OUT_BEZIER } from '@/shared/ui/motion'
 import { PressableScale, haptic } from '@/shared/ui/press'
@@ -81,7 +83,9 @@ export default function BoardScreen() {
   /** 알림·업로드로 연 날 — 지난날이어도 그날 가장 최근 사진으로 스크롤한다. */
   const [linkedOffset] = useState(() => (one(params.date) ? initialTarget.dateOffset : null))
   const [pickerOpen, setPickerOpen] = useState(false)
-  const [detailPostId, setDetailPostId] = useState<string | null>(null)
+  // 채팅의 답장 인용(?post=)으로 오면 그 기록의 상세를 연다. 날짜와 같은 이유로 첫 렌더에서만
+  // 읽는다 — 닫은 뒤 URL이 상세를 다시 열면 안 된다. 기록이 불러와지면 detailPosts가 채워진다.
+  const [detailPostId, setDetailPostId] = useState<string | null>(() => one(params.post) ?? null)
 
   const { data: groups, error: groupsError, isLoading: groupsLoading } = useMyGroups()
   const activeGroupId = useMemo(() => {
@@ -98,6 +102,16 @@ export default function BoardScreen() {
   const { data: recordedDays } = useGroupRecordedDays(activeGroupId)
 
   const react = useToggleReaction(activeGroupId, dateOffset, userId)
+  const send = useSendMessage(activeGroupId, userId)
+  const unreadQuery = useRoomUnread(activeGroupId ? [activeGroupId] : [])
+  const hasUnread = activeGroupId ? (unreadQuery.data?.has(activeGroupId) ?? false) : false
+  // 대화방에서 돌아오면 읽음 처리가 끝났으니 점을 다시 계산한다.
+  const refetchUnread = unreadQuery.refetch
+  useFocusEffect(
+    useCallback(() => {
+      if (activeGroupId) void refetchUnread()
+    }, [activeGroupId, refetchUnread]),
+  )
   const error = groupsError ?? membersError ?? postsError
 
   const lanes = useMemo(() => laneMembers(members, userId), [members, userId])
@@ -290,6 +304,8 @@ export default function BoardScreen() {
         onNewer={() => changeDate(dateOffset - 1)}
         onDatePress={() => setPickerOpen(true)}
         onBack={() => router.replace(href('/groups'))}
+        onChat={() => activeGroupId && router.push(chatHref(activeGroupId))}
+        hasUnread={hasUnread}
         onProfile={() => router.push(href('/profile'))}
         avatarInitial={profile?.nickname?.[0] ?? '나'}
         avatarUrl={profile?.avatar_url ?? null}
@@ -352,15 +368,19 @@ export default function BoardScreen() {
         minDate={dateFromOffset(MAX_OFFSET, today)}
       />
 
-      {/* 열 때마다 새로 그려 누른 사진부터 보여 준다 */}
+      {/*
+        열 때마다 새로 그려 누른 사진부터 보여 준다. ?post=로 왔을 때는 기록이 불러와지기 전에
+        닫힌 채 먼저 그려지므로, 실제로 열리는 순간 다시 그려야 그 장의 index로 시작한다.
+      */}
       <PostDetail
-        key={detailPostId ?? 'closed'}
+        key={detailPostId && detailPosts.length > 0 ? detailPostId : 'closed'}
         posts={detailPosts}
         initialIndex={detailIndex}
         member={detailMember}
         isMe={detailPosts[0]?.user_id === userId}
         currentUserId={userId}
         onReact={react}
+        onReply={(postId, content) => send.mutateAsync({ content, postId }).then(() => {})}
         onClose={() => setDetailPostId(null)}
       />
     </View>

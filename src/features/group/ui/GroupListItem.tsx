@@ -32,11 +32,14 @@ export function GroupListItem({
   group,
   isOwner,
   stats,
+  hasUnread,
   onOpenActions,
 }: {
   group: Group
   isOwner: boolean
   stats: GroupStats | undefined
+  /** 대화방에 안 읽은 메시지가 있나. 개수는 보이지 않는다 — 시간 띠에서 비교 장치를 뺀 것과 같은 이유. */
+  hasUnread: boolean
   onOpenActions: (id: string) => void
 }) {
   const router = useRouter()
@@ -69,7 +72,7 @@ export function GroupListItem({
     <GroupCard>
       <PressableScale
         accessibilityRole="button"
-        accessibilityLabel={`${a11y} 보드 열기`}
+        accessibilityLabel={`${a11y} 보드 열기${hasUnread ? ', 안 읽은 메시지 있음' : ''}`}
         hapticKind={null}
         onPress={() => router.push(boardHref(group.id))}
         onLongPress={() => {
@@ -122,6 +125,7 @@ export function GroupListItem({
               )}
             </View>
           </View>
+          {hasUnread && <View className="size-2 rounded-full bg-primary" />}
           <Feather name="chevron-right" size={16} color="#D9CCB7" />
         </View>
       </PressableScale>

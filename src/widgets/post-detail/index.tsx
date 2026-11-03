@@ -1,9 +1,14 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
+  AccessibilityInfo,
+  Keyboard,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   Text,
+  TextInput,
   View,
   useWindowDimensions,
   type NativeScrollEvent,
@@ -15,7 +20,9 @@ import Ionicons from '@expo/vector-icons/Ionicons'
 import { postImageSource, postTimeLabel } from '@/entities/post'
 import type { BoardPost } from '@/entities/post/model'
 import type { GroupMemberProfile } from '@/entities/group'
+import { canSendMessage, MESSAGE_MAX_LENGTH } from '@/entities/message'
 import { ReactionBar } from '@/widgets/meal-tile'
+import { PressableScale } from '@/shared/ui/press'
 
 type Props = {
   /** 그 사람의 그날 기록, 시각순. 비어 있으면 닫힌 상태. */
@@ -26,6 +33,8 @@ type Props = {
   isMe: boolean
   currentUserId: string
   onReact: (postId: string, emoji: string) => void
+  /** 보고 있는 장에 답장 — 방 채팅에 그 기록을 인용한 메시지로 올라간다. 실패하면 reject. */
+  onReply: (postId: string, content: string) => Promise<void>
   onClose: () => void
 }
 
@@ -39,6 +48,10 @@ type Props = {
  * 그날 전체). 장마다 별개의 기록이라 시각·메모·리액션도 보고 있는 장을 따라 바뀐다.
  * 리액션은 시간 띠에 자리가 없어 여기서만 단다. 넘기는 건 사진 영역만 —
  * 화면 전체를 넘기게 하면 메모를 스크롤하려던 손가락이 장을 넘긴다.
+ *
+ * 맨 아래 입력칸은 인스타 스토리 답장처럼 보고 있는 장에 답장한다(2026-11-03 방 채팅).
+ * 답장은 방 채팅에 그 기록을 인용해 올라가고, 여기에는 목록을 두지 않는다 — 상세는
+ * 사진을 보는 곳이고 대화는 대화방에서 한다(docs/superpowers/specs/2026-11-03-room-chat-design.md).
  */
 export function PostDetail({
   posts,
@@ -47,6 +60,7 @@ export function PostDetail({
   isMe,
   currentUserId,
   onReact,
+  onReply,
   onClose,
 }: Props) {
   const insets = useSafeAreaInsets()
@@ -69,77 +83,208 @@ export function PostDetail({
       statusBarTranslucent
     >
       {open && (
-        <View className="flex-1 bg-board-bg" style={{ paddingTop: insets.top }}>
-          <View className="flex-row items-center gap-3 px-4 py-2">
-            <Pressable
-              onPress={onClose}
-              accessibilityRole="button"
-              accessibilityLabel="닫기"
-              hitSlop={8}
-              className="size-9 items-center justify-center rounded-full bg-white/10 active:opacity-70"
-            >
-              <Ionicons name="close" size={20} color="#fff" />
-            </Pressable>
-            <View className="flex-1">
-              <Text className="text-base font-bold text-white">
-                {isMe ? '나' : member.nickname}
-              </Text>
-              <Text className="text-xs text-white/55">
-                {postTimeLabel(post.recorded_at, post.meal_tag)}
-              </Text>
+        // 입력칸이 키보드 위로 올라오고 사진 영역이 그만큼 줄어든다.
+        // flex는 style로 — NativeWind `flex-1`이 KAV 내부의 높이 조정을 덮어쓴다(AGENTS.md).
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 1 }}
+          className="bg-board-bg"
+        >
+          <View className="flex-1 bg-board-bg" style={{ paddingTop: insets.top }}>
+            <View className="flex-row items-center gap-3 px-4 py-2">
+              <Pressable
+                onPress={onClose}
+                accessibilityRole="button"
+                accessibilityLabel="닫기"
+                hitSlop={8}
+                className="size-9 items-center justify-center rounded-full bg-white/10 active:opacity-70"
+              >
+                <Ionicons name="close" size={20} color="#fff" />
+              </Pressable>
+              <View className="flex-1">
+                <Text className="text-base font-bold text-white">
+                  {isMe ? '나' : member.nickname}
+                </Text>
+                <Text className="text-xs text-white/55">
+                  {postTimeLabel(post.recorded_at, post.meal_tag)}
+                </Text>
+              </View>
             </View>
-          </View>
 
-          <View className="flex-1 bg-black">
+            <View className="flex-1 bg-black">
+              <ScrollView
+                horizontal
+                pagingEnabled
+                // 누른 사진부터 연다(첫 렌더에만 쓰인다 — 열 때마다 key로 새로 그린다)
+                contentOffset={{ x: initialIndex * width, y: 0 }}
+                showsHorizontalScrollIndicator={false}
+                onMomentumScrollEnd={onPageEnd}
+                // 한 장뿐이면 넘길 게 없다 — 끝에서 튕기는 것도 막는다.
+                scrollEnabled={posts.length > 1}
+              >
+                {posts.map((p, i) => (
+                  <View
+                    key={p.id}
+                    style={{ width }}
+                    accessible={posts.length > 1}
+                    accessibilityLabel={`사진 ${posts.length}장 중 ${i + 1}번째`}
+                  >
+                    <Photo post={p} />
+                  </View>
+                ))}
+              </ScrollView>
+              {posts.length > 1 && <PageDots count={posts.length} active={index} />}
+            </View>
+
             <ScrollView
-              horizontal
-              pagingEnabled
-              // 누른 사진부터 연다(첫 렌더에만 쓰인다 — 열 때마다 key로 새로 그린다)
-              contentOffset={{ x: initialIndex * width, y: 0 }}
-              showsHorizontalScrollIndicator={false}
-              onMomentumScrollEnd={onPageEnd}
-              // 한 장뿐이면 넘길 게 없다 — 끝에서 튕기는 것도 막는다.
-              scrollEnabled={posts.length > 1}
+              style={{ maxHeight: 176 }}
+              contentContainerStyle={{
+                gap: 12,
+                paddingHorizontal: 20,
+                paddingTop: 16,
+                paddingBottom: 12,
+              }}
             >
-              {posts.map((p, i) => (
-                <View
-                  key={p.id}
-                  style={{ width }}
-                  accessible={posts.length > 1}
-                  accessibilityLabel={`사진 ${posts.length}장 중 ${i + 1}번째`}
-                >
-                  <Photo post={p} />
-                </View>
-              ))}
+              {post.caption ? (
+                <Text className="text-sm leading-relaxed text-white/85">{post.caption}</Text>
+              ) : (
+                <Text className="text-sm text-white/30">메모 없이 올렸어요</Text>
+              )}
+              <ReactionBar
+                postId={post.id}
+                reactions={post.reactions}
+                currentUserId={currentUserId}
+                onReact={onReact}
+                alwaysExpanded
+              />
             </ScrollView>
-            {posts.length > 1 && <PageDots count={posts.length} active={index} />}
-          </View>
 
-          <ScrollView
-            style={{ maxHeight: 176 }}
-            contentContainerStyle={{
-              gap: 12,
-              paddingHorizontal: 20,
-              paddingTop: 16,
-              paddingBottom: insets.bottom + 12,
-            }}
-          >
-            {post.caption ? (
-              <Text className="text-sm leading-relaxed text-white/85">{post.caption}</Text>
-            ) : (
-              <Text className="text-sm text-white/30">메모 없이 올렸어요</Text>
-            )}
-            <ReactionBar
+            <ReplyComposer
+              // 장을 넘기면 대상이 바뀐다 — 보내는 순간 보고 있는 장에 답장한다.
               postId={post.id}
-              reactions={post.reactions}
-              currentUserId={currentUserId}
-              onReact={onReact}
-              alwaysExpanded
+              placeholder={isMe ? '이 기록에 대해 말하기…' : `${member.nickname}에게 답장…`}
+              bottomInset={insets.bottom}
+              onReply={onReply}
             />
-          </ScrollView>
-        </View>
+          </View>
+        </KeyboardAvoidingView>
       )}
     </Modal>
+  )
+}
+
+const SENT_NOTICE_MS = 2000
+
+/**
+ * 답장 입력칸 한 줄 + 보내기.
+ *
+ * 보낸 뒤 확인을 앱 토스트로 띄우지 않고 여기 안에 짧게 적는다. 상세는 RN `Modal`이라
+ * 루트의 Toaster가 모달 **아래**에 그려져 보이지 않는다.
+ */
+function ReplyComposer({
+  postId,
+  placeholder,
+  bottomInset,
+  onReply,
+}: {
+  postId: string
+  placeholder: string
+  bottomInset: number
+  onReply: (postId: string, content: string) => Promise<void>
+}) {
+  const [text, setText] = useState('')
+  const [sending, setSending] = useState(false)
+  const [notice, setNotice] = useState<'sent' | 'failed' | null>(null)
+  const [keyboardShown, setKeyboardShown] = useState(false)
+  const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    // 키보드가 올라오면 홈 인디케이터 여백은 키보드에 가려 필요 없다 — 입력칸을 키보드에 붙인다.
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow'
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide'
+    const show = Keyboard.addListener(showEvent, () => setKeyboardShown(true))
+    const hide = Keyboard.addListener(hideEvent, () => setKeyboardShown(false))
+    return () => {
+      show.remove()
+      hide.remove()
+      if (noticeTimer.current) clearTimeout(noticeTimer.current)
+    }
+  }, [])
+
+  const canSend = canSendMessage(text) && !sending
+
+  const send = async () => {
+    if (!canSend) return
+    if (noticeTimer.current) clearTimeout(noticeTimer.current)
+    setSending(true)
+    setNotice(null)
+    try {
+      await onReply(postId, text.trim())
+      setText('')
+      Keyboard.dismiss()
+      setNotice('sent')
+      AccessibilityInfo.announceForAccessibility('대화방에 보냈어요')
+      noticeTimer.current = setTimeout(() => setNotice(null), SENT_NOTICE_MS)
+    } catch {
+      // 쓴 글은 그대로 남겨 다시 누르기만 하면 되게 한다.
+      setNotice('failed')
+      AccessibilityInfo.announceForAccessibility('보내지 못했어요. 다시 보내 주세요')
+    } finally {
+      setSending(false)
+    }
+  }
+
+  return (
+    <View
+      className="gap-1.5 px-4 pt-2"
+      style={{ paddingBottom: keyboardShown ? 8 : bottomInset + 8 }}
+    >
+      <View accessibilityLiveRegion="polite">
+        {notice === 'sent' && (
+          <Text className="px-2 text-xs font-semibold text-white/70">대화방에 보냈어요</Text>
+        )}
+        {notice === 'failed' && (
+          <Text className="px-2 text-xs font-semibold text-destructive">
+            보내지 못했어요. 다시 보내 주세요
+          </Text>
+        )}
+      </View>
+      <View className="flex-row items-center gap-2">
+        <TextInput
+          value={text}
+          onChangeText={(v) => {
+            setText(v)
+            if (notice === 'failed') setNotice(null)
+          }}
+          placeholder={placeholder}
+          placeholderTextColor="rgba(255,255,255,0.45)"
+          accessibilityLabel={placeholder.replace(/…$/, '')}
+          maxLength={MESSAGE_MAX_LENGTH}
+          returnKeyType="send"
+          // 보내기 실패 시 키보드를 내리지 않고 그대로 다시 보낼 수 있게.
+          submitBehavior="submit"
+          onSubmitEditing={() => void send()}
+          className="h-field flex-1 rounded-full bg-board-surface px-4 text-sm text-white"
+        />
+        <PressableScale
+          onPress={() => void send()}
+          disabled={!canSend}
+          hapticKind={null}
+          accessibilityRole="button"
+          accessibilityLabel="보내기"
+          accessibilityState={{ disabled: !canSend }}
+          hitSlop={6}
+          className="h-field justify-center px-2"
+        >
+          <Text
+            className="text-sm font-bold"
+            style={{ color: '#FF7A2E', opacity: canSend ? 1 : 0.35 }}
+          >
+            보내기
+          </Text>
+        </PressableScale>
+      </View>
+    </View>
   )
 }
 
