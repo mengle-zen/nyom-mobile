@@ -24,6 +24,11 @@ export const queryKeys = {
     ['myPosts', userId, 'batch', batchKey] as const,
   /** 내가 최근 쓴 끼니 태그. myPosts 프리픽스 → 올리기·편집 후 함께 무효화된다. */
   myRecentTags: (userId: string) => ['myPosts', userId, 'recentTags'] as const,
+  /** 방 채팅 메시지(무한 스크롤, 최신 페이지가 먼저) */
+  messages: (groupId: string) => ['messages', groupId] as const,
+  /** 방마다 안 읽은 메시지 여부. key는 그룹 id 집합에 의존한다. */
+  roomUnread: (groupIdsKey: string) => ['roomUnread', groupIdsKey] as const,
+  roomUnreadAll: ['roomUnread'] as const,
   notificationSettings: (userId: string) =>
     ['notificationSettings', userId] as const,
 } as const

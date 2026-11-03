@@ -14,9 +14,16 @@ import type { Href } from 'expo-router'
  */
 export function boardHref(
   groupId: string,
-  extra?: { date?: string },
+  extra?: { date?: string; post?: string },
 ): Href {
   const params = new URLSearchParams({ group: groupId })
   if (extra?.date) params.set('date', extra.date)
+  // 채팅의 답장 인용을 누르면 그 기록의 상세를 바로 연다.
+  if (extra?.post) params.set('post', extra.post)
   return `/(app)/board?${params.toString()}` as unknown as Href
+}
+
+/** 방 채팅 화면으로 가는 링크(방 화면 헤더 말풍선·채팅 푸시). */
+export function chatHref(groupId: string): Href {
+  return `/(app)/chat?group=${encodeURIComponent(groupId)}` as unknown as Href
 }

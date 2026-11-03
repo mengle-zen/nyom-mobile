@@ -105,6 +105,8 @@ export type Database = {
           group_id: string
           user_id: string
           joined_at: string
+          /** 방 채팅을 마지막으로 읽은 시각. 쓰기는 mark_room_read RPC로만 */
+          chat_read_at: string | null
         }
         Insert: {
           group_id: string
@@ -274,6 +276,7 @@ export type Database = {
           post_enabled: boolean
           reaction_enabled: boolean
           reminder_enabled: boolean
+          chat_enabled: boolean
           updated_at: string
         }
         Insert: {
@@ -281,6 +284,7 @@ export type Database = {
           post_enabled?: boolean
           reaction_enabled?: boolean
           reminder_enabled?: boolean
+          chat_enabled?: boolean
           updated_at?: string
         }
         Update: {
@@ -288,7 +292,39 @@ export type Database = {
           post_enabled?: boolean
           reaction_enabled?: boolean
           reminder_enabled?: boolean
+          chat_enabled?: boolean
           updated_at?: string
+        }
+      }
+      // 방 채팅(웹 저장소 20261103000000_room_chat.sql). 답장이면 post_id로 기록을 인용하고,
+      // 기록이 지워지면 post_id만 null이 되고 is_reply가 남는다.
+      room_messages: {
+        Row: {
+          id: string
+          group_id: string
+          user_id: string
+          post_id: string | null
+          is_reply: boolean
+          content: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          group_id: string
+          user_id: string
+          post_id?: string | null
+          is_reply?: boolean
+          content: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          group_id?: string
+          user_id?: string
+          post_id?: string | null
+          is_reply?: boolean
+          content?: string
+          created_at?: string
         }
       }
     }
@@ -398,6 +434,15 @@ export type Database = {
         }
         Returns: void
       }
+      mark_room_read: {
+        Args: { p_group_id: string }
+        Returns: void
+      }
+      /** 방마다 내가 마지막으로 읽은 뒤 남이 보낸 메시지가 있나 */
+      room_unread: {
+        Args: { p_group_ids: string[] }
+        Returns: { group_id: string; has_unread: boolean }[]
+      }
       /** batch 전체 삭제. 반환값 = 정리할 스토리지 경로 */
       delete_post_batch: {
         Args: { p_post_id: string }
@@ -416,6 +461,7 @@ export type Database = {
 export type Profile = Database['public']['Tables']['profiles']['Row']
 export type Post = Database['public']['Tables']['posts']['Row']
 export type Comment = Database['public']['Tables']['comments']['Row']
+export type RoomMessageRow = Database['public']['Tables']['room_messages']['Row']
 export type Reaction = Database['public']['Tables']['reactions']['Row']
 export type Group = Database['public']['Tables']['groups']['Row']
 export type GroupMember = Database['public']['Tables']['group_members']['Row']
