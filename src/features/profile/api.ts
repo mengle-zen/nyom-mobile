@@ -113,17 +113,6 @@ export async function updateMyProfile(
   return data as Profile
 }
 
-/** 닉네임 유효성 검사 */
-export function validateNickname(nickname: string): string | null {
-  const trimmed = nickname.trim()
-  if (trimmed.length < 2) return '닉네임은 2자 이상이어야 해요'
-  if (trimmed.length > 12) return '닉네임은 12자 이하여야 해요'
-  if (!/^[가-힣a-zA-Z0-9_.\-\s]+$/.test(trimmed)) {
-    return '한글, 영문, 숫자, _, ., - 만 사용할 수 있어요'
-  }
-  return null
-}
-
 /**
  * 고른 사진을 512px 정사각 JPEG로 줄인다.
  *

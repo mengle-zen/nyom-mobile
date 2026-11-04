@@ -1,8 +1,10 @@
 import { Pressable, Text, TouchableOpacity, View } from 'react-native'
-import { Tabs, usePathname, useRouter, type Href } from 'expo-router'
+import { Redirect, Tabs, usePathname, useRouter, type Href } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import Feather from '@expo/vector-icons/Feather'
 
+import { useAuth } from '@/features/auth'
+import { isDefaultNickname, useMyProfile } from '@/features/profile'
 import { FLOATING_SHADOW } from '@/shared/ui/shadow'
 
 /**
@@ -43,6 +45,15 @@ const RIGHT: NavItem = {
 const IMMERSIVE = ['/board', '/upload', '/chat']
 
 export default function AppLayout() {
+  const { user } = useAuth()
+  const { profile } = useMyProfile()
+
+  // 닉네임을 정하지 않은 채 가입했으면(카카오 닉네임 미동의) 온보딩부터.
+  // 프로필을 받는 중이거나 실패했으면 막지 않는다 — 앱을 못 쓰게 만들 일은 아니다.
+  if (user && profile && isDefaultNickname(profile.nickname, user.id)) {
+    return <Redirect href="/onboarding" />
+  }
+
   return (
     <Tabs
       tabBar={() => <BottomNav />}

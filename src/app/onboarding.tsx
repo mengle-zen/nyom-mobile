@@ -19,6 +19,7 @@ import { useAuth } from '@/features/auth'
 import {
   changeMyAvatar,
   updateMyProfile,
+  isDefaultNickname,
   useMyProfile,
   validateNickname,
 } from '@/features/profile'
@@ -40,7 +41,10 @@ export default function OnboardingScreen() {
   // 닉네임은 "사용자가 입력한 값(draft)"만 상태로 들고, 아직 입력이 없으면
   // 서버 프로필에서 파생한다. 프로필이 늦게 도착해도 effect로 setState 하지 않는다.
   const [draftNickname, setDraftNickname] = useState<string | null>(null)
-  const nickname = draftNickname ?? profile?.nickname ?? ''
+  // 가입 때 붙은 기본 닉네임(`user_…`)은 채워 두지 않는다 — 고칠 대상이지 제안이 아니다.
+  const savedNickname =
+    profile && user && !isDefaultNickname(profile.nickname, user.id) ? profile.nickname : ''
+  const nickname = draftNickname ?? savedNickname
   /** 아직 올리지 않은 아바타의 로컬 파일 URI. 저장 시 스토리지로 올린다. */
   const [draftAvatar, setDraftAvatar] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)

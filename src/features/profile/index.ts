@@ -1,7 +1,6 @@
 export {
   fetchMyProfile,
   updateMyProfile,
-  validateNickname,
   fetchMyPostsPage,
   fetchMyPostCount,
   downscaleAvatar,
@@ -12,6 +11,7 @@ export {
   type ProfileUpdate,
   type MyPost,
 } from './api'
+export { isDefaultNickname, validateNickname } from './nickname'
 export { AVATAR_BUCKET, AVATAR_SIZE } from './avatar'
 export {
   useMyProfile,
