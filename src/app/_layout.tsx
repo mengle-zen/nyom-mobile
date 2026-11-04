@@ -10,6 +10,7 @@ import { ActivityIndicator, View } from 'react-native'
 import { Toaster } from 'sonner-native'
 
 import { queryClient } from '@/shared/api/query-client'
+import { RequiredUpdateModal } from '@/features/app-update'
 import { AuthProvider, useAuth } from '@/features/auth'
 import { NotificationDeepLinks, PushTokenSync } from '@/features/notifications'
 import { useReducedMotion } from '@/shared/ui/motion'
@@ -30,6 +31,8 @@ export default function RootLayout() {
             {/* 알림 탭 → 보드 딥링크. 렌더 없음, 리스너만 붙는다. */}
             <NotificationDeepLinks />
             <PushTokenSync />
+            {/* 옛 빌드 차단 — 기준은 웹의 app-version.json. 로그인 전에도 뜬다. */}
+            <RequiredUpdateModal />
           </AuthProvider>
         </QueryClientProvider>
       </SafeAreaProvider>
