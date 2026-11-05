@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   AccessibilityInfo,
   Keyboard,
@@ -15,6 +15,9 @@ import {
   type NativeSyntheticEvent,
 } from 'react-native'
 import { Image } from 'expo-image'
+import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler'
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated'
+import { scheduleOnRN } from 'react-native-worklets'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import Ionicons from '@expo/vector-icons/Ionicons'
 import { postImageSource, postTimeLabel } from '@/entities/post'
@@ -22,8 +25,15 @@ import type { BoardPost } from '@/entities/post/model'
 import type { GroupMemberProfile } from '@/entities/group'
 import { canSendMessage, MESSAGE_MAX_LENGTH } from '@/entities/message'
 import { ReactionBar } from '@/widgets/meal-tile'
+import { DURATION_MOVE, EASE_OUT, useReducedMotion } from '@/shared/ui/motion'
 import { PressableScale } from '@/shared/ui/press'
 import { useKeyboardShown } from '@/shared/ui/use-keyboard-shown'
+
+/** 이만큼(화면 높이 비율) 끌어내리거나 빠르게 튕기면 닫는다. */
+const DISMISS_RATIO = 0.2
+const DISMISS_VELOCITY = 800
+/** 끌어내리는 동안 화면이 작아지는 정도(끝까지 내렸을 때) */
+const DISMISS_SHRINK = 0.15
 
 type Props = {
   /** 그 사람의 그날 기록, 시각순. 비어 있으면 닫힌 상태. */
@@ -50,6 +60,10 @@ type Props = {
  * 리액션은 시간 띠에 자리가 없어 여기서만 단다. 넘기는 건 사진 영역만 —
  * 화면 전체를 넘기게 하면 메모를 스크롤하려던 손가락이 장을 넘긴다.
  *
+ * 닫기는 × 버튼 또는 헤더·사진 영역을 아래로 끌어내리기(2026-11-05). 끄는 동안 화면이 손가락을
+ * 따라 내려가며 작아지고, 투명한 모달 아래로 보드·프로필이 드러난다. 가로 움직임은 실패시켜
+ * 사진 넘기기를, 메모 영역은 제스처 밖에 두어 메모 스크롤을 막지 않는다.
+ *
  * 맨 아래 입력칸은 인스타 스토리 답장처럼 보고 있는 장에 답장한다(2026-11-03 방 채팅).
  * 답장은 방 채팅에 그 기록을 인용해 올라가고, 여기에는 목록을 두지 않는다 — 상세는
  * 사진을 보는 곳이고 대화는 대화방에서 한다(docs/superpowers/specs/2026-11-03-room-chat-design.md).
@@ -65,7 +79,8 @@ export function PostDetail({
   onClose,
 }: Props) {
   const insets = useSafeAreaInsets()
-  const { width } = useWindowDimensions()
+  const { width, height } = useWindowDimensions()
+  const reduced = useReducedMotion()
   const [index, setIndex] = useState(initialIndex)
   const open = posts.length > 0 && member !== null
   // 보는 중에 장이 사라지면(삭제 등) 남은 마지막 장에 머문다.
@@ -75,100 +90,145 @@ export function PostDetail({
     setIndex(Math.round(e.nativeEvent.contentOffset.x / width))
   }
 
+  /** 끌어내린 거리 */
+  const dragY = useSharedValue(0)
+  const pullDown = useMemo(
+    () =>
+      Gesture.Pan()
+        .activeOffsetY(16)
+        .failOffsetX([-14, 14])
+        .onUpdate((e) => {
+          dragY.set(Math.max(0, e.translationY))
+        })
+        .onEnd((e) => {
+          const commit = dragY.get() > height * DISMISS_RATIO || e.velocityY > DISMISS_VELOCITY
+          const timing = { duration: DURATION_MOVE, easing: EASE_OUT }
+          if (!commit) {
+            dragY.set(withTiming(0, timing))
+          } else if (reduced) {
+            scheduleOnRN(onClose)
+          } else {
+            dragY.set(
+              withTiming(height, timing, (done) => {
+                if (done) scheduleOnRN(onClose)
+              }),
+            )
+          }
+        }),
+    [dragY, height, reduced, onClose],
+  )
+  const pageStyle = useAnimatedStyle(() => {
+    const p = Math.min(dragY.get() / height, 1)
+    return { transform: [{ translateY: dragY.get() }, { scale: 1 - p * DISMISS_SHRINK }] }
+  })
+
   return (
     <Modal
       visible={open}
       onRequestClose={onClose}
       animationType="fade"
-      transparent={false}
+      // 투명해야 끌어내리는 동안 아래 화면이 보인다.
+      transparent
       statusBarTranslucent
     >
       {open && (
-        // 입력칸이 키보드 위로 올라오고 사진 영역이 그만큼 줄어든다.
-        // flex는 style로 — NativeWind `flex-1`이 KAV 내부의 높이 조정을 덮어쓴다(AGENTS.md).
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={{ flex: 1 }}
-          className="bg-board-bg"
-        >
-          <View className="flex-1 bg-board-bg" style={{ paddingTop: insets.top }}>
-            <View className="flex-row items-center gap-3 px-4 py-2">
-              <Pressable
-                onPress={onClose}
-                accessibilityRole="button"
-                accessibilityLabel="닫기"
-                hitSlop={8}
-                className="size-9 items-center justify-center rounded-full bg-white/10 active:opacity-70"
-              >
-                <Ionicons name="close" size={20} color="#fff" />
-              </Pressable>
-              <View className="flex-1">
-                <Text className="text-base font-bold text-white">
-                  {isMe ? '나' : member.nickname}
-                </Text>
-                <Text className="text-xs text-white/55">
-                  {postTimeLabel(post.recorded_at, post.meal_tag)}
-                </Text>
-              </View>
-            </View>
-
-            <View className="flex-1 bg-black">
-              <ScrollView
-                horizontal
-                pagingEnabled
-                // 누른 사진부터 연다(첫 렌더에만 쓰인다 — 열 때마다 key로 새로 그린다)
-                contentOffset={{ x: initialIndex * width, y: 0 }}
-                showsHorizontalScrollIndicator={false}
-                onMomentumScrollEnd={onPageEnd}
-                // 한 장뿐이면 넘길 게 없다 — 끝에서 튕기는 것도 막는다.
-                scrollEnabled={posts.length > 1}
-              >
-                {posts.map((p, i) => (
-                  <View
-                    key={p.id}
-                    style={{ width }}
-                    accessible={posts.length > 1}
-                    accessibilityLabel={`사진 ${posts.length}장 중 ${i + 1}번째`}
-                  >
-                    <Photo post={p} />
-                  </View>
-                ))}
-              </ScrollView>
-              {posts.length > 1 && <PageDots count={posts.length} active={index} />}
-            </View>
-
-            <ScrollView
-              style={{ maxHeight: 176 }}
-              contentContainerStyle={{
-                gap: 12,
-                paddingHorizontal: 20,
-                paddingTop: 16,
-                paddingBottom: 12,
-              }}
+        // Android는 Modal 안에 루트가 따로 있어야 제스처를 받는다.
+        <GestureHandlerRootView style={{ flex: 1 }}>
+          <Animated.View style={[{ flex: 1 }, pageStyle]}>
+            {/*
+              입력칸이 키보드 위로 올라오고 사진 영역이 그만큼 줄어든다.
+              flex는 style로 — NativeWind `flex-1`이 KAV 내부의 높이 조정을 덮어쓴다(AGENTS.md).
+            */}
+            <KeyboardAvoidingView
+              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+              style={{ flex: 1 }}
+              className="bg-board-bg"
             >
-              {post.caption ? (
-                <Text className="text-sm leading-relaxed text-white/85">{post.caption}</Text>
-              ) : (
-                <Text className="text-sm text-white/30">메모 없이 올렸어요</Text>
-              )}
-              <ReactionBar
-                postId={post.id}
-                reactions={post.reactions}
-                currentUserId={currentUserId}
-                onReact={onReact}
-                alwaysExpanded
-              />
-            </ScrollView>
+              <View className="flex-1 bg-board-bg" style={{ paddingTop: insets.top }}>
+                {/* 헤더·사진 영역을 끌어내리면 닫힌다. 메모·입력칸은 제스처 밖. */}
+                <GestureDetector gesture={pullDown}>
+                  <View style={{ flex: 1 }}>
+                    <View className="flex-row items-center gap-3 px-4 py-2">
+                      <Pressable
+                        onPress={onClose}
+                        accessibilityRole="button"
+                        accessibilityLabel="닫기"
+                        hitSlop={8}
+                        className="size-9 items-center justify-center rounded-full bg-white/10 active:opacity-70"
+                      >
+                        <Ionicons name="close" size={20} color="#fff" />
+                      </Pressable>
+                      <View className="flex-1">
+                        <Text className="text-base font-bold text-white">
+                          {isMe ? '나' : member.nickname}
+                        </Text>
+                        <Text className="text-xs text-white/55">
+                          {postTimeLabel(post.recorded_at, post.meal_tag)}
+                        </Text>
+                      </View>
+                    </View>
 
-            <ReplyComposer
-              // 장을 넘기면 대상이 바뀐다 — 보내는 순간 보고 있는 장에 답장한다.
-              postId={post.id}
-              placeholder={isMe ? '이 기록에 대해 말하기…' : `${member.nickname}에게 답장…`}
-              bottomInset={insets.bottom}
-              onReply={onReply}
-            />
-          </View>
-        </KeyboardAvoidingView>
+                    <View className="flex-1 bg-black">
+                      <ScrollView
+                        horizontal
+                        pagingEnabled
+                        // 누른 사진부터 연다(첫 렌더에만 쓰인다 — 열 때마다 key로 새로 그린다)
+                        contentOffset={{ x: initialIndex * width, y: 0 }}
+                        showsHorizontalScrollIndicator={false}
+                        onMomentumScrollEnd={onPageEnd}
+                        // 한 장뿐이면 넘길 게 없다 — 끝에서 튕기는 것도 막는다.
+                        scrollEnabled={posts.length > 1}
+                      >
+                        {posts.map((p, i) => (
+                          <View
+                            key={p.id}
+                            style={{ width }}
+                            accessible={posts.length > 1}
+                            accessibilityLabel={`사진 ${posts.length}장 중 ${i + 1}번째`}
+                          >
+                            <Photo post={p} />
+                          </View>
+                        ))}
+                      </ScrollView>
+                      {posts.length > 1 && <PageDots count={posts.length} active={index} />}
+                    </View>
+                  </View>
+                </GestureDetector>
+
+                <ScrollView
+                  style={{ maxHeight: 176 }}
+                  contentContainerStyle={{
+                    gap: 12,
+                    paddingHorizontal: 20,
+                    paddingTop: 16,
+                    paddingBottom: 12,
+                  }}
+                >
+                  {post.caption ? (
+                    <Text className="text-sm leading-relaxed text-white/85">{post.caption}</Text>
+                  ) : (
+                    <Text className="text-sm text-white/30">메모 없이 올렸어요</Text>
+                  )}
+                  <ReactionBar
+                    postId={post.id}
+                    reactions={post.reactions}
+                    currentUserId={currentUserId}
+                    onReact={onReact}
+                    alwaysExpanded
+                  />
+                </ScrollView>
+
+                <ReplyComposer
+                  // 장을 넘기면 대상이 바뀐다 — 보내는 순간 보고 있는 장에 답장한다.
+                  postId={post.id}
+                  placeholder={isMe ? '이 기록에 대해 말하기…' : `${member.nickname}에게 답장…`}
+                  bottomInset={insets.bottom}
+                  onReply={onReply}
+                />
+              </View>
+            </KeyboardAvoidingView>
+          </Animated.View>
+        </GestureHandlerRootView>
       )}
     </Modal>
   )
