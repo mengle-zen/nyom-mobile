@@ -18,6 +18,8 @@ type Props = {
    * 할 때(보드의 날짜 넘기기) 띠를 그 위에 얹어 터치를 따로 받는다.
    */
   edge?: boolean
+  /** 밀려난 자리에 깔 바탕색. 밝은 화면(설정·알림)은 밝게 */
+  backdrop?: string
   children: ReactNode
 }
 
@@ -29,7 +31,7 @@ type Props = {
  * 세로 움직임·왼쪽 밀기는 실패시켜 목록 스크롤과 말풍선 답장 밀기를 막지 않는다.
  * 손으로 밀 수 없는 사람은 화면의 뒤로·닫기 버튼을 쓴다.
  */
-export function SwipeBack({ onBack, edge = false, children }: Props) {
+export function SwipeBack({ onBack, edge = false, backdrop = '#000', children }: Props) {
   const { width } = useWindowDimensions()
   const reduced = useReducedMotion()
   const x = useSharedValue(0)
@@ -68,10 +70,10 @@ export function SwipeBack({ onBack, edge = false, children }: Props) {
 
   const slide = useAnimatedStyle(() => ({ transform: [{ translateX: x.get() }] }))
 
-  // 밀려난 자리에 흰 배경이 드러나지 않게 어두운 바탕을 깐다.
+  // 밀려난 자리에 흰 배경이 드러나지 않게 바탕을 깐다(어두운 화면은 검게).
   if (edge) {
     return (
-      <View style={{ flex: 1 }} className="bg-black">
+      <View style={{ flex: 1, backgroundColor: backdrop }}>
         <Animated.View style={[{ flex: 1 }, slide]}>
           {children}
           <GestureDetector gesture={pan}>
@@ -82,7 +84,7 @@ export function SwipeBack({ onBack, edge = false, children }: Props) {
     )
   }
   return (
-    <View style={{ flex: 1 }} className="bg-black">
+    <View style={{ flex: 1, backgroundColor: backdrop }}>
       <GestureDetector gesture={pan}>
         <Animated.View style={[{ flex: 1 }, slide]}>{children}</Animated.View>
       </GestureDetector>

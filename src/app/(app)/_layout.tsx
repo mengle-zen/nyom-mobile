@@ -43,8 +43,8 @@ const RIGHT: NavItem = {
   match: '/profile',
 }
 
-/** 탭바를 숨길 몰입 화면 */
-const IMMERSIVE = ['/board', '/upload', '/chat']
+/** 탭바를 숨길 화면 — 몰입 화면(보드·올리기·채팅)과 한 겹 들어간 화면(설정·알림) */
+const IMMERSIVE = ['/board', '/upload', '/chat', '/settings', '/inbox']
 
 export default function AppLayout() {
   const { user } = useAuth()
@@ -88,7 +88,7 @@ function BottomNav() {
   const insets = useSafeAreaInsets()
   const [sourceOpen, setSourceOpen] = useState(false)
 
-  // 보드·업로드·채팅은 몰입 화면 — 웹과 마찬가지로 탭바를 띄우지 않는다.
+  // 몰입 화면과 한 겹 들어간 화면에는 탭바를 띄우지 않는다(IMMERSIVE).
   if (IMMERSIVE.some((p) => pathname.startsWith(p))) return null
 
   return (
