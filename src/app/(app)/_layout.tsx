@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Pressable, Text, TouchableOpacity, View } from 'react-native'
 import { Redirect, Tabs, usePathname, useRouter, type Href } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -5,6 +6,7 @@ import Feather from '@expo/vector-icons/Feather'
 
 import { useAuth } from '@/features/auth'
 import { isDefaultNickname, useMyProfile } from '@/features/profile'
+import { PhotoSourceSheet } from '@/features/upload'
 import { FLOATING_SHADOW } from '@/shared/ui/shadow'
 
 /**
@@ -84,6 +86,7 @@ function BottomNav() {
   const router = useRouter()
   const pathname = usePathname()
   const insets = useSafeAreaInsets()
+  const [sourceOpen, setSourceOpen] = useState(false)
 
   // 보드·업로드·채팅은 몰입 화면 — 웹과 마찬가지로 탭바를 띄우지 않는다.
   if (IMMERSIVE.some((p) => pathname.startsWith(p))) return null
@@ -97,7 +100,7 @@ function BottomNav() {
       <View className="h-16 flex-row items-center px-2">
         <NavTab item={LEFT} pathname={pathname} onPress={() => router.navigate(href(LEFT.path))} />
 
-        {/* 가운데 기록 FAB — 탭이 아니라 /upload를 push한다 */}
+        {/* 가운데 기록 FAB — 탭이 아니라 사진 고르기(촬영 / 앨범)를 띄운다 */}
         <View className="flex-1 items-center justify-center">
           {/*
             NativeWind로 감싼 컴포넌트는 함수 형태 style(({pressed}) => ...)을
@@ -106,8 +109,8 @@ function BottomNav() {
           <TouchableOpacity
             accessibilityRole="button"
             accessibilityLabel="기록"
-            accessibilityHint="사진을 찍어 끼니를 기록해요"
-            onPress={() => router.push(href('/upload'))}
+            accessibilityHint="사진을 찍거나 골라 끼니를 기록해요"
+            onPress={() => setSourceOpen(true)}
             activeOpacity={0.85}
             style={{
               width: 44,
@@ -125,6 +128,7 @@ function BottomNav() {
 
         <NavTab item={RIGHT} pathname={pathname} onPress={() => router.navigate(href(RIGHT.path))} />
       </View>
+      <PhotoSourceSheet open={sourceOpen} onClose={() => setSourceOpen(false)} />
     </View>
   )
 }

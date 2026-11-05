@@ -40,6 +40,7 @@ import {
 import { BoardHeader } from '@/widgets/board-header'
 import { TimeLanes, TimeLanesSkeleton } from '@/widgets/time-lanes'
 import { DayPicker } from '@/widgets/day-picker'
+import { PhotoSourceSheet } from '@/features/upload'
 import { PostDetail } from '@/widgets/post-detail'
 import { chatHref } from '@/shared/lib/board-href'
 import { ErrorState } from '@/shared/ui/error-state'
@@ -142,9 +143,9 @@ export default function BoardScreen() {
     setDateOffset(clampOffset(next))
   }, [])
 
-  const goUpload = useCallback(() => {
-    router.push(href(`/upload${activeGroupId ? `?group=${activeGroupId}` : ''}`))
-  }, [activeGroupId])
+  // 사진 고르기(촬영 / 앨범)를 먼저 띄우고, 고른 뒤 이 방을 받는 곳으로 올리기 화면을 연다.
+  const [sourceOpen, setSourceOpen] = useState(false)
+  const goUpload = useCallback(() => setSourceOpen(true), [])
 
   const handlePickDate = useCallback(
     (date: Date) => {
@@ -398,6 +399,11 @@ export default function BoardScreen() {
         onReact={react}
         onReply={(postId, content) => send.mutateAsync({ content, postId }).then(() => {})}
         onClose={() => setDetailPostId(null)}
+      />
+      <PhotoSourceSheet
+        open={sourceOpen}
+        onClose={() => setSourceOpen(false)}
+        groupId={activeGroupId}
       />
     </View>
   )

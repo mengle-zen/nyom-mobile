@@ -11,9 +11,8 @@ import {
   Text,
   View,
 } from 'react-native'
-import * as ImagePicker from 'expo-image-picker'
 import { Ionicons } from '@expo/vector-icons'
-import { router, useLocalSearchParams, useNavigation } from 'expo-router'
+import { router, useLocalSearchParams } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useQueryClient } from '@tanstack/react-query'
 
@@ -23,9 +22,9 @@ import { invalidateAfterPostEdit, useMyRecentTags } from '@/entities/post/querie
 import { useMyGroups } from '@/entities/group'
 import { useAuth } from '@/features/auth'
 import { isUntouched } from '@/features/upload/lib/canvas-transform'
-import { capturedAtFromExif } from '@/features/upload/lib/captured-at'
 import { downscaleForUpload, type Shot } from '@/features/upload/lib/downscale'
-import { EDIT_SOURCE_EDGE } from '@/features/upload/lib/fit'
+import { pickFromLibrary, takePhoto } from '@/features/upload/lib/pick-photo'
+import type { CameraBlocked } from '@/features/upload/lib/upload-href'
 import { showUndoToast } from '@/features/upload/ui/UndoToast'
 import { loadLastRecipients, saveLastRecipients } from '@/features/upload/lib/last-recipients'
 import {
@@ -49,16 +48,23 @@ import { haptic } from '@/shared/ui/press'
 
 /** 보낸 직후 되돌릴 수 있는 시간 */
 const UNDO_MS = 5000
-/** 네이티브 스택이 내보내는 전환 종료 이벤트 — 이 화면이 쓰는 부분만 좁게 적는다. */
-type StackTransitionEvents = {
-  addListener: (
-    event: 'transitionEnd',
-    callback: (e: { data?: { closing: boolean } }) => void,
-  ) => () => void
+
+/** 카메라 버튼의 선택창에서 고른 사진(`uploadHref`)과, 카메라를 못 쓴 이유 */
+type PickedParams = {
+  pickedUri?: string
+  pickedW?: string
+  pickedH?: string
+  pickedAt?: string
+  cameraBlocked?: CameraBlocked
 }
 
-/** 전환 종료 이벤트가 오지 않을 때 카메라를 띄울 시점. 모달 전환(~0.5초)보다 길게. */
-const CAMERA_LAUNCH_FALLBACK_MS = 700
+/** 선택창에서 카메라를 못 열었으면 안내로, 아니면(링크로 바로 들어옴 등) 고르는 화면으로 시작한다. */
+function initialFallback(blocked: CameraBlocked | undefined): CaptureFallback {
+  if (blocked === 'denied') return fallbackAfterCamera({ kind: 'denied', canAskAgain: true })
+  if (blocked === 'settings') return fallbackAfterCamera({ kind: 'denied', canAskAgain: false })
+  if (blocked === 'unavailable') return fallbackAfterCamera({ kind: 'unavailable' })
+  return { stage: 'choose' }
+}
 
 /**
  * 되돌리기로 돌아올 때 들고 오는 것 — 사진(이미 정사각으로 확정된 파일)과 입력값.
@@ -76,12 +82,15 @@ type RestoreParams = {
 }
 
 /**
- * 업로드 — 촬영/갤러리 → 미리보기 한 화면에서 보내기.
+ * 업로드 — 고른 사진의 미리보기 한 화면에서 보내기.
  *
  * 촬영은 **OS 기본 카메라**가 맡는다(`ImagePicker.launchCameraAsync`).
  * 자체 뷰파인더를 걷어낸 이유는 그게 기기 카메라의 장점(HDR·나이트모드·볼륨 셔터·줌·
- * 사용자가 이미 아는 UI)을 통째로 버리기 때문이다. 진입하면 바로 OS 카메라를 띄우고,
- * 취소·거부·장치부재는 `fallbackAfterCamera`로 선택 화면이나 안내로 떨어뜨린다.
+ * 사용자가 이미 아는 UI)을 통째로 버리기 때문이다.
+ *
+ * 사진은 카메라 버튼의 선택창(촬영 / 앨범)에서 골라 들고 온다(2026-11-05 시안 B). 예전엔
+ * 진입하자마자 OS 카메라를 띄웠다. 카메라를 못 열었으면 그 이유를, 사진 없이 들어오면
+ * 고르는 화면을 보여 준다. 다시 찍기·취소 뒤 처리는 `fallbackAfterCamera`가 정한다.
  *
  * 미리보기 한 화면에서 끝낸다(2026-10 올리기 흐름 시안 A안):
  * - 먹은 시각 = 찍은 시각. 묻지 않고, 틀렸으면 기록 편집에서 고친다.
@@ -93,38 +102,39 @@ export default function UploadScreen() {
   const insets = useSafeAreaInsets()
   const { user } = useAuth()
   const rq = useQueryClient()
-  const search = useLocalSearchParams<{ group?: string } & RestoreParams>()
-  const restored = !!search.restoreUri
+  const search = useLocalSearchParams<{ group?: string } & RestoreParams & PickedParams>()
 
   /**
    * 촬영(또는 갤러리 선택) 결과 — 자르지 않은 편집 원본. null이면 아직 사진이 없다.
    * 올라갈 정사각 한 장은 보낼 때 캔버스에서 확정한다.
    */
-  const [shot, setShot] = useState<Shot | null>(() =>
-    search.restoreUri
-      ? {
-          uri: search.restoreUri,
-          width: Number(search.restoreW) || 0,
-          height: Number(search.restoreH) || 0,
-          mimeType: 'image/jpeg',
-        }
-      : null,
-  )
+  const [shot, setShot] = useState<Shot | null>(() => {
+    const uri = search.restoreUri ?? search.pickedUri
+    if (!uri) return null
+    return {
+      uri,
+      width: Number(search.restoreW ?? search.pickedW) || 0,
+      height: Number(search.restoreH ?? search.pickedH) || 0,
+      mimeType: 'image/jpeg',
+    }
+  })
   const canvasRef = useRef<PhotoCanvasHandle>(null)
   /**
    * 사진이 없을 때 무엇을 보여줄지.
-   * - null  : OS 카메라를 띄우는 중(=진입 직후). 사용자는 곧 OS 화면을 본다.
-   * - choose: 취소하고 돌아옴 — 다시 찍기/갤러리
+   * - null  : 사진이 있다
+   * - choose: 촬영 / 갤러리 고르기
    * - blocked: 권한 거부·장치 부재 — 이유를 말하고 갤러리로 유도
    */
-  const [fallback, setFallback] = useState<CaptureFallback | null>(null)
+  const [fallback, setFallback] = useState<CaptureFallback | null>(() =>
+    search.restoreUri || search.pickedUri ? null : initialFallback(search.cameraBlocked),
+  )
   const [preparing, setPreparing] = useState(false)
   const [caption, setCaption] = useState(search.restoreCaption ?? '')
   const [uploading, setUploading] = useState(false)
 
   /** 찍은 시각 = 먹은 시각 */
   const [capturedAt, setCapturedAt] = useState<Date>(() =>
-    search.restoreAt ? new Date(search.restoreAt) : new Date(),
+    search.restoreAt || search.pickedAt ? new Date(search.restoreAt ?? search.pickedAt ?? '') : new Date(),
   )
   /** 먹은 시각 'HH:mm' — 찍은 시각이 기본, 보내기 전에 고칠 수 있다 */
   const [time, setTime] = useState(() => hhmmFromDate(capturedAt))
@@ -206,111 +216,25 @@ export default function UploadScreen() {
     return () => sub.remove()
   }, [close, shot])
 
-  /**
-   * OS 기본 카메라로 촬영.
-   *
-   * 취소(`canceled: true`)는 에러가 아니다 — 토스트도 띄우지 않고 선택 화면으로만
-   * 내린다. 시뮬레이터처럼 카메라가 없는 기기에서는 launch가 throw하거나 빈 결과를
-   * 주는데, 둘 다 "장치 부재"로 묶어 갤러리 폴백을 띄운다(앱이 깨지지 않는다).
-   */
+  /** OS 카메라 — 다시 찍기·고르는 화면·권한 안내의 「다시 시도」. 못 찍었으면 이유에 따라 화면을 바꾼다. */
   const openCamera = useCallback(async () => {
     setPreparing(true)
     try {
-      const permission = await ImagePicker.requestCameraPermissionsAsync()
-      if (!permission.granted) {
-        setFallback(
-          fallbackAfterCamera({
-            kind: 'denied',
-            canAskAgain: permission.canAskAgain,
-          }),
-        )
-        return
-      }
-
-      const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ['images'],
-        quality: 1,
-        // 위치·확대는 미리보기 캔버스에서 다룬다 — OS 크롭 화면을 한 겹 더 끼우지 않는다.
-        allowsEditing: false,
-      })
-      if (result.canceled) {
-        setFallback(fallbackAfterCamera({ kind: 'canceled' }))
-        return
-      }
-
-      const asset = result.assets[0]
-      if (!asset) {
-        // 취소도 에러도 아닌데 사진이 없다 — 카메라가 정상 동작하지 않은 것으로 본다.
-        setFallback(fallbackAfterCamera({ kind: 'unavailable' }))
-        return
-      }
-
-      const takenAt = new Date()
-      acceptShot(
-        await downscaleForUpload(
-          { uri: asset.uri, width: asset.width, height: asset.height },
-          EDIT_SOURCE_EDGE,
-          { square: false },
-        ),
-        takenAt,
-      )
-    } catch {
-      // 카메라를 열지 못함(시뮬레이터·장치 오류). 조용히 갤러리 경로로 유도한다 —
-      // 화면 안 안내가 이미 이유를 말하고 있어 토스트까지 겹치면 시끄럽다.
-      setFallback(fallbackAfterCamera({ kind: 'unavailable' }))
+      const result = await takePhoto()
+      if (result.kind === 'shot') acceptShot(result.shot, result.takenAt)
+      else setFallback(fallbackAfterCamera(result))
     } finally {
       setPreparing(false)
     }
   }, [acceptShot])
-
-  // 진입하자마자 OS 카메라. 마운트당 한 번만 — 사용자가 취소한 뒤 다시 자동으로
-  // 띄우면 화면을 벗어날 수 없는 덫이 된다. 되돌리기로 돌아온 경우엔 띄우지 않는다.
-  //
-  // **이 화면이 다 올라온 뒤에** 띄운다. 모달이 올라오는 도중에 카메라를 present하면
-  // iOS가 오류 없이 무시하고, launchCameraAsync가 끝나지 않아 로딩이 영원히 돈다
-  // (카메라 권한을 이미 허용한 실기기에서만 — 권한 창이 뜨면 그 사이 전환이 끝나 재현 안 됨).
-  // 전환 종료 이벤트를 기다리되, 이벤트가 안 오는 경우(딥링크 첫 화면 등)를 위해 시간으로도 받친다.
-  const navigation = useNavigation<StackTransitionEvents>()
-  const autoLaunched = useRef(restored)
-  useEffect(() => {
-    if (autoLaunched.current) return
-    const launch = () => {
-      if (autoLaunched.current) return
-      autoLaunched.current = true
-      void openCamera()
-    }
-    const unsubscribe = navigation.addListener('transitionEnd', (e) => {
-      if (!e.data?.closing) launch()
-    })
-    const fallbackTimer = setTimeout(launch, CAMERA_LAUNCH_FALLBACK_MS)
-    return () => {
-      unsubscribe()
-      clearTimeout(fallbackTimer)
-    }
-  }, [navigation, openCamera])
 
   /** 갤러리에서 선택 — 오늘 찍은 사진이면 그 촬영 시각을 먹은 시각으로 쓴다. */
   const handlePickGallery = async () => {
     if (preparing) return
     setPreparing(true)
     try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
-        quality: 1,
-        allowsEditing: false,
-        exif: true,
-      })
-      if (result.canceled) return
-      const asset = result.assets[0]
-      if (!asset) return
-      acceptShot(
-        await downscaleForUpload(
-          { uri: asset.uri, width: asset.width, height: asset.height },
-          EDIT_SOURCE_EDGE,
-          { square: false },
-        ),
-        capturedAtFromExif(asset.exif, new Date()),
-      )
+      const picked = await pickFromLibrary()
+      if (picked) acceptShot(picked.shot, picked.takenAt)
     } catch (e) {
       notifyError(e, '사진을 불러오지 못했어요')
     } finally {
@@ -391,9 +315,6 @@ export default function UploadScreen() {
     }
   }
 
-  /** OS 카메라를 띄우는 중 — 사진도 폴백도 없는 짧은 대기 구간 */
-  const launching = !shot && fallback === null
-
   return (
     <View className="flex-1 bg-neutral-900">
       {/*
@@ -459,7 +380,7 @@ export default function UploadScreen() {
               onRetry={() => void openCamera()}
               onPickGallery={() => void handlePickGallery()}
             />
-          ) : fallback?.stage === 'choose' ? (
+          ) : (
             <View className="items-center gap-3">
               <View className="size-[88px] items-center justify-center rounded-full bg-white/10">
                 <Ionicons name="restaurant-outline" size={40} color="rgba(255,255,255,0.7)" />
@@ -469,12 +390,9 @@ export default function UploadScreen() {
                 지금 찍거나, 갤러리에 있는 사진을 골라 올릴 수 있어요.
               </Text>
             </View>
-          ) : (
-            // 카메라를 여는 중. OS 화면이 곧 덮으므로 최소한만 보여준다.
-            <ActivityIndicator color="#fff" />
           )}
 
-          {preparing && !launching && (
+          {preparing && (
             <View className="absolute inset-0 items-center justify-center bg-black/40">
               <ActivityIndicator color="#fff" />
             </View>
