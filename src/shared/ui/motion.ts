@@ -23,6 +23,11 @@ export const EASE_IN_OUT = Easing.bezier(0.77, 0, 0.175, 1)
 export const DURATION_PRESS = 120
 /** 인디케이터처럼 화면 위에서 옮겨 가는 것. */
 export const DURATION_MOVE = 250
+/**
+ * 밀거나 끌어내려 닫을 때 화면이 빠져나가는 시간. 250ms로는 손을 떼자마자 사라져
+ * 어디로 갔는지 안 보였다(2026-11-05 피드백). 제자리로 돌아가는 건 DURATION_MOVE 그대로.
+ */
+export const DURATION_DISMISS = 400
 
 export { useReducedMotion }
 

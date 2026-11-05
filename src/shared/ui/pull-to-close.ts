@@ -3,7 +3,7 @@ import { useWindowDimensions } from 'react-native'
 import { Gesture } from 'react-native-gesture-handler'
 import { useAnimatedStyle, useSharedValue, withDelay, withTiming } from 'react-native-reanimated'
 import { scheduleOnRN } from 'react-native-worklets'
-import { DURATION_MOVE, EASE_OUT, useReducedMotion } from './motion'
+import { DURATION_DISMISS, DURATION_MOVE, EASE_OUT, useReducedMotion } from './motion'
 
 /** 이만큼 끌어내리거나(화면 높이의 20%, 최대 140pt) 빠르게 튕기면 닫는다. */
 const DISMISS_RATIO = 0.2
@@ -55,7 +55,7 @@ export function usePullToClose(onClose: () => void, { exit = 'slide', shrink = 0
             return
           }
           y.set(
-            withTiming(height, timing, (done) => {
+            withTiming(height, { duration: DURATION_DISMISS, easing: EASE_OUT }, (done) => {
               if (!done) return
               scheduleOnRN(onClose)
               // 닫힌 뒤에도 마운트된 채 남는 시트가 있다 — 다음에 열 때 제자리에 있게.

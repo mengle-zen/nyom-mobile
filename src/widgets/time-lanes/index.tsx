@@ -158,12 +158,15 @@ export function TimeLanes({
                           </Text>
                         </View>
                       ) : null}
-                      <Text
-                        style={{ fontFamily: STAMP_FONT, textShadowColor: 'rgba(255,120,30,0.75)', textShadowRadius: 4 }}
-                        className="absolute bottom-1 right-1.5 text-xs text-[#FF9A3D]"
-                      >
-                        {time}
-                      </Text>
+                      {/* 필름 날짜 각인 느낌은 두되, 밝은 사진에 묻히지 않게 어두운 바탕을 깐다. */}
+                      <View className="absolute bottom-1 right-1 rounded bg-black/55 px-1">
+                        <Text
+                          style={{ fontFamily: STAMP_FONT, textShadowColor: 'rgba(255,120,30,0.6)', textShadowRadius: 3 }}
+                          className="text-xs text-[#FF9A3D]"
+                        >
+                          {time}
+                        </Text>
+                      </View>
                     </PressableScale>
                   )
                 })}

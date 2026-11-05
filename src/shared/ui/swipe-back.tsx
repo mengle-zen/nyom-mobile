@@ -3,7 +3,7 @@ import { View, useWindowDimensions } from 'react-native'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import Animated, { useAnimatedStyle, useSharedValue, withDelay, withTiming } from 'react-native-reanimated'
 import { scheduleOnRN } from 'react-native-worklets'
-import { DURATION_MOVE, EASE_OUT, useReducedMotion } from './motion'
+import { DURATION_DISMISS, DURATION_MOVE, EASE_OUT, useReducedMotion } from './motion'
 
 /** 이만큼(화면 너비 비율) 넘기거나 빠르게 튕기면 뒤로 간다. */
 const COMMIT_RATIO = 0.3
@@ -53,7 +53,7 @@ export function SwipeBack({ onBack, edge = false, children }: Props) {
             scheduleOnRN(onBack)
           } else {
             x.set(
-              withTiming(width, { duration: DURATION_MOVE, easing: EASE_OUT }, (done) => {
+              withTiming(width, { duration: DURATION_DISMISS, easing: EASE_OUT }, (done) => {
                 if (!done) return
                 scheduleOnRN(onBack)
                 // 탭 화면은 떠난 뒤에도 마운트된 채 남는다. 다시 왔을 때 밀려난 채면 안 되니

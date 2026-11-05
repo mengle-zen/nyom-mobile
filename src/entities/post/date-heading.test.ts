@@ -5,8 +5,9 @@ import { dateHeading } from './date-heading'
 const NOW = new Date('2026-08-28T10:00:00')
 
 describe('dateHeading', () => {
-  it('오늘은 캡션이 없다 — 더 붙일 말이 없다', () => {
-    expect(dateHeading(0, NOW)).toEqual({ primary: '오늘', secondary: null })
+  it('오늘도 날짜 캡션을 붙인다 — 헤더 높이가 다른 날과 같게', () => {
+    expect(dateHeading(0, NOW).primary).toBe('오늘')
+    expect(dateHeading(0, NOW).secondary).toMatch(/^\d+월 \d+일 \([일월화수목금토]\)$/)
   })
 
   it('어제·그저께는 상대어가 주 라벨, 날짜가 캡션', () => {

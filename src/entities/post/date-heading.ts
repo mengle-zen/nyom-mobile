@@ -3,7 +3,7 @@ const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'] as const
 export type DateHeading = {
   /** 크게 보여줄 주 라벨 */
   primary: string
-  /** 주 라벨을 보완하는 작은 캡션. 없으면 null(오늘) */
+  /** 주 라벨을 보완하는 작은 캡션. 없으면 null(미래 — 보드에 오지 않는다) */
   secondary: string | null
 }
 
@@ -42,7 +42,8 @@ function relative(offset: number): string | null {
 export function dateHeading(offset: number, now: Date): DateHeading {
   // 미래(음수)는 보드에서 클램프되어 오지 않지만, 와도 날짜만 보여주고 만다.
   if (offset < 0) return { primary: absolute(offset, now), secondary: null }
-  if (offset === 0) return { primary: '오늘', secondary: null }
+  // 오늘도 날짜를 붙인다 — 캡션이 없으면 헤더 알약이 한 줄이 되어 다른 날과 높이가 달라졌다.
+  if (offset === 0) return { primary: '오늘', secondary: absolute(0, now) }
 
   const rel = relative(offset)
   return rel
