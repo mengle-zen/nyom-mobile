@@ -1,5 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Platform, ScrollView, Text, View, type LayoutChangeEvent } from 'react-native'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from 'react'
+import {
+  Platform,
+  ScrollView,
+  Text,
+  View,
+  type LayoutChangeEvent,
+  type RefreshControlProps,
+} from 'react-native'
 import { Image } from 'expo-image'
 import { FOLD_HEIGHT, hhmmFromDate, postImageSource, timeLanesLayout } from '@/entities/post'
 import type { BoardPost } from '@/entities/post/model'
@@ -26,10 +33,20 @@ type Props = {
   /** 오늘이면 가장 최근 사진으로, 지난날이면 맨 위로 처음 스크롤 */
   startAtLatest: boolean
   onOpenPost: (post: BoardPost) => void
+  /** 띠를 당겨서 새로고침 */
+  refreshControl?: ReactElement<RefreshControlProps>
 }
 
 /** 2026-10-27 설계 ① — 멤버별 세로 띠, 같은 시간축. 배치는 `timeLanesLayout`. */
-export function TimeLanes({ members, posts, currentUserId, now, startAtLatest, onOpenPost }: Props) {
+export function TimeLanes({
+  members,
+  posts,
+  currentUserId,
+  now,
+  startAtLatest,
+  onOpenPost,
+  refreshControl,
+}: Props) {
   const [width, setWidth] = useState(0)
   const [viewH, setViewH] = useState(0)
   const scrollRef = useRef<ScrollView>(null)
@@ -83,7 +100,12 @@ export function TimeLanes({ members, posts, currentUserId, now, startAtLatest, o
                 </View>
               ))}
             </View>
-            <ScrollView ref={scrollRef} style={{ flex: 1 }} contentContainerStyle={{ paddingTop: TOP_PAD, paddingBottom: BOTTOM_PAD }}>
+            <ScrollView
+              ref={scrollRef}
+              style={{ flex: 1 }}
+              contentContainerStyle={{ paddingTop: TOP_PAD, paddingBottom: BOTTOM_PAD }}
+              refreshControl={refreshControl}
+            >
               <View style={{ height: layout.height }}>
                 {layout.marks.map((mark, i) =>
                   mark.kind === 'tick' ? (

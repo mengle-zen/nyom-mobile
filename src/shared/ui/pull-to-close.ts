@@ -38,6 +38,8 @@ export function usePullToClose(onClose: () => void, { exit = 'slide', shrink = 0
   const gesture = useMemo(
     () =>
       Gesture.Pan()
+        // 두 손가락(사진 확대)은 받지 않는다.
+        .maxPointers(1)
         .activeOffsetY(12)
         .failOffsetX([-14, 14])
         .onUpdate((e) => {

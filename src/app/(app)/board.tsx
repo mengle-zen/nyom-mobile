@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Animated,
   Easing,
+  RefreshControl,
   Text,
   View,
   type LayoutChangeEvent,
@@ -116,8 +117,17 @@ export default function BoardScreen() {
     data: posts = [],
     error: postsError,
     isLoading: postsLoading,
+    refetch: refetchPosts,
   } = useBoardPosts(activeGroupId, dateOffset)
-  const { data: recordedDays } = useGroupRecordedDays(activeGroupId)
+  const { data: recordedDays, refetch: refetchRecordedDays } = useGroupRecordedDays(activeGroupId)
+
+  // 띠를 당겨 새로고침 — 그날 사진·달력 점을 다시 받는다(보드는 30초 캐시라 늦게 보일 때).
+  const [refreshing, setRefreshing] = useState(false)
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true)
+    await Promise.allSettled([refetchPosts(), refetchRecordedDays()])
+    setRefreshing(false)
+  }, [refetchPosts, refetchRecordedDays])
 
   const react = useToggleReaction(activeGroupId, dateOffset, userId)
   const send = useSendMessage(activeGroupId, userId)
@@ -354,6 +364,13 @@ export default function BoardScreen() {
                   now={dateOffset === 0 ? new Date() : null}
                   startAtLatest={dateOffset === 0 || dateOffset === linkedOffset}
                   onOpenPost={openPost}
+                  refreshControl={
+                    <RefreshControl
+                      refreshing={refreshing}
+                      onRefresh={() => void onRefresh()}
+                      tintColor="#A89A82"
+                    />
+                  }
                 />
               )}
             </Animated.View>

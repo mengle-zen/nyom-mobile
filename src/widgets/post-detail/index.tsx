@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   AccessibilityInfo,
   Keyboard,
@@ -15,8 +15,9 @@ import {
   type NativeSyntheticEvent,
 } from 'react-native'
 import { Image } from 'expo-image'
-import { GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler'
-import Animated from 'react-native-reanimated'
+import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler'
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated'
+import { scheduleOnRN } from 'react-native-worklets'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import Ionicons from '@expo/vector-icons/Ionicons'
 import { postImageSource, postTimeLabel } from '@/entities/post'
@@ -24,12 +25,15 @@ import type { BoardPost } from '@/entities/post/model'
 import type { GroupMemberProfile } from '@/entities/group'
 import { canSendMessage, MESSAGE_MAX_LENGTH } from '@/entities/message'
 import { ReactionBar } from '@/widgets/meal-tile'
+import { DURATION_MOVE, EASE_OUT, useReducedMotion } from '@/shared/ui/motion'
 import { PressableScale } from '@/shared/ui/press'
 import { usePullToClose } from '@/shared/ui/pull-to-close'
 import { useKeyboardShown } from '@/shared/ui/use-keyboard-shown'
 
 /** 끌어내리는 동안 화면이 작아지는 정도(끝까지 내렸을 때) */
 const DISMISS_SHRINK = 0.15
+/** 두 손가락으로 벌려 확대하는 최대 배율 */
+const MAX_ZOOM = 4
 
 type Props = {
   /** 그 사람의 그날 기록, 시각순. 비어 있으면 닫힌 상태. */
@@ -56,6 +60,9 @@ type Props = {
  * 리액션은 시간 띠에 자리가 없어 여기서만 단다. 넘기는 건 사진 영역만 —
  * 화면 전체를 넘기게 하면 메모를 스크롤하려던 손가락이 장을 넘긴다.
  *
+ * 사진은 두 손가락으로 벌려 확대하고, 놓으면 원래 크기로 돌아온다(인스타 방식). 확대하는 동안은
+ * 사진 넘기기를 멈춘다(끌어내리기는 한 손가락만 받아 저절로 비켜 간다).
+ *
  * 닫기는 × 버튼 또는 헤더·사진 영역을 아래로 끌어내리기(2026-11-05). 끄는 동안 화면이 손가락을
  * 따라 내려가며 작아지고, 투명한 모달 아래로 보드·프로필이 드러난다. 가로 움직임은 실패시켜
  * 사진 넘기기를, 메모 영역은 제스처 밖에 두어 메모 스크롤을 막지 않는다.
@@ -80,6 +87,9 @@ export function PostDetail({
   const open = posts.length > 0 && member !== null
   // 보는 중에 장이 사라지면(삭제 등) 남은 마지막 장에 머문다.
   const post = posts[Math.min(index, posts.length - 1)]
+
+  /** 두 손가락으로 확대하는 중 — 그동안 사진 넘기기를 멈춘다. */
+  const [zooming, setZooming] = useState(false)
 
   const onPageEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     setIndex(Math.round(e.nativeEvent.contentOffset.x / width))
@@ -142,7 +152,7 @@ export function PostDetail({
                         showsHorizontalScrollIndicator={false}
                         onMomentumScrollEnd={onPageEnd}
                         // 한 장뿐이면 넘길 게 없다 — 끝에서 튕기는 것도 막는다.
-                        scrollEnabled={posts.length > 1}
+                        scrollEnabled={posts.length > 1 && !zooming}
                       >
                         {posts.map((p, i) => (
                           <View
@@ -151,7 +161,7 @@ export function PostDetail({
                             accessible={posts.length > 1}
                             accessibilityLabel={`사진 ${posts.length}장 중 ${i + 1}번째`}
                           >
-                            <Photo post={p} />
+                            <ZoomablePhoto post={p} onZoomChange={setZooming} />
                           </View>
                         ))}
                       </ScrollView>
@@ -305,6 +315,68 @@ function ReplyComposer({
         </PressableScale>
       </View>
     </View>
+  )
+}
+
+/**
+ * 두 손가락으로 벌려 확대 — 벌린 자리를 중심으로 커지고, 놓으면 원래 크기로 돌아온다.
+ * 확대 상태를 유지하지 않는다(놓으면 끝) — 확대한 채 넘기기·닫기와 얽히지 않게.
+ */
+function ZoomablePhoto({
+  post,
+  onZoomChange,
+}: {
+  post: BoardPost
+  onZoomChange: (zooming: boolean) => void
+}) {
+  const reduced = useReducedMotion()
+  const scale = useSharedValue(1)
+  /** 벌린 자리(가운데 기준) — 이 점을 중심으로 키운다 */
+  const fx = useSharedValue(0)
+  const fy = useSharedValue(0)
+  const w = useSharedValue(0)
+  const h = useSharedValue(0)
+
+  const pinch = useMemo(
+    () =>
+      Gesture.Pinch()
+        .onStart((e) => {
+          fx.set(e.focalX - w.get() / 2)
+          fy.set(e.focalY - h.get() / 2)
+          scheduleOnRN(onZoomChange, true)
+        })
+        .onUpdate((e) => {
+          scale.set(Math.min(Math.max(e.scale, 1), MAX_ZOOM))
+        })
+        .onEnd(() => {
+          scale.set(reduced ? 1 : withTiming(1, { duration: DURATION_MOVE, easing: EASE_OUT }))
+          scheduleOnRN(onZoomChange, false)
+        }),
+    [scale, fx, fy, w, h, reduced, onZoomChange],
+  )
+
+  const style = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: fx.get() },
+      { translateY: fy.get() },
+      { scale: scale.get() },
+      { translateX: -fx.get() },
+      { translateY: -fy.get() },
+    ],
+  }))
+
+  return (
+    <GestureDetector gesture={pinch}>
+      <Animated.View
+        style={[{ flex: 1 }, style]}
+        onLayout={(e) => {
+          w.set(e.nativeEvent.layout.width)
+          h.set(e.nativeEvent.layout.height)
+        }}
+      >
+        <Photo post={post} />
+      </Animated.View>
+    </GestureDetector>
   )
 }
 

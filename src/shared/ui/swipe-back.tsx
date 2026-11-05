@@ -37,6 +37,8 @@ export function SwipeBack({ onBack, edge = false, children }: Props) {
   const pan = useMemo(
     () =>
       Gesture.Pan()
+        // 두 손가락(사진 확대)은 받지 않는다.
+        .maxPointers(1)
         .activeOffsetX(16)
         .failOffsetX(-16)
         .failOffsetY([-14, 14])
