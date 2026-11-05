@@ -9,6 +9,7 @@ import { RoomChat } from '@/widgets/room-chat'
 import { boardHref } from '@/shared/lib/board-href'
 import { ErrorState } from '@/shared/ui/error-state'
 import { PressableScale } from '@/shared/ui/press'
+import { SwipeBack } from '@/shared/ui/swipe-back'
 
 /** useLocalSearchParams는 같은 키가 여러 번 오면 배열을 준다. 첫 값만 쓴다. */
 function one(value: string | string[] | undefined): string | undefined {
@@ -41,39 +42,42 @@ export default function ChatScreen() {
       style={{ flex: 1 }}
       className="bg-board-bg"
     >
-      <View style={{ flex: 1, paddingTop: insets.top }}>
-        <View className="flex-row items-center gap-3 px-4 pb-2 pt-2">
-          <PressableScale
-            onPress={goBack}
-            hapticKind={null}
-            accessibilityRole="button"
-            accessibilityLabel="방으로 돌아가기"
-            hitSlop={6}
-            className="size-9 items-center justify-center rounded-full bg-white/10"
-          >
-            <Ionicons name="arrow-back" size={18} color="#fff" />
-          </PressableScale>
-          <View className="shrink flex-row items-baseline gap-2" accessible accessibilityRole="header">
-            <Text numberOfLines={1} className="shrink text-base font-bold text-white">
-              {group?.name ?? ''}
-            </Text>
-            {members.length > 0 && (
-              <Text className="text-xs font-semibold text-white/55">{members.length}명</Text>
-            )}
+      {/* 탭 레이아웃 안의 화면이라 iOS 스택의 뒤로 가기 스와이프가 없다 — 오른쪽으로 밀어 뒤로. */}
+      <SwipeBack onBack={goBack}>
+        <View style={{ flex: 1, paddingTop: insets.top }} className="bg-board-bg">
+          <View className="flex-row items-center gap-3 px-4 pb-2 pt-2">
+            <PressableScale
+              onPress={goBack}
+              hapticKind={null}
+              accessibilityRole="button"
+              accessibilityLabel="방으로 돌아가기"
+              hitSlop={6}
+              className="size-9 items-center justify-center rounded-full bg-white/10"
+            >
+              <Ionicons name="arrow-back" size={18} color="#fff" />
+            </PressableScale>
+            <View className="shrink flex-row items-baseline gap-2" accessible accessibilityRole="header">
+              <Text numberOfLines={1} className="shrink text-base font-bold text-white">
+                {group?.name ?? ''}
+              </Text>
+              {members.length > 0 && (
+                <Text className="text-xs font-semibold text-white/55">{members.length}명</Text>
+              )}
+            </View>
           </View>
-        </View>
 
-        {groupId && user ? (
-          <RoomChat
-            groupId={groupId}
-            userId={user.id}
-            members={members}
-            bottomInset={insets.bottom}
-          />
-        ) : (
-          <ErrorState message="방을 찾지 못했어요" onRetry={goBack} />
-        )}
-      </View>
+          {groupId && user ? (
+            <RoomChat
+              groupId={groupId}
+              userId={user.id}
+              members={members}
+              bottomInset={insets.bottom}
+            />
+          ) : (
+            <ErrorState message="방을 찾지 못했어요" onRetry={goBack} />
+          )}
+        </View>
+      </SwipeBack>
     </KeyboardAvoidingView>
   )
 }
