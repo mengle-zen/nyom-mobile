@@ -26,11 +26,11 @@ import Animated, {
 import { scheduleOnRN } from 'react-native-worklets'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import Ionicons from '@expo/vector-icons/Ionicons'
-import { postImageSource, postTimeLabel } from '@/entities/post'
+import { hhmmFromDate, postImageSource, postTimeLabel } from '@/entities/post'
 import type { BoardPost } from '@/entities/post/model'
 import type { GroupMemberProfile } from '@/entities/group'
 import { myReactionEmoji, REACTION_EMOJIS } from '@/entities/reaction'
-import { canSendMessage, MESSAGE_MAX_LENGTH } from '@/entities/message'
+import { canSendMessage, MESSAGE_MAX_LENGTH, usePostReplies } from '@/entities/message'
 import { ReactionBar } from '@/widgets/meal-tile'
 import { DURATION_MOVE, EASE_OUT, useReducedMotion } from '@/shared/ui/motion'
 import { PressableScale, haptic } from '@/shared/ui/press'
@@ -51,6 +51,8 @@ type Props = {
   /** 처음 보여 줄 장 — 보드에서 누른 사진 */
   initialIndex: number
   member: GroupMemberProfile | null
+  /** 방 멤버 — 댓글 쓴 사람의 이름·얼굴 */
+  members: GroupMemberProfile[]
   isMe: boolean
   currentUserId: string
   onReact: (postId: string, emoji: string) => void
@@ -81,13 +83,15 @@ type Props = {
  * 사진 넘기기를, 메모 영역은 제스처 밖에 두어 메모 스크롤을 막지 않는다.
  *
  * 맨 아래 입력칸은 인스타 스토리 답장처럼 보고 있는 장에 답장한다(2026-11-03 방 채팅).
- * 답장은 방 채팅에 그 기록을 인용해 올라가고, 여기에는 목록을 두지 않는다 — 상세는
- * 사진을 보는 곳이고 대화는 대화방에서 한다(docs/superpowers/specs/2026-11-03-room-chat-design.md).
+ * 답장은 방 채팅에 그 기록을 인용해 올라가고, 메모·리액션 아래에 댓글로도 보인다
+ * (2026-11-05 시안 A — 처음엔 상세에 목록을 두지 않았다). 댓글은 따로 저장하지 않고
+ * 그 기록을 가리키는 채팅 메시지를 모아 보여 준다.
  */
 export function PostDetail({
   posts,
   initialIndex,
   member,
+  members,
   isMe,
   currentUserId,
   onReact,
@@ -193,7 +197,7 @@ export function PostDetail({
                 </GestureDetector>
 
                 <ScrollView
-                  style={{ maxHeight: 176 }}
+                  style={{ maxHeight: 240 }}
                   contentContainerStyle={{
                     gap: 12,
                     paddingHorizontal: 20,
@@ -212,6 +216,12 @@ export function PostDetail({
                     currentUserId={currentUserId}
                     onReact={onReact}
                     alwaysExpanded
+                  />
+                  <PostComments
+                    key={post.id}
+                    postId={post.id}
+                    members={members}
+                    currentUserId={currentUserId}
                   />
                 </ScrollView>
 
@@ -336,6 +346,73 @@ function ReplyComposer({
           </Text>
         </PressableScale>
       </View>
+    </View>
+  )
+}
+
+/** 처음에 보여 줄 최근 댓글 수. 더 있으면 「댓글 n개 모두 보기」 */
+const COMMENTS_PREVIEW = 3
+
+/** 메모·리액션 아래 댓글 — 이 기록에 단 답장들. 없으면 아무것도 그리지 않는다. */
+function PostComments({
+  postId,
+  members,
+  currentUserId,
+}: {
+  postId: string
+  members: GroupMemberProfile[]
+  currentUserId: string
+}) {
+  const { data: replies = [] } = usePostReplies(postId)
+  const [expanded, setExpanded] = useState(false)
+  if (replies.length === 0) return null
+
+  const shown = expanded ? replies : replies.slice(-COMMENTS_PREVIEW)
+  const hidden = replies.length - shown.length
+
+  return (
+    <View className="gap-2.5 border-t border-white/10 pt-3">
+      <Text accessibilityRole="header" className="text-xs font-bold text-white/40">
+        댓글
+      </Text>
+      {hidden > 0 && (
+        <Pressable
+          onPress={() => setExpanded(true)}
+          accessibilityRole="button"
+          hitSlop={6}
+          className="self-start active:opacity-60"
+        >
+          <Text className="text-xs font-semibold text-white/55">댓글 {replies.length}개 모두 보기</Text>
+        </Pressable>
+      )}
+      {shown.map((reply) => {
+        const author = members.find((m) => m.user_id === reply.user_id)
+        const name = reply.user_id === currentUserId ? '나' : (author?.nickname ?? '나간 친구')
+        const time = hhmmFromDate(new Date(reply.created_at))
+        return (
+          <View
+            key={reply.id}
+            accessible
+            accessibilityLabel={`${name}, ${reply.content}, ${time}`}
+            className="flex-row items-start gap-2"
+          >
+            <View className="size-6 items-center justify-center overflow-hidden rounded-full bg-white/15">
+              {author?.avatar_url ? (
+                <Image source={{ uri: author.avatar_url }} style={{ width: 24, height: 24 }} contentFit="cover" />
+              ) : (
+                <Text className="text-[10px] font-bold text-white/80">{name.slice(0, 1)}</Text>
+              )}
+            </View>
+            <View className="shrink">
+              <Text className="text-[13px] leading-snug text-white/85">
+                <Text className="font-bold text-white">{name} </Text>
+                {reply.content}
+              </Text>
+              <Text className="text-[10px] text-white/35">{time}</Text>
+            </View>
+          </View>
+        )
+      })}
     </View>
   )
 }

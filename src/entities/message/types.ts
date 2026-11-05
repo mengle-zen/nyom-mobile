@@ -29,6 +29,14 @@ export type RoomMessage = {
   reply_to: RepliedMessage | null
 }
 
+/** 사진 상세의 댓글 — 그 기록을 가리키는 채팅 메시지(상세에서 보낸 답장) */
+export type PostReply = {
+  id: string
+  user_id: string
+  content: string
+  created_at: string
+}
+
 /** 방 멤버 한 명의 읽음 상태 — 메시지마다 안 읽은 사람 수를 센다. */
 export type RoomReadState = {
   user_id: string

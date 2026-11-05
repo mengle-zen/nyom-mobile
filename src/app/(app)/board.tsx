@@ -417,6 +417,7 @@ export default function BoardScreen() {
           posts={detailPosts}
           initialIndex={detailIndex}
           member={detailMember}
+          members={members}
           isMe={detailPosts[0]?.user_id === userId}
           currentUserId={userId}
           onReact={react}

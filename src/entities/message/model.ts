@@ -1,5 +1,11 @@
 import { supabase } from '@/shared/api/supabase'
-import { MESSAGE_PAGE_SIZE, type QuotedPost, type RoomMessage, type RoomReadState } from './types'
+import {
+  MESSAGE_PAGE_SIZE,
+  type PostReply,
+  type QuotedPost,
+  type RoomMessage,
+  type RoomReadState,
+} from './types'
 
 // 자기 참조라 테이블 이름(`room_messages!…`)으로 걸면 반대쪽(이 메시지에 달린 답장들)이 온다.
 // FK 컬럼 이름으로 걸어야 원래 메시지 하나가 온다.
@@ -89,6 +95,20 @@ export async function deleteRoomMessage(id: string): Promise<void> {
 export async function markRoomRead(groupId: string): Promise<void> {
   const { error } = await supabase.rpc('mark_room_read', { p_group_id: groupId } as never)
   if (error) throw error
+}
+
+/**
+ * 사진 상세의 댓글 — 그 기록을 가리키는 채팅 메시지, 오래된 것부터.
+ * 따로 저장하지 않는다. 상세에서 보낸 답장이 곧 댓글이고, 채팅에서 지우면 여기서도 빠진다.
+ */
+export async function fetchPostReplies(postId: string): Promise<PostReply[]> {
+  const { data, error } = await supabase
+    .from('room_messages')
+    .select('id, user_id, content, created_at')
+    .eq('post_id', postId)
+    .order('created_at', { ascending: true })
+  if (error) throw error
+  return (data ?? []) as PostReply[]
 }
 
 /** 방 멤버들의 읽음 상태. 같은 방 멤버끼리는 서로의 행을 읽을 수 있다(group_members select 정책). */

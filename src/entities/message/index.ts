@@ -1,4 +1,4 @@
-export type { RoomMessage, QuotedPost, RepliedMessage, RoomReadState } from './types'
+export type { RoomMessage, QuotedPost, RepliedMessage, RoomReadState, PostReply } from './types'
 export { MESSAGE_MAX_LENGTH } from './types'
 export {
   buildChatRows,
@@ -17,6 +17,7 @@ export {
   useDeleteMessage,
   useMarkRoomRead,
   useRoomReads,
+  usePostReplies,
   useRoomUnread,
   useInvalidateRoomUnread,
 } from './queries'

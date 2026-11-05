@@ -14,6 +14,7 @@ import { insertMessage, removeMessage } from './chat-rows'
 import {
   deleteRoomMessage,
   fetchRoomMessage,
+  fetchPostReplies,
   fetchRoomMessages,
   fetchRoomReads,
   fetchRoomUnread,
@@ -99,6 +100,8 @@ export function useSendMessage(groupId: string | null, userId: string) {
     mutationFn: (input: { content: string; postId?: string | null; replyToId?: string | null }) =>
       sendRoomMessage({ groupId: groupId as string, userId, ...input }),
     onSuccess: (message) => {
+      // 기록에 단 답장은 그 사진의 댓글이기도 하다.
+      if (message.post) void qc.invalidateQueries({ queryKey: queryKeys.postReplies(message.post.id) })
       if (!groupId) return
       updatePages(qc, groupId, (pages) => insertMessage(pages, message))
     },
@@ -111,6 +114,8 @@ export function useDeleteMessage(groupId: string | null) {
     mutationFn: deleteRoomMessage,
     onSuccess: (_, id) => {
       if (groupId) updatePages(qc, groupId, (pages) => removeMessage(pages, id))
+      // 지운 메시지가 어느 사진의 댓글이었는지 모르니 댓글은 모두 다시 받게 둔다.
+      void qc.invalidateQueries({ queryKey: queryKeys.postRepliesAll })
     },
   })
 }
@@ -124,6 +129,16 @@ export function useMarkRoomRead(groupId: string | null) {
       if (groupId) announceRead(groupId)
       return qc.invalidateQueries({ queryKey: queryKeys.roomUnreadAll })
     },
+  })
+}
+
+/** 사진 상세의 댓글. 상세를 열 때마다 새로 받는다(채팅에서 사이에 달렸을 수 있다). */
+export function usePostReplies(postId: string | null) {
+  return useQuery({
+    queryKey: queryKeys.postReplies(postId ?? ''),
+    queryFn: () => fetchPostReplies(postId as string),
+    enabled: !!postId,
+    staleTime: 0,
   })
 }
 
