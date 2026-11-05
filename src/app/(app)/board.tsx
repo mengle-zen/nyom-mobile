@@ -73,35 +73,35 @@ export default function BoardScreen() {
   const params = useLocalSearchParams()
   const groupIdParam = one(params.group)
 
-  // 푸시 딥링크(?date=)는 "초기 날짜"만 정한다. 이후 스와이프·달력 조작을 URL이 되돌리면
-  // 안 되므로 lazy initializer로 첫 렌더에서만 읽는다(웹과 같은 규칙). slot·tag가 실려 와도
-  // 시간 띠는 끼니로 나누지 않아 무시한다.
-  const [initialTarget] = useState(() =>
-    deeplinkTarget({ date: one(params.date) }, new Date(), MAX_OFFSET),
-  )
-  const [dateOffset, setDateOffset] = useState(initialTarget.dateOffset)
-  /** 알림·업로드로 연 날 — 지난날이어도 그날 가장 최근 사진으로 스크롤한다. */
-  const [linkedOffset] = useState(() => (one(params.date) ? initialTarget.dateOffset : null))
+  // 푸시·업로드·채팅 인용이 싣는 ?date=(&post=)는 "그날로 가서(그 기록을 열어) 보여 달라"는 요청이다.
+  // 보드는 스택 아래에 이미 떠 있는 일이 많아(푸시를 누를 때 보던 방 등) 첫 렌더에서만 읽으면
+  // 새 링크가 와도 보던 날에 머문다 — 오늘 올라온 사진이 안 보였다. 그래서 링크가 올 때마다 읽고,
+  // 읽은 뒤 date·post를 지운다. 남겨 두면 이후 스와이프·달력 조작을 URL이 되돌리지는 않지만,
+  // 같은 링크가 다시 와도 값이 그대로라 반응하지 않는다. slot·tag는 시간 띠가 끼니로 나누지 않아 무시한다.
+  // 기록이 불러와지면 detailPosts가 채워진다.
+  const linkedDate = one(params.date)
+  const linkedPost = one(params.post)
+  // 기록 id는 고유하고, 날짜만 오는 링크(업로드·옛 푸시)는 날짜가 키다. 읽은 뒤 지우므로 같은 링크가 다시 와도 반응한다.
+  const linkKey = linkedPost ?? linkedDate
+  const [dateOffset, setDateOffset] = useState(0)
+  /** 링크로 연 날 — 지난날이어도 그날 가장 최근 사진으로 스크롤한다. */
+  const [linkedOffset, setLinkedOffset] = useState<number | null>(null)
   const [pickerOpen, setPickerOpen] = useState(false)
   const [detailPostId, setDetailPostId] = useState<string | null>(null)
-
-  // 채팅의 답장 인용(?post=&date=)으로 오면 그날로 가서 그 기록의 상세를 연다. 보드는 대화방
-  // 아래에 이미 떠 있어 다시 마운트되지 않으므로 첫 렌더가 아니라 파라미터가 올 때마다 읽고,
-  // 읽은 뒤 post를 지운다 — 남겨 두면 같은 인용을 다시 눌러도 값이 그대로라 열리지 않는다.
-  // 기록이 불러와지면 detailPosts가 채워진다.
-  const linkedPost = one(params.post)
-  const [seenPost, setSeenPost] = useState<string | undefined>(undefined)
-  if (linkedPost !== seenPost) {
+  const [seenLink, setSeenLink] = useState<string | undefined>(undefined)
+  if (linkKey !== seenLink) {
     // 렌더 중 상태 맞추기(React 문서의 "prop이 바뀔 때 state 조정" 패턴) — effect로 하면 한 번 더 그린다.
-    setSeenPost(linkedPost)
-    if (linkedPost) {
-      setDateOffset(deeplinkTarget({ date: one(params.date) }, new Date(), MAX_OFFSET).dateOffset)
-      setDetailPostId(linkedPost)
+    setSeenLink(linkKey)
+    if (linkKey) {
+      const offset = deeplinkTarget({ date: linkedDate }, new Date(), MAX_OFFSET).dateOffset
+      setDateOffset(offset)
+      setLinkedOffset(linkedDate ? offset : null)
+      if (linkedPost) setDetailPostId(linkedPost)
     }
   }
   useEffect(() => {
-    if (linkedPost) router.setParams({ post: undefined })
-  }, [linkedPost])
+    if (linkKey) router.setParams({ date: undefined, post: undefined })
+  }, [linkKey])
 
   const { data: groups, error: groupsError, isLoading: groupsLoading } = useMyGroups()
   const activeGroupId = useMemo(() => {
