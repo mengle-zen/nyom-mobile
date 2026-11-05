@@ -14,6 +14,8 @@ import {
 import { Ionicons } from '@expo/vector-icons'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { GestureDetector } from 'react-native-gesture-handler'
+import Animated from 'react-native-reanimated'
 import { useQueryClient } from '@tanstack/react-query'
 
 import { hhmmFromDate, localDayKey, recordedAtOnSameDay } from '@/entities/post/date-range'
@@ -45,6 +47,7 @@ import { queryClient } from '@/shared/api/query-client'
 import { boardHref } from '@/shared/lib/board-href'
 import { notifyError } from '@/shared/lib/error'
 import { haptic } from '@/shared/ui/press'
+import { usePullToClose } from '@/shared/ui/pull-to-close'
 
 /** 보낸 직후 되돌릴 수 있는 시간 */
 const UNDO_MS = 5000
@@ -206,6 +209,11 @@ export default function UploadScreen() {
     ])
   }, [leave, shot, uploading])
 
+  // 위쪽 바를 끌어내리면 X와 같다(전체 화면 모달이라 iOS 기본 내려 닫기가 없다). 사진이 있으면
+  // 그만둘지 물을 수 있어, 밀어내지 않고 제자리로 돌린 뒤 묻는다. 사진 위는 캔버스의 이동·확대라
+  // 위쪽 바에서만 받는다.
+  const pull = usePullToClose(close, { exit: 'none' })
+
   // Android 뒤로 — X와 같은 확인을 거친다.
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
@@ -351,86 +359,92 @@ export default function UploadScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
       >
-        <View style={{ paddingTop: insets.top }} />
+        <Animated.View style={[{ flex: 1 }, pull.style]}>
+          <GestureDetector gesture={pull.gesture}>
+            <View>
+              <View style={{ paddingTop: insets.top }} />
 
-        {/* 상단 바 */}
-        <View className="h-16 flex-row items-center justify-center px-4">
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="닫기"
-            onPress={close}
-            hitSlop={8}
-            className="absolute left-4 size-icon items-center justify-center rounded-full bg-white/15 active:opacity-70"
-          >
-            <Ionicons name="close" size={20} color="#fff" />
-          </Pressable>
-          <Text className="text-xl font-bold text-white">오늘의 한 끼</Text>
-        </View>
-
-        {/* 본문 */}
-        <View
-          className={`flex-1 items-center justify-center gap-7 ${shot ? 'px-4 py-2' : 'px-9'}`}
-        >
-          {shot ? (
-            // 사진을 바꾸면(다시 찍기·갤러리) 편집 상태를 처음부터
-            <PhotoCanvas key={shot.uri} ref={canvasRef} shot={shot} />
-          ) : fallback?.stage === 'blocked' ? (
-            <CameraDenied
-              reason={fallback.reason}
-              onRetry={() => void openCamera()}
-              onPickGallery={() => void handlePickGallery()}
-            />
-          ) : (
-            <View className="items-center gap-3">
-              <View className="size-[88px] items-center justify-center rounded-full bg-white/10">
-                <Ionicons name="restaurant-outline" size={40} color="rgba(255,255,255,0.7)" />
+              {/* 상단 바 */}
+              <View className="h-16 flex-row items-center justify-center px-4">
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="닫기"
+                  onPress={close}
+                  hitSlop={8}
+                  className="absolute left-4 size-icon items-center justify-center rounded-full bg-white/15 active:opacity-70"
+                >
+                  <Ionicons name="close" size={20} color="#fff" />
+                </Pressable>
+                <Text className="text-xl font-bold text-white">오늘의 한 끼</Text>
               </View>
-              <Text className="text-lg font-bold text-white">사진 한 장이면 돼요</Text>
-              <Text className="w-[280px] text-center text-sm leading-5 text-white/65">
-                지금 찍거나, 갤러리에 있는 사진을 골라 올릴 수 있어요.
-              </Text>
             </View>
-          )}
+          </GestureDetector>
 
-          {preparing && (
-            <View className="absolute inset-0 items-center justify-center bg-black/40">
-              <ActivityIndicator color="#fff" />
-            </View>
-          )}
-        </View>
+          {/* 본문 */}
+          <View
+            className={`flex-1 items-center justify-center gap-7 ${shot ? 'px-4 py-2' : 'px-9'}`}
+          >
+            {shot ? (
+              // 사진을 바꾸면(다시 찍기·갤러리) 편집 상태를 처음부터
+              <PhotoCanvas key={shot.uri} ref={canvasRef} shot={shot} />
+            ) : fallback?.stage === 'blocked' ? (
+              <CameraDenied
+                reason={fallback.reason}
+                onRetry={() => void openCamera()}
+                onPickGallery={() => void handlePickGallery()}
+              />
+            ) : (
+              <View className="items-center gap-3">
+                <View className="size-[88px] items-center justify-center rounded-full bg-white/10">
+                  <Ionicons name="restaurant-outline" size={40} color="rgba(255,255,255,0.7)" />
+                </View>
+                <Text className="text-lg font-bold text-white">사진 한 장이면 돼요</Text>
+                <Text className="w-[280px] text-center text-sm leading-5 text-white/65">
+                  지금 찍거나, 갤러리에 있는 사진을 골라 올릴 수 있어요.
+                </Text>
+              </View>
+            )}
 
-        {/* 하단 컨트롤 */}
-        <View style={{ paddingBottom: insets.bottom + 20 }} className="pt-2">
-          {shot ? (
-            <ShotEditor
-              tag={tag}
-              onTagChange={setTag}
-              recentTags={recentTags}
-              time={time}
-              originalTime={hhmmFromDate(capturedAt)}
-              maxTime={hhmmFromDate(new Date())}
-              onTimeChange={(next) => {
-                if (next) setTime(next)
-                setTimeValid(next !== null)
-              }}
-              caption={caption}
-              onCaptionChange={setCaption}
-              recipientSummary={recipientSummary(recipientNames)}
-              onOpenRecipients={() => setRecipientsOpen(true)}
-              sendLabel={sendLabel(recipientNames)}
-              canSend={recipientNames.length > 0 && lastSent !== null && !preparing && timeValid}
-              sending={uploading}
-              onRetake={retake}
-              onSend={() => void send()}
-            />
-          ) : fallback?.stage === 'choose' ? (
-            <CaptureSourcePicker
-              disabled={preparing}
-              onOpenCamera={() => void openCamera()}
-              onPickGallery={() => void handlePickGallery()}
-            />
-          ) : null}
-        </View>
+            {preparing && (
+              <View className="absolute inset-0 items-center justify-center bg-black/40">
+                <ActivityIndicator color="#fff" />
+              </View>
+            )}
+          </View>
+
+          {/* 하단 컨트롤 */}
+          <View style={{ paddingBottom: insets.bottom + 20 }} className="pt-2">
+            {shot ? (
+              <ShotEditor
+                tag={tag}
+                onTagChange={setTag}
+                recentTags={recentTags}
+                time={time}
+                originalTime={hhmmFromDate(capturedAt)}
+                maxTime={hhmmFromDate(new Date())}
+                onTimeChange={(next) => {
+                  if (next) setTime(next)
+                  setTimeValid(next !== null)
+                }}
+                caption={caption}
+                onCaptionChange={setCaption}
+                recipientSummary={recipientSummary(recipientNames)}
+                onOpenRecipients={() => setRecipientsOpen(true)}
+                sendLabel={sendLabel(recipientNames)}
+                canSend={recipientNames.length > 0 && lastSent !== null && !preparing && timeValid}
+                sending={uploading}
+                onRetake={retake}
+                onSend={() => void send()}
+              />
+            ) : fallback?.stage === 'choose' ? (
+              <CaptureSourcePicker
+                disabled={preparing}
+                onOpenCamera={() => void openCamera()}
+                onPickGallery={() => void handlePickGallery()}
+              />
+            ) : null}
+          </View>
+        </Animated.View>
       </KeyboardAvoidingView>
 
       <RecipientSheet

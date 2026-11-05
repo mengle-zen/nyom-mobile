@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   AccessibilityInfo,
   Keyboard,
@@ -15,9 +15,8 @@ import {
   type NativeSyntheticEvent,
 } from 'react-native'
 import { Image } from 'expo-image'
-import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler'
-import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated'
-import { scheduleOnRN } from 'react-native-worklets'
+import { GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler'
+import Animated from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import Ionicons from '@expo/vector-icons/Ionicons'
 import { postImageSource, postTimeLabel } from '@/entities/post'
@@ -25,13 +24,10 @@ import type { BoardPost } from '@/entities/post/model'
 import type { GroupMemberProfile } from '@/entities/group'
 import { canSendMessage, MESSAGE_MAX_LENGTH } from '@/entities/message'
 import { ReactionBar } from '@/widgets/meal-tile'
-import { DURATION_MOVE, EASE_OUT, useReducedMotion } from '@/shared/ui/motion'
 import { PressableScale } from '@/shared/ui/press'
+import { usePullToClose } from '@/shared/ui/pull-to-close'
 import { useKeyboardShown } from '@/shared/ui/use-keyboard-shown'
 
-/** 이만큼(화면 높이 비율) 끌어내리거나 빠르게 튕기면 닫는다. */
-const DISMISS_RATIO = 0.2
-const DISMISS_VELOCITY = 800
 /** 끌어내리는 동안 화면이 작아지는 정도(끝까지 내렸을 때) */
 const DISMISS_SHRINK = 0.15
 
@@ -79,8 +75,7 @@ export function PostDetail({
   onClose,
 }: Props) {
   const insets = useSafeAreaInsets()
-  const { width, height } = useWindowDimensions()
-  const reduced = useReducedMotion()
+  const { width } = useWindowDimensions()
   const [index, setIndex] = useState(initialIndex)
   const open = posts.length > 0 && member !== null
   // 보는 중에 장이 사라지면(삭제 등) 남은 마지막 장에 머문다.
@@ -90,37 +85,7 @@ export function PostDetail({
     setIndex(Math.round(e.nativeEvent.contentOffset.x / width))
   }
 
-  /** 끌어내린 거리 */
-  const dragY = useSharedValue(0)
-  const pullDown = useMemo(
-    () =>
-      Gesture.Pan()
-        .activeOffsetY(16)
-        .failOffsetX([-14, 14])
-        .onUpdate((e) => {
-          dragY.set(Math.max(0, e.translationY))
-        })
-        .onEnd((e) => {
-          const commit = dragY.get() > height * DISMISS_RATIO || e.velocityY > DISMISS_VELOCITY
-          const timing = { duration: DURATION_MOVE, easing: EASE_OUT }
-          if (!commit) {
-            dragY.set(withTiming(0, timing))
-          } else if (reduced) {
-            scheduleOnRN(onClose)
-          } else {
-            dragY.set(
-              withTiming(height, timing, (done) => {
-                if (done) scheduleOnRN(onClose)
-              }),
-            )
-          }
-        }),
-    [dragY, height, reduced, onClose],
-  )
-  const pageStyle = useAnimatedStyle(() => {
-    const p = Math.min(dragY.get() / height, 1)
-    return { transform: [{ translateY: dragY.get() }, { scale: 1 - p * DISMISS_SHRINK }] }
-  })
+  const { gesture: pullDown, style: pageStyle } = usePullToClose(onClose, { shrink: DISMISS_SHRINK })
 
   return (
     <Modal

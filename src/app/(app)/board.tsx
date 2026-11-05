@@ -46,6 +46,7 @@ import { chatHref } from '@/shared/lib/board-href'
 import { ErrorState } from '@/shared/ui/error-state'
 import { EASE_OUT_BEZIER } from '@/shared/ui/motion'
 import { PressableScale, haptic } from '@/shared/ui/press'
+import { SwipeBack } from '@/shared/ui/swipe-back'
 
 /** 최근 2주. 보드 화살표·스와이프·달력이 모두 이 범위를 공유한다. */
 const MAX_OFFSET = 13
@@ -310,102 +311,108 @@ export default function BoardScreen() {
   const groupHasNothing =
     recordedDays !== undefined && recordedDays.size === 0 && posts.length === 0
 
+  const goGroups = () => router.replace(href('/groups'))
+
   return (
-    <View className="flex-1 bg-board-bg" style={{ paddingTop: insets.top }}>
-      <BoardHeader
-        dateLabelText={heading.primary}
-        dateCaption={heading.secondary}
-        canGoOlder={dateOffset < MAX_OFFSET}
-        canGoNewer={dateOffset > 0}
-        onOlder={() => changeDate(dateOffset + 1)}
-        onNewer={() => changeDate(dateOffset - 1)}
-        onDatePress={() => setPickerOpen(true)}
-        onBack={() => router.replace(href('/groups'))}
-        onChat={() => activeGroupId && router.push(chatHref(activeGroupId))}
-        hasUnread={hasUnread}
-        onProfile={() => router.push(href('/profile'))}
-        avatarInitial={profile?.nickname?.[0] ?? '나'}
-        avatarUrl={profile?.avatar_url ?? null}
-      />
+    // 탭 레이아웃 안의 화면이라 스택의 뒤로 가기 스와이프가 없다. 가로 밀기는 날짜 넘기기라
+    // 왼쪽 가장자리에서 시작한 밀기만 뒤로 가기로 받는다.
+    <SwipeBack edge onBack={goGroups}>
+      <View className="flex-1 bg-board-bg" style={{ paddingTop: insets.top }}>
+        <BoardHeader
+          dateLabelText={heading.primary}
+          dateCaption={heading.secondary}
+          canGoOlder={dateOffset < MAX_OFFSET}
+          canGoNewer={dateOffset > 0}
+          onOlder={() => changeDate(dateOffset + 1)}
+          onNewer={() => changeDate(dateOffset - 1)}
+          onDatePress={() => setPickerOpen(true)}
+          onBack={goGroups}
+          onChat={() => activeGroupId && router.push(chatHref(activeGroupId))}
+          hasUnread={hasUnread}
+          onProfile={() => router.push(href('/profile'))}
+          avatarInitial={profile?.nickname?.[0] ?? '나'}
+          avatarUrl={profile?.avatar_url ?? null}
+        />
 
-      <GestureDetector gesture={pan}>
-        {/* NativeWind가 Animated.View까지 감싸지는 않으므로 style로 직접 쓴다 */}
-        <Animated.View
-          onLayout={onStageLayout}
-          style={{ flex: 1, transform: [{ translateX: dragX }] }}
-        >
-          <Animated.View style={{ flex: 1, opacity: contentOpacity }}>
-            {groupHasNothing ? (
-              <NoRecordEmpty onUpload={goUpload} />
-            ) : postsLoading ? (
-              <TimeLanesSkeleton memberCount={members.length} />
-            ) : (
-              <TimeLanes
-                key={dateOffset}
-                members={lanes}
-                posts={posts}
-                currentUserId={userId}
-                now={dateOffset === 0 ? new Date() : null}
-                startAtLatest={dateOffset === 0 || dateOffset === linkedOffset}
-                onOpenPost={openPost}
-              />
-            )}
+        <GestureDetector gesture={pan}>
+          {/* NativeWind가 Animated.View까지 감싸지는 않으므로 style로 직접 쓴다 */}
+          <Animated.View
+            onLayout={onStageLayout}
+            style={{ flex: 1, transform: [{ translateX: dragX }] }}
+          >
+            <Animated.View style={{ flex: 1, opacity: contentOpacity }}>
+              {groupHasNothing ? (
+                <NoRecordEmpty onUpload={goUpload} />
+              ) : postsLoading ? (
+                <TimeLanesSkeleton memberCount={members.length} />
+              ) : (
+                <TimeLanes
+                  key={dateOffset}
+                  members={lanes}
+                  posts={posts}
+                  currentUserId={userId}
+                  now={dateOffset === 0 ? new Date() : null}
+                  startAtLatest={dateOffset === 0 || dateOffset === linkedOffset}
+                  onOpenPost={openPost}
+                />
+              )}
+            </Animated.View>
           </Animated.View>
-        </Animated.View>
-      </GestureDetector>
+        </GestureDetector>
 
-      {/*
-        하단 촬영 버튼은 **보드의 상시 진입점**이다. 내 칸이 이미 찼을 때도, 그룹에
-        기록이 하나도 없을 때도, 과거 날짜를 보고 있을 때도 여기서만 기록을 시작할 수
-        있다.
-      */}
-      <View
-        className="items-center pt-1"
-        style={{ paddingBottom: Math.max(insets.bottom, 12) }}
-      >
-        <PressableScale
-          onPress={goUpload}
-          hapticKind={null}
-          accessibilityRole="button"
-          accessibilityLabel="오늘의 한 끼 기록하기"
-          accessibilityHint="사진을 찍어 오늘 날짜로 기록해요"
-          className="size-16 items-center justify-center rounded-full bg-primary"
+        {/*
+          하단 촬영 버튼은 **보드의 상시 진입점**이다. 내 칸이 이미 찼을 때도, 그룹에
+          기록이 하나도 없을 때도, 과거 날짜를 보고 있을 때도 여기서만 기록을 시작할 수
+          있다.
+        */}
+        <View
+          className="items-center pt-1"
+          style={{ paddingBottom: Math.max(insets.bottom, 12) }}
         >
-          <Ionicons name="camera" size={30} color="#fff" />
-        </PressableScale>
+          <PressableScale
+            onPress={goUpload}
+            hapticKind={null}
+            accessibilityRole="button"
+            accessibilityLabel="오늘의 한 끼 기록하기"
+            accessibilityHint="사진을 찍어 오늘 날짜로 기록해요"
+            className="size-16 items-center justify-center rounded-full bg-primary"
+          >
+            <Ionicons name="camera" size={30} color="#fff" />
+          </PressableScale>
+        </View>
+
+        <DayPicker
+          open={pickerOpen}
+          onClose={() => setPickerOpen(false)}
+          selected={selectedDate}
+          onSelect={handlePickDate}
+          markedDays={recordedDays}
+          maxDate={today}
+          minDate={dateFromOffset(MAX_OFFSET, today)}
+        />
+
+        {/*
+          열 때마다 새로 그려 누른 사진부터 보여 준다. ?post=로 왔을 때는 기록이 불러와지기 전에
+          닫힌 채 먼저 그려지므로, 실제로 열리는 순간 다시 그려야 그 장의 index로 시작한다.
+        */}
+        <PostDetail
+          key={detailPostId && detailPosts.length > 0 ? detailPostId : 'closed'}
+          posts={detailPosts}
+          initialIndex={detailIndex}
+          member={detailMember}
+          isMe={detailPosts[0]?.user_id === userId}
+          currentUserId={userId}
+          onReact={react}
+          onReply={(postId, content) => send.mutateAsync({ content, postId }).then(() => {})}
+          onClose={() => setDetailPostId(null)}
+        />
+        <PhotoSourceSheet
+          open={sourceOpen}
+          onClose={() => setSourceOpen(false)}
+          groupId={activeGroupId}
+        />
       </View>
-
-      <DayPicker
-        open={pickerOpen}
-        onClose={() => setPickerOpen(false)}
-        selected={selectedDate}
-        onSelect={handlePickDate}
-        markedDays={recordedDays}
-        maxDate={today}
-        minDate={dateFromOffset(MAX_OFFSET, today)}
-      />
-
-      {/*
-        열 때마다 새로 그려 누른 사진부터 보여 준다. ?post=로 왔을 때는 기록이 불러와지기 전에
-        닫힌 채 먼저 그려지므로, 실제로 열리는 순간 다시 그려야 그 장의 index로 시작한다.
-      */}
-      <PostDetail
-        key={detailPostId && detailPosts.length > 0 ? detailPostId : 'closed'}
-        posts={detailPosts}
-        initialIndex={detailIndex}
-        member={detailMember}
-        isMe={detailPosts[0]?.user_id === userId}
-        currentUserId={userId}
-        onReact={react}
-        onReply={(postId, content) => send.mutateAsync({ content, postId }).then(() => {})}
-        onClose={() => setDetailPostId(null)}
-      />
-      <PhotoSourceSheet
-        open={sourceOpen}
-        onClose={() => setSourceOpen(false)}
-        groupId={activeGroupId}
-      />
-    </View>
+    </SwipeBack>
   )
 }
 

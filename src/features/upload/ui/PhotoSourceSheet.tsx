@@ -3,6 +3,9 @@ import { Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native
 import { Ionicons } from '@expo/vector-icons'
 import { router } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler'
+import Animated from 'react-native-reanimated'
+import { usePullToClose } from '@/shared/ui/pull-to-close'
 import { notifyError } from '@/shared/lib/error'
 import { pickFromLibrary, takePhoto } from '../lib/pick-photo'
 import { uploadHref } from '../lib/upload-href'
@@ -32,6 +35,7 @@ export function PhotoSourceSheet({
 }) {
   const insets = useSafeAreaInsets()
   const [pending, setPending] = useState<Source | null>(null)
+  const pull = usePullToClose(onClose)
 
   const choose = (source: Source) => {
     onClose()
@@ -73,7 +77,8 @@ export function PhotoSourceSheet({
         if (pending) void launch(pending)
       }}
     >
-      <View style={{ flex: 1 }} className="justify-end">
+      {/* Android는 Modal 안에 루트가 따로 있어야 제스처를 받는다. */}
+      <GestureHandlerRootView style={{ flex: 1, justifyContent: 'flex-end' }}>
         {/* 배경은 형제로 깐다 — 감싸면 스크린 리더가 선택창 전체를 「닫기」 하나로 읽는다. */}
         <Pressable
           accessible={false}
@@ -82,21 +87,30 @@ export function PhotoSourceSheet({
           style={StyleSheet.absoluteFill}
           className="bg-black/50"
         />
-        <View className="gap-2 px-2" style={{ paddingBottom: insets.bottom + 8 }}>
-          <View className="overflow-hidden rounded-2xl bg-[#2E2922]">
-            <SourceRow icon="camera-outline" label="사진 찍기" onPress={() => choose('camera')} />
-            <View className="h-px bg-white/10" />
-            <SourceRow icon="images-outline" label="앨범에서 고르기" onPress={() => choose('library')} />
-          </View>
-          <Pressable
-            onPress={onClose}
-            accessibilityRole="button"
-            className="h-14 items-center justify-center rounded-2xl bg-[#2E2922] active:opacity-70"
-          >
-            <Text className="text-base font-bold text-primary-200">취소</Text>
-          </Pressable>
-        </View>
-      </View>
+        {/* 선택창을 끌어내려도 닫힌다 — 누르는 줄뿐이라 세로 스크롤과 겹치지 않는다. */}
+        <Animated.View style={pull.style}>
+          <GestureDetector gesture={pull.gesture}>
+            <View className="gap-2 px-2" style={{ paddingBottom: insets.bottom + 8 }}>
+              <View className="overflow-hidden rounded-2xl bg-[#2E2922]">
+                <SourceRow icon="camera-outline" label="사진 찍기" onPress={() => choose('camera')} />
+                <View className="h-px bg-white/10" />
+                <SourceRow
+                  icon="images-outline"
+                  label="앨범에서 고르기"
+                  onPress={() => choose('library')}
+                />
+              </View>
+              <Pressable
+                onPress={onClose}
+                accessibilityRole="button"
+                className="h-14 items-center justify-center rounded-2xl bg-[#2E2922] active:opacity-70"
+              >
+                <Text className="text-base font-bold text-primary-200">취소</Text>
+              </Pressable>
+            </View>
+          </GestureDetector>
+        </Animated.View>
+      </GestureHandlerRootView>
     </Modal>
   )
 }

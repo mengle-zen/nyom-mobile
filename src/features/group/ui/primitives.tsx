@@ -13,6 +13,9 @@ import {
   type TextInputProps,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler'
+import Animated from 'react-native-reanimated'
+import { usePullToClose } from '@/shared/ui/pull-to-close'
 import Feather from '@expo/vector-icons/Feather'
 
 import { PressableScale, type HapticKind } from '@/shared/ui/press'
@@ -231,45 +234,52 @@ export function BottomSheet({
   children: ReactNode
 }) {
   const insets = useSafeAreaInsets()
+  const pull = usePullToClose(onClose)
 
   return (
     <Modal visible transparent animationType="slide" onRequestClose={onClose}>
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
-        {/* 웹의 backdrop-blur는 RN에 없다. 반투명 딤으로 대체한다. */}
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`${title} 닫기`}
-          onPress={onClose}
-          className="flex-1"
-          style={{ backgroundColor: 'rgba(31,27,22,0.4)' }}
-        />
-
-        <View
-          className="rounded-t-xl bg-background"
-          style={{ maxHeight: '88%', paddingBottom: insets.bottom }}
+      {/* Android는 Modal 안에 루트가 따로 있어야 제스처를 받는다. */}
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
-          <View className="items-center pb-1 pt-3">
-            <View className="h-1 w-10 rounded-full bg-border" />
-          </View>
+          {/* 웹의 backdrop-blur는 RN에 없다. 반투명 딤으로 대체한다. */}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`${title} 닫기`}
+            onPress={onClose}
+            className="flex-1"
+            style={{ backgroundColor: 'rgba(31,27,22,0.4)' }}
+          />
 
-          <ScrollView
-            className="px-4"
-            contentContainerStyle={{ paddingBottom: 24 }}
-            keyboardShouldPersistTaps="handled"
+          <Animated.View
+            className="rounded-t-xl bg-background"
+            style={[{ maxHeight: '88%', paddingBottom: insets.bottom }, pull.style]}
           >
-            <Text
-              accessibilityRole="header"
-              className="py-3 text-base font-bold text-foreground"
+            {/* 손잡이를 끌어내리면 닫힌다. 내용은 세로 스크롤이라 손잡이에서만 받는다. */}
+            <GestureDetector gesture={pull.gesture}>
+              <View className="items-center pb-2 pt-3">
+                <View className="h-1 w-10 rounded-full bg-border" />
+              </View>
+            </GestureDetector>
+
+            <ScrollView
+              className="px-4"
+              contentContainerStyle={{ paddingBottom: 24 }}
+              keyboardShouldPersistTaps="handled"
             >
-              {title}
-            </Text>
-            {children}
-          </ScrollView>
-        </View>
-      </KeyboardAvoidingView>
+              <Text
+                accessibilityRole="header"
+                className="py-3 text-base font-bold text-foreground"
+              >
+                {title}
+              </Text>
+              {children}
+            </ScrollView>
+          </Animated.View>
+        </KeyboardAvoidingView>
+      </GestureHandlerRootView>
     </Modal>
   )
 }
