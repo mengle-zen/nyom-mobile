@@ -12,6 +12,8 @@ export const queryKeys = {
     joinRequests: (groupId: string) => ['groups', 'joinRequests', groupId] as const,
   },
   board: (groupId: string, offset: number) => ['board', groupId, offset] as const,
+  /** 한 방의 모든 날 보드. 기록 올림 푸시를 눌렀을 때 새 사진을 다시 받는다. */
+  boardGroup: (groupId: string) => ['board', groupId] as const,
   recordedDays: (groupId: string) => ['recordedDays', groupId] as const,
   profile: (userId: string) => ['profile', userId] as const,
   myPosts: (userId: string) => ['myPosts', userId] as const,

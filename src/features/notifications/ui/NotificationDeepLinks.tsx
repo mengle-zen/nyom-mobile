@@ -66,9 +66,15 @@ export function NotificationDeepLinks() {
         router.navigate('/(app)/groups')
         return
       }
-      router.navigate(
-        target.chat ? chatHref(target.group) : boardHref(target.group, { date: target.date }),
-      )
+      if (target.chat) {
+        router.navigate(chatHref(target.group))
+        return
+      }
+      // 보드는 30초 캐시를 쓰고 앱으로 돌아와도 다시 받지 않는다. 방금 올라온 사진이
+      // 빠진 캐시를 그대로 보여 주지 않게 그 방 보드를 다시 받는다. 상세는 열지 않고
+      // 그날 타임테이블(가장 최근 사진 쪽)을 보여 준다.
+      void qc.invalidateQueries({ queryKey: queryKeys.boardGroup(target.group) })
+      router.navigate(boardHref(target.group, { date: target.date }))
     }
 
     /** 사용자가 지금 탭한 알림. 항상 새 이동으로 취급한다. */
@@ -102,7 +108,7 @@ export function NotificationDeepLinks() {
       alive = false
       sub.remove()
     }
-  }, [signedIn])
+  }, [signedIn, qc])
 
   return null
 }
