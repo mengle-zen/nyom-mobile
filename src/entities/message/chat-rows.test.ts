@@ -7,6 +7,7 @@ import {
   quoteLabel,
   removeMessage,
   replyQuote,
+  unreadCount,
 } from './chat-rows'
 import type { RoomMessage } from './types'
 
@@ -111,6 +112,32 @@ describe('replyQuote', () => {
       title: null,
       text: '지운 메시지',
     })
+  })
+})
+
+describe('unreadCount', () => {
+  const at = (h: number) => new Date(2026, 10, 5, h).toISOString()
+  const message = { user_id: 'sujin', created_at: at(12) }
+  const read = (user_id: string, joined: number, readAt: number | null) => ({
+    user_id,
+    joined_at: at(joined),
+    chat_read_at: readAt === null ? null : at(readAt),
+  })
+
+  it('보낸 사람·보는 사람을 빼고, 메시지 뒤에 읽은 사람은 읽은 것으로 센다', () => {
+    const reads = [
+      read('sujin', 9, 9), // 보낸 사람
+      read('me', 9, 10), // 보는 사람 — 읽은 시각이 옛날이어도 지금 보고 있다
+      read('jihun', 9, 13), // 메시지 뒤에 읽음
+      read('mina', 9, 11), // 메시지 전에만 읽음
+    ]
+    expect(unreadCount(message, reads, 'me')).toBe(1)
+  })
+  it('한 번도 안 열었으면 안 읽은 것, 메시지 뒤에 들어온 사람은 세지 않는다', () => {
+    expect(unreadCount(message, [read('jihun', 9, null), read('mina', 13, null)], 'me')).toBe(1)
+  })
+  it('모두 읽었으면 0', () => {
+    expect(unreadCount(message, [read('jihun', 9, 12), read('mina', 9, 14)], 'me')).toBe(0)
   })
 })
 

@@ -29,6 +29,14 @@ export type RoomMessage = {
   reply_to: RepliedMessage | null
 }
 
+/** 방 멤버 한 명의 읽음 상태 — 메시지마다 안 읽은 사람 수를 센다. */
+export type RoomReadState = {
+  user_id: string
+  joined_at: string
+  /** 방 채팅을 마지막으로 연 시각. 한 번도 안 열었으면 null */
+  chat_read_at: string | null
+}
+
 /** 한 번에 불러오는 메시지 수. 위로 올리면 이만큼 더. */
 export const MESSAGE_PAGE_SIZE = 50
 export const MESSAGE_MAX_LENGTH = 1000

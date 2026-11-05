@@ -14,10 +14,12 @@ import {
   quoteLabel,
   replyQuote,
   replyTargetName,
+  unreadCount,
   useDeleteMessage,
   useMarkRoomRead,
   useRoomMessages,
   useRoomRealtime,
+  useRoomReads,
   useSendMessage,
   type ChatRow,
   type QuotedPost,
@@ -90,6 +92,8 @@ export function RoomChat({ groupId, userId, members, bottomInset }: Props) {
     [userId, markRead],
   )
   useRoomRealtime(groupId, onIncoming)
+
+  const { data: reads = [] } = useRoomReads(groupId)
 
   const byId = useMemo(() => new Map(members.map((m) => [m.user_id, m])), [members])
   const nicknameOf = useCallback((id: string) => byId.get(id)?.nickname ?? null, [byId])
@@ -185,6 +189,7 @@ export function RoomChat({ groupId, userId, members, bottomInset }: Props) {
           quote={quoteLabel(message, userId, nicknameOf)}
           reply={replyQuote(message, userId, nicknameOf)}
           highlighted={message.id === highlightId}
+          unread={unreadCount(message, reads, userId)}
           onOpenPost={openPost}
           onDelete={deleteMessage}
           onReply={startReply}
@@ -192,7 +197,7 @@ export function RoomChat({ groupId, userId, members, bottomInset }: Props) {
         />
       )
     },
-    [byId, userId, nicknameOf, openPost, deleteMessage, highlightId, startReply, jumpTo],
+    [byId, userId, nicknameOf, openPost, deleteMessage, highlightId, startReply, jumpTo, reads],
   )
 
   let body: ReactNode

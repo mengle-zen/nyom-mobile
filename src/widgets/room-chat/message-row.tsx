@@ -33,6 +33,8 @@ type Props = {
   reply: { title: string | null; text: string } | null
   /** 원문으로 이동해 잠깐 강조하는 중 */
   highlighted: boolean
+  /** 아직 안 읽은 사람 수. 0이면 표시하지 않는다 */
+  unread: number
   onOpenPost: (post: QuotedPost) => void
   onDelete: (id: string) => void
   onReply: (message: RoomMessage) => void
@@ -62,6 +64,7 @@ export const MessageRow = memo(function MessageRow({
   quote,
   reply,
   highlighted,
+  unread,
   onOpenPost,
   onDelete,
   onReply,
@@ -122,6 +125,7 @@ export const MessageRow = memo(function MessageRow({
     reply ? [reply.title, reply.text].filter(Boolean).join(': ') : null,
     message.content,
     spokenTime(time),
+    unread > 0 ? `안 읽은 사람 ${unread}명` : null,
   ]
     .filter(Boolean)
     .join(', ')
@@ -209,7 +213,13 @@ export const MessageRow = memo(function MessageRow({
                   bubble
                 )}
               </View>
-              <Text className="text-[10px] text-white/35">{time}</Text>
+              {/* 시각 위에 아직 안 읽은 사람 수 — 모두 읽으면 사라진다(카카오톡처럼). */}
+              <View className={isMine ? 'items-end' : 'items-start'}>
+                {unread > 0 && (
+                  <Text className="text-[10px] font-extrabold text-board-unread">{unread}</Text>
+                )}
+                <Text className="text-[10px] text-white/35">{time}</Text>
+              </View>
             </View>
           </View>
         </Animated.View>

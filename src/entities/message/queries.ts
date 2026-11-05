@@ -15,10 +15,12 @@ import {
   deleteRoomMessage,
   fetchRoomMessage,
   fetchRoomMessages,
+  fetchRoomReads,
   fetchRoomUnread,
   markRoomRead,
   sendRoomMessage,
 } from './model'
+import { announceRead, subscribeRoomReads } from './read-broadcast'
 import { MESSAGE_PAGE_SIZE, type RoomMessage } from './types'
 
 /**
@@ -113,12 +115,36 @@ export function useDeleteMessage(groupId: string | null) {
   })
 }
 
-/** 읽음 처리 후 안 읽음 점을 다시 계산한다. */
+/** 읽음 처리 후 안 읽음 점을 다시 계산하고, 같은 방 사람들에게 읽었다고 알린다. */
 export function useMarkRoomRead(groupId: string | null) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: () => markRoomRead(groupId as string),
-    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.roomUnreadAll }),
+    onSuccess: () => {
+      if (groupId) announceRead(groupId)
+      return qc.invalidateQueries({ queryKey: queryKeys.roomUnreadAll })
+    },
+  })
+}
+
+/**
+ * 방 멤버들의 읽음 상태 — 메시지마다 안 읽은 사람 수(`unreadCount`)를 센다.
+ * 채팅 화면이 열려 있는 동안 누가 읽었다는 신호가 오면 다시 받는다.
+ */
+export function useRoomReads(groupId: string | null) {
+  const qc = useQueryClient()
+  useEffect(() => {
+    if (!groupId) return
+    return subscribeRoomReads(groupId, () => {
+      void qc.invalidateQueries({ queryKey: queryKeys.roomReads(groupId) })
+    })
+  }, [groupId, qc])
+  return useQuery({
+    queryKey: queryKeys.roomReads(groupId ?? ''),
+    queryFn: () => fetchRoomReads(groupId as string),
+    enabled: !!groupId,
+    // 화면이 닫혀 있던 사이 읽은 것도 들어올 때 반영한다.
+    staleTime: 0,
   })
 }
 

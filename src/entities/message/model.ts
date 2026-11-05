@@ -1,5 +1,5 @@
 import { supabase } from '@/shared/api/supabase'
-import { MESSAGE_PAGE_SIZE, type QuotedPost, type RoomMessage } from './types'
+import { MESSAGE_PAGE_SIZE, type QuotedPost, type RoomMessage, type RoomReadState } from './types'
 
 // 자기 참조라 테이블 이름(`room_messages!…`)으로 걸면 반대쪽(이 메시지에 달린 답장들)이 온다.
 // FK 컬럼 이름으로 걸어야 원래 메시지 하나가 온다.
@@ -89,6 +89,16 @@ export async function deleteRoomMessage(id: string): Promise<void> {
 export async function markRoomRead(groupId: string): Promise<void> {
   const { error } = await supabase.rpc('mark_room_read', { p_group_id: groupId } as never)
   if (error) throw error
+}
+
+/** 방 멤버들의 읽음 상태. 같은 방 멤버끼리는 서로의 행을 읽을 수 있다(group_members select 정책). */
+export async function fetchRoomReads(groupId: string): Promise<RoomReadState[]> {
+  const { data, error } = await supabase
+    .from('group_members')
+    .select('user_id, joined_at, chat_read_at')
+    .eq('group_id', groupId)
+  if (error) throw error
+  return (data ?? []) as RoomReadState[]
 }
 
 /** 안 읽은 메시지가 있는 방 id 집합 */

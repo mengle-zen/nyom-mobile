@@ -1,5 +1,11 @@
 import { hhmmFromDate } from '@/entities/post/date-range'
-import { MESSAGE_MAX_LENGTH, type QuotedPost, type RepliedMessage, type RoomMessage } from './types'
+import {
+  MESSAGE_MAX_LENGTH,
+  type QuotedPost,
+  type RepliedMessage,
+  type RoomMessage,
+  type RoomReadState,
+} from './types'
 
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'] as const
 
@@ -91,6 +97,28 @@ export function replyQuote(
   const target = message.reply_to
   if (!target) return { title: null, text: '지운 메시지' }
   return { title: replyTargetName(target, currentUserId, nicknameOf), text: target.content }
+}
+
+/**
+ * 이 메시지를 아직 안 읽은 사람 수(카카오톡의 노란 숫자). 0이면 표시하지 않는다.
+ *
+ * - 보낸 사람과 지금 보는 사람(대화방을 열고 있으니 읽은 것)은 세지 않는다.
+ * - 메시지보다 뒤에 들어온 사람도 세지 않는다. 방을 나간 사람은 reads에 없다.
+ * - 한 번도 대화방을 안 열었으면(chat_read_at null) 안 읽은 것이다.
+ */
+export function unreadCount(
+  message: Pick<RoomMessage, 'user_id' | 'created_at'>,
+  reads: RoomReadState[],
+  viewerId: string,
+): number {
+  const at = Date.parse(message.created_at)
+  return reads.filter(
+    (r) =>
+      r.user_id !== message.user_id &&
+      r.user_id !== viewerId &&
+      Date.parse(r.joined_at) <= at &&
+      (r.chat_read_at === null || Date.parse(r.chat_read_at) < at),
+  ).length
 }
 
 /** 보낼 수 있는 내용인가 — 공백만은 안 되고 최대 1000자. */

@@ -31,6 +31,8 @@ export const queryKeys = {
   /** 방마다 안 읽은 메시지 여부. key는 그룹 id 집합에 의존한다. */
   roomUnread: (groupIdsKey: string) => ['roomUnread', groupIdsKey] as const,
   roomUnreadAll: ['roomUnread'] as const,
+  /** 방 멤버들의 읽음 상태(메시지마다 안 읽은 사람 수) */
+  roomReads: (groupId: string) => ['roomReads', groupId] as const,
   notificationSettings: (userId: string) =>
     ['notificationSettings', userId] as const,
 } as const

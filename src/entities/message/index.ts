@@ -1,4 +1,4 @@
-export type { RoomMessage, QuotedPost, RepliedMessage } from './types'
+export type { RoomMessage, QuotedPost, RepliedMessage, RoomReadState } from './types'
 export { MESSAGE_MAX_LENGTH } from './types'
 export {
   buildChatRows,
@@ -7,6 +7,7 @@ export {
   quoteLabel,
   replyQuote,
   replyTargetName,
+  unreadCount,
   type ChatRow,
 } from './chat-rows'
 export {
@@ -15,6 +16,7 @@ export {
   useSendMessage,
   useDeleteMessage,
   useMarkRoomRead,
+  useRoomReads,
   useRoomUnread,
   useInvalidateRoomUnread,
 } from './queries'
