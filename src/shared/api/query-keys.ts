@@ -36,6 +36,10 @@ export const queryKeys = {
   postRepliesAll: ['postReplies'] as const,
   /** 방 멤버들의 읽음 상태(메시지마다 안 읽은 사람 수) */
   roomReads: (groupId: string) => ['roomReads', groupId] as const,
+  /** 알림 모아보기. key는 내 그룹 id 집합에 의존한다 */
+  inbox: (userId: string, groupIdsKey: string) => ['inbox', userId, groupIdsKey] as const,
+  /** 알림 목록을 마지막으로 본 시각(이 기기) */
+  inboxSeenAt: ['inboxSeenAt'] as const,
   notificationSettings: (userId: string) =>
     ['notificationSettings', userId] as const,
 } as const

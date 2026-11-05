@@ -1,13 +1,15 @@
 import { useCallback, useState } from 'react'
 import { RefreshControl, ScrollView, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { useFocusEffect } from 'expo-router'
+import { router, useFocusEffect } from 'expo-router'
 import { useQueryClient } from '@tanstack/react-query'
 import Feather from '@expo/vector-icons/Feather'
+import Ionicons from '@expo/vector-icons/Ionicons'
 
 import { useGroupStats, useMyGroups, usePublicGroups } from '@/entities/group'
 import { useRoomUnread } from '@/entities/message'
 import { useAuth } from '@/features/auth'
+import { useInboxHasUnread } from '@/features/inbox'
 import { PushAskModal } from '@/features/notifications'
 import {
   CreateJoinSheet,
@@ -36,6 +38,7 @@ export default function GroupsScreen() {
   const [refreshing, setRefreshing] = useState(false)
 
   const insets = useSafeAreaInsets()
+  const hasUnreadInbox = useInboxHasUnread()
   const qc = useQueryClient()
   const { user } = useAuth()
 
@@ -92,27 +95,46 @@ export default function GroupsScreen() {
           <Text accessibilityRole="header" className="text-lg font-bold text-foreground">
             그룹
           </Text>
-          {/* 만들기·참여는 상시 노출 폼이 아니라 이 버튼 뒤의 시트로 들어갔다 */}
-          <PressableScale
-            accessibilityRole="button"
-            accessibilityLabel="그룹 추가"
-            accessibilityHint="그룹을 만들거나 초대코드로 참여해요"
-            // 시트를 여는 것은 무언가를 바꾼 게 아니다 — 햅틱 없이 눌림만.
-            hapticKind={null}
-            onPress={() => setAddMode('create')}
-            hitSlop={8}
-            style={{
-              // tailwind `icon` 토큰(44)과 같게
-              width: 44,
-              height: 44,
-              borderRadius: 22,
-              alignItems: 'center',
-              justifyContent: 'center',
-              backgroundColor: '#FFF4EC',
-            }}
-          >
-            <Feather name="plus" size={20} color="#E8651A" />
-          </PressableScale>
+          <View className="flex-row items-center gap-1">
+            {/* 알림 모아보기 — 마지막으로 본 뒤에 온 알림이 있으면 빨간 점 */}
+            <PressableScale
+              accessibilityRole="button"
+              accessibilityLabel={hasUnreadInbox ? '알림, 새 알림 있음' : '알림'}
+              hapticKind={null}
+              onPress={() => router.push('/(app)/inbox' as never)}
+              hitSlop={6}
+              style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}
+            >
+              <Ionicons name="notifications-outline" size={22} color="#3A3329" />
+              {hasUnreadInbox && (
+                <View
+                  pointerEvents="none"
+                  className="absolute right-2.5 top-2.5 size-2.5 rounded-full border-2 border-background bg-destructive"
+                />
+              )}
+            </PressableScale>
+            {/* 만들기·참여는 상시 노출 폼이 아니라 이 버튼 뒤의 시트로 들어갔다 */}
+            <PressableScale
+              accessibilityRole="button"
+              accessibilityLabel="그룹 추가"
+              accessibilityHint="그룹을 만들거나 초대코드로 참여해요"
+              // 시트를 여는 것은 무언가를 바꾼 게 아니다 — 햅틱 없이 눌림만.
+              hapticKind={null}
+              onPress={() => setAddMode('create')}
+              hitSlop={8}
+              style={{
+                // tailwind `icon` 토큰(44)과 같게
+                width: 44,
+                height: 44,
+                borderRadius: 22,
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: '#FFF4EC',
+              }}
+            >
+              <Feather name="plus" size={20} color="#E8651A" />
+            </PressableScale>
+          </View>
         </View>
 
         {/*
