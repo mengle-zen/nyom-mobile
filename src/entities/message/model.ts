@@ -1,10 +1,12 @@
 import { supabase } from '@/shared/api/supabase'
 import { MESSAGE_PAGE_SIZE, type QuotedPost, type RoomMessage } from './types'
 
-
+// 자기 참조라 테이블 이름(`room_messages!…`)으로 걸면 반대쪽(이 메시지에 달린 답장들)이 온다.
+// FK 컬럼 이름으로 걸어야 원래 메시지 하나가 온다.
 const SELECT = `
-  id, group_id, user_id, content, created_at, is_reply,
-  post:posts ( id, user_id, image_url, recorded_at, created_at )
+  id, group_id, user_id, content, created_at, is_reply, is_message_reply,
+  post:posts ( id, user_id, image_url, recorded_at, created_at ),
+  reply_to:reply_to_id ( id, user_id, content )
 `
 
 type Raw = Omit<RoomMessage, 'post'> & { post: Omit<QuotedPost, 'signedImageUrl'> | null }
@@ -57,6 +59,8 @@ export async function sendRoomMessage(params: {
   content: string
   /** 기록에 답장할 때만 */
   postId?: string | null
+  /** 다른 메시지에 답장할 때만 */
+  replyToId?: string | null
 }): Promise<RoomMessage> {
   const { data, error } = await supabase
     .from('room_messages')
@@ -67,6 +71,8 @@ export async function sendRoomMessage(params: {
       content: params.content.trim(),
       post_id: params.postId ?? null,
       is_reply: !!params.postId,
+      reply_to_id: params.replyToId ?? null,
+      is_message_reply: !!params.replyToId,
     } as never)
     .select(SELECT)
     .single()

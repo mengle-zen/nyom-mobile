@@ -1,10 +1,12 @@
-export type { RoomMessage, QuotedPost } from './types'
+export type { RoomMessage, QuotedPost, RepliedMessage } from './types'
 export { MESSAGE_MAX_LENGTH } from './types'
 export {
   buildChatRows,
   canSendMessage,
   chatDayLabel,
   quoteLabel,
+  replyQuote,
+  replyTargetName,
   type ChatRow,
 } from './chat-rows'
 export {

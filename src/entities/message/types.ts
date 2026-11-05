@@ -8,6 +8,13 @@ export type QuotedPost = {
   created_at: string
 }
 
+/** 메시지 답장이 가리키는 원래 메시지. 말풍선 안 「수진에게 답장 / 원문」과 원문으로 이동에 쓴다. */
+export type RepliedMessage = {
+  id: string
+  user_id: string
+  content: string
+}
+
 export type RoomMessage = {
   id: string
   group_id: string
@@ -17,6 +24,9 @@ export type RoomMessage = {
   /** 답장이었나. 기록이 지워지면 post는 null이고 이 값만 남는다(「지운 기록」). */
   is_reply: boolean
   post: QuotedPost | null
+  /** 다른 메시지에 단 답장이었나. 원문이 지워지면 reply_to는 null이고 이 값만 남는다(「지운 메시지」). */
+  is_message_reply: boolean
+  reply_to: RepliedMessage | null
 }
 
 /** 한 번에 불러오는 메시지 수. 위로 올리면 이만큼 더. */

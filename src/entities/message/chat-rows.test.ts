@@ -6,6 +6,7 @@ import {
   insertMessage,
   quoteLabel,
   removeMessage,
+  replyQuote,
 } from './chat-rows'
 import type { RoomMessage } from './types'
 
@@ -20,6 +21,8 @@ function msg(id: string, user: string, at: Date, extra: Partial<RoomMessage> = {
     created_at: at.toISOString(),
     is_reply: false,
     post: null,
+    is_message_reply: false,
+    reply_to: null,
     ...extra,
   }
 }
@@ -88,6 +91,29 @@ describe('quoteLabel', () => {
   })
 })
 
+describe('replyQuote', () => {
+  const names = (id: string) => (id === 'sujin' ? '수진' : null)
+  const reply_to = { id: 'm', user_id: 'sujin', content: '저녁 뭐 먹어' }
+
+  it('일반 메시지는 인용이 없다', () => {
+    expect(replyQuote({ is_message_reply: false, reply_to: null }, 'me', names)).toBeNull()
+  })
+  it('남의 메시지·내 메시지·나간 친구의 메시지', () => {
+    expect(replyQuote({ is_message_reply: true, reply_to }, 'me', names)).toEqual({
+      title: '수진에게 답장',
+      text: '저녁 뭐 먹어',
+    })
+    expect(replyQuote({ is_message_reply: true, reply_to }, 'sujin', names)?.title).toBe('나에게 답장')
+    expect(replyQuote({ is_message_reply: true, reply_to }, 'me', () => null)?.title).toBe('나간 친구에게 답장')
+  })
+  it('원문이 지워졌으면 머리말 없이 「지운 메시지」', () => {
+    expect(replyQuote({ is_message_reply: true, reply_to: null }, 'me', names)).toEqual({
+      title: null,
+      text: '지운 메시지',
+    })
+  })
+})
+
 describe('canSendMessage', () => {
   it('공백만은 안 되고 1000자까지', () => {
     expect(canSendMessage('  ')).toBe(false)
@@ -112,5 +138,13 @@ describe('insertMessage / removeMessage', () => {
   })
   it('지운 메시지는 모든 페이지에서 뺀다', () => {
     expect(removeMessage([[c], [b, a]], 'b')).toEqual([[c], [a]])
+  })
+  it('지운 메시지에 단 답장은 남기고 원문만 비운다', () => {
+    const reply = msg('r', 'u', new Date(2026, 10, 3, 12, 3), {
+      is_message_reply: true,
+      reply_to: { id: 'b', user_id: 'u', content: 'b' },
+    })
+    const [[kept]] = removeMessage([[reply, b]], 'b')
+    expect(kept).toEqual({ ...reply, reply_to: null })
   })
 })

@@ -305,6 +305,8 @@ export type Database = {
           user_id: string
           post_id: string | null
           is_reply: boolean
+          reply_to_id: string | null
+          is_message_reply: boolean
           content: string
           created_at: string
         }
@@ -314,6 +316,8 @@ export type Database = {
           user_id: string
           post_id?: string | null
           is_reply?: boolean
+          reply_to_id?: string | null
+          is_message_reply?: boolean
           content: string
           created_at?: string
         }
@@ -323,6 +327,8 @@ export type Database = {
           user_id?: string
           post_id?: string | null
           is_reply?: boolean
+          reply_to_id?: string | null
+          is_message_reply?: boolean
           content?: string
           created_at?: string
         }

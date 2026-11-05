@@ -1,5 +1,5 @@
 import { hhmmFromDate } from '@/entities/post/date-range'
-import { MESSAGE_MAX_LENGTH, type QuotedPost, type RoomMessage } from './types'
+import { MESSAGE_MAX_LENGTH, type QuotedPost, type RepliedMessage, type RoomMessage } from './types'
 
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'] as const
 
@@ -68,6 +68,31 @@ export function quoteLabel(
   return `${nicknameOf(post.user_id) ?? '나간 친구'}의 ${time} 기록`
 }
 
+/** 메시지 답장의 머리말 — 「수진에게 답장」·「나에게 답장」. 방을 나간 사람이면 「나간 친구에게 답장」. */
+export function replyTargetName(
+  target: Pick<RepliedMessage, 'user_id'>,
+  currentUserId: string,
+  nicknameOf: (userId: string) => string | null,
+): string {
+  const name = target.user_id === currentUserId ? '나' : (nicknameOf(target.user_id) ?? '나간 친구')
+  return `${name}에게 답장`
+}
+
+/**
+ * 말풍선 안 메시지 답장 인용. 원문이 지워졌으면 머리말 없이 「지운 메시지」.
+ * 답장이 아니면 null.
+ */
+export function replyQuote(
+  message: Pick<RoomMessage, 'is_message_reply' | 'reply_to'>,
+  currentUserId: string,
+  nicknameOf: (userId: string) => string | null,
+): { title: string | null; text: string } | null {
+  if (!message.is_message_reply) return null
+  const target = message.reply_to
+  if (!target) return { title: null, text: '지운 메시지' }
+  return { title: replyTargetName(target, currentUserId, nicknameOf), text: target.content }
+}
+
 /** 보낼 수 있는 내용인가 — 공백만은 안 되고 최대 1000자. */
 export function canSendMessage(text: string): boolean {
   const trimmed = text.trim()
@@ -83,6 +108,15 @@ export function insertMessage(pages: RoomMessage[][], message: RoomMessage): Roo
   return [merged, ...rest]
 }
 
+/**
+ * 지운 메시지를 빼고, 그 메시지에 단 답장은 「지운 메시지」로 바꾼다.
+ * 서버는 reply_to_id를 null로 바꾸지만 그 update는 실시간으로 받지 않는다.
+ */
 export function removeMessage(pages: RoomMessage[][], id: string): RoomMessage[][] {
-  return pages.map((page) => page.filter((m) => m.id !== id))
+  return pages.map((page) =>
+    page.flatMap((m) => {
+      if (m.id === id) return []
+      return m.reply_to?.id === id ? [{ ...m, reply_to: null }] : [m]
+    }),
+  )
 }

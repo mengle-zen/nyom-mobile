@@ -94,7 +94,7 @@ export function useRoomRealtime(groupId: string | null, onIncoming?: (message: R
 export function useSendMessage(groupId: string | null, userId: string) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (input: { content: string; postId?: string | null }) =>
+    mutationFn: (input: { content: string; postId?: string | null; replyToId?: string | null }) =>
       sendRoomMessage({ groupId: groupId as string, userId, ...input }),
     onSuccess: (message) => {
       if (!groupId) return

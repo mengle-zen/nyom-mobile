@@ -1,9 +1,11 @@
-import { useCallback, useMemo, useRef, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { ActivityIndicator, FlatList, Text, View } from 'react-native'
 import { router, useFocusEffect } from 'expo-router'
 import {
   buildChatRows,
   quoteLabel,
+  replyQuote,
+  replyTargetName,
   useDeleteMessage,
   useMarkRoomRead,
   useRoomMessages,
@@ -19,6 +21,7 @@ import { setActiveChatGroup } from '@/features/notifications'
 import { boardHref } from '@/shared/lib/board-href'
 import { notifyError } from '@/shared/lib/error'
 import { ErrorState } from '@/shared/ui/error-state'
+import { useReducedMotion } from '@/shared/ui/motion'
 import { Composer } from './composer'
 import { LEFT_MEMBER_NAME, MessageRow } from './message-row'
 
@@ -29,6 +32,9 @@ type Props = {
   /** 입력줄 아래 홈 인디케이터 여백 */
   bottomInset: number
 }
+
+/** 원래 메시지로 이동했을 때 테두리를 보이는 시간 */
+const HIGHLIGHT_MS = 1200
 
 /**
  * 방 채팅 — 메시지 목록 + 입력줄.
@@ -64,9 +70,41 @@ export function RoomChat({ groupId, userId, members, bottomInset }: Props) {
   const byId = useMemo(() => new Map(members.map((m) => [m.user_id, m])), [members])
   const nicknameOf = useCallback((id: string) => byId.get(id)?.nickname ?? null, [byId])
 
-  const rows = useMemo(
-    () => buildChatRows(messages.data?.pages.flat() ?? [], new Date()),
-    [messages.data],
+  const all = useMemo(() => messages.data?.pages.flat() ?? [], [messages.data])
+  const rows = useMemo(() => buildChatRows(all, new Date()), [all])
+
+  // 답장하려던 메시지가 그새 지워지면 목록에서 사라지고 답장도 풀린다.
+  const [replyId, setReplyId] = useState<string | null>(null)
+  const replyTarget = useMemo(() => all.find((m) => m.id === replyId) ?? null, [all, replyId])
+  const replyingTo = useMemo(
+    () =>
+      replyTarget
+        ? {
+            id: replyTarget.id,
+            title: replyTargetName(replyTarget, userId, nicknameOf),
+            text: replyTarget.content,
+          }
+        : null,
+    [replyTarget, userId, nicknameOf],
+  )
+  const startReply = useCallback((message: RoomMessage) => setReplyId(message.id), [])
+  const cancelReply = useCallback(() => setReplyId(null), [])
+
+  // 인용을 누르면 원래 메시지로 스크롤하고 잠깐 테두리. 아직 불러오지 않은 옛 메시지면 그대로 둔다.
+  const reducedMotion = useReducedMotion()
+  const [highlightId, setHighlightId] = useState<string | null>(null)
+  const highlightTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => () => clearTimeout(highlightTimer.current ?? undefined), [])
+  const jumpTo = useCallback(
+    (id: string) => {
+      const index = rows.findIndex((r) => r.type === 'message' && r.message.id === id)
+      if (index < 0) return
+      listRef.current?.scrollToIndex({ index, viewPosition: 0.5, animated: !reducedMotion })
+      setHighlightId(id)
+      clearTimeout(highlightTimer.current ?? undefined)
+      highlightTimer.current = setTimeout(() => setHighlightId(null), HIGHLIGHT_MS)
+    },
+    [rows, reducedMotion],
   )
 
   const openPost = useCallback(
@@ -86,14 +124,18 @@ export function RoomChat({ groupId, userId, members, bottomInset }: Props) {
 
   const onSend = useCallback(
     (content: string) =>
-      sendMessage({ content }).then(
-        () => listRef.current?.scrollToOffset({ offset: 0, animated: false }),
+      sendMessage({ content, replyToId: replyId }).then(
+        () => {
+          // 기다리는 사이 다른 메시지로 답장을 바꿨으면 그건 남긴다.
+          setReplyId((cur) => (cur === replyId ? null : cur))
+          listRef.current?.scrollToOffset({ offset: 0, animated: false })
+        },
         (e: unknown) => {
           notifyError(e, '보내지 못했어요. 다시 보내 주세요')
           throw e
         },
       ),
-    [sendMessage],
+    [sendMessage, replyId],
   )
 
   const renderItem = useCallback(
@@ -117,12 +159,16 @@ export function RoomChat({ groupId, userId, members, bottomInset }: Props) {
           authorName={author?.nickname ?? LEFT_MEMBER_NAME}
           avatarUrl={author?.avatar_url ?? null}
           quote={quoteLabel(message, userId, nicknameOf)}
+          reply={replyQuote(message, userId, nicknameOf)}
+          highlighted={message.id === highlightId}
           onOpenPost={openPost}
           onDelete={deleteMessage}
+          onReply={startReply}
+          onJumpTo={jumpTo}
         />
       )
     },
-    [byId, userId, nicknameOf, openPost, deleteMessage],
+    [byId, userId, nicknameOf, openPost, deleteMessage, highlightId, startReply, jumpTo],
   )
 
   let body: ReactNode
@@ -155,6 +201,14 @@ export function RoomChat({ groupId, userId, members, bottomInset }: Props) {
           if (messages.hasNextPage && !messages.isFetchingNextPage) void messages.fetchNextPage()
         }}
         onEndReachedThreshold={0.3}
+        // 높이가 제각각이라 아직 그려지지 않은 줄로는 바로 못 간다. 근처로 옮긴 뒤 다시 시도한다.
+        onScrollToIndexFailed={({ index, averageItemLength }) => {
+          listRef.current?.scrollToOffset({ offset: index * averageItemLength, animated: false })
+          setTimeout(
+            () => listRef.current?.scrollToIndex({ index, viewPosition: 0.5, animated: !reducedMotion }),
+            100,
+          )
+        }}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="interactive"
         contentContainerStyle={{ paddingVertical: 12 }}
@@ -172,7 +226,13 @@ export function RoomChat({ groupId, userId, members, bottomInset }: Props) {
   return (
     <View style={{ flex: 1 }}>
       <View style={{ flex: 1 }}>{body}</View>
-      <Composer onSend={onSend} sending={sending} bottomInset={bottomInset} />
+      <Composer
+        onSend={onSend}
+        sending={sending}
+        bottomInset={bottomInset}
+        replyingTo={replyingTo}
+        onCancelReply={cancelReply}
+      />
     </View>
   )
 }
