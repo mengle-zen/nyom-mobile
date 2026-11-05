@@ -1,5 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { ActivityIndicator, FlatList, Text, View } from 'react-native'
+import {
+  ActivityIndicator,
+  FlatList,
+  Text,
+  View,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+} from 'react-native'
+import Ionicons from '@expo/vector-icons/Ionicons'
 import { router, useFocusEffect } from 'expo-router'
 import {
   buildChatRows,
@@ -22,6 +30,7 @@ import { boardHref } from '@/shared/lib/board-href'
 import { notifyError } from '@/shared/lib/error'
 import { ErrorState } from '@/shared/ui/error-state'
 import { useReducedMotion } from '@/shared/ui/motion'
+import { PressableScale } from '@/shared/ui/press'
 import { Composer } from './composer'
 import { LEFT_MEMBER_NAME, MessageRow } from './message-row'
 
@@ -32,6 +41,9 @@ type Props = {
   /** 입력줄 아래 홈 인디케이터 여백 */
   bottomInset: number
 }
+
+/** 맨 아래(최신)에서 이만큼 안이면 「맨 아래에 있다」로 본다 */
+const AT_BOTTOM_PX = 48
 
 /** 원래 메시지로 이동했을 때 테두리를 보이는 시간 */
 const HIGHLIGHT_MS = 1200
@@ -58,10 +70,22 @@ export function RoomChat({ groupId, userId, members, bottomInset }: Props) {
     }, [groupId, markRead]),
   )
 
+  // 위로 올려 지난 대화를 읽는 중에 남의 새 메시지가 오면 입력줄 위에 「새 메시지 ↓」를 띄운다.
+  // 맨 아래에 있으면 새 메시지가 바로 보이니 띄우지 않는다. 맨 아래로 내려오면 사라진다.
+  const atBottom = useRef(true)
+  const [unseen, setUnseen] = useState<RoomMessage | null>(null)
+  const onListScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    // 뒤집힌 목록이라 offset 0이 맨 아래(최신)다.
+    atBottom.current = e.nativeEvent.contentOffset.y < AT_BOTTOM_PX
+    if (atBottom.current) setUnseen(null)
+  }, [])
+
   // useRoomRealtime의 effect 의존성이라 참조가 바뀌면 구독을 다시 맺는다 — 고정해 둔다.
   const onIncoming = useCallback(
     (message: RoomMessage) => {
-      if (message.user_id !== userId) markRead()
+      if (message.user_id === userId) return
+      markRead()
+      if (!atBottom.current) setUnseen(message)
     },
     [userId, markRead],
   )
@@ -209,6 +233,8 @@ export function RoomChat({ groupId, userId, members, bottomInset }: Props) {
             100,
           )
         }}
+        onScroll={onListScroll}
+        scrollEventThrottle={100}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="interactive"
         contentContainerStyle={{ paddingVertical: 12 }}
@@ -225,7 +251,28 @@ export function RoomChat({ groupId, userId, members, bottomInset }: Props) {
 
   return (
     <View style={{ flex: 1 }}>
-      <View style={{ flex: 1 }}>{body}</View>
+      <View style={{ flex: 1 }}>
+        {body}
+        {unseen && (
+          <View pointerEvents="box-none" className="absolute inset-x-0 bottom-3 items-center px-10">
+            <PressableScale
+              onPress={() => {
+                setUnseen(null)
+                listRef.current?.scrollToOffset({ offset: 0, animated: !reducedMotion })
+              }}
+              hapticKind={null}
+              accessibilityRole="button"
+              accessibilityLabel={`새 메시지, ${nicknameOf(unseen.user_id) ?? LEFT_MEMBER_NAME}: ${unseen.content}. 맨 아래로`}
+              className="max-w-full flex-row items-center gap-1.5 rounded-full bg-primary py-2 pl-4 pr-3"
+            >
+              <Text numberOfLines={1} className="shrink text-[13px] font-bold text-white">
+                {nicknameOf(unseen.user_id) ?? LEFT_MEMBER_NAME}: {unseen.content}
+              </Text>
+              <Ionicons name="arrow-down" size={15} color="#fff" />
+            </PressableScale>
+          </View>
+        )}
+      </View>
       <Composer
         onSend={onSend}
         sending={sending}

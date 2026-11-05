@@ -16,17 +16,24 @@ import {
 } from 'react-native'
 import { Image } from 'expo-image'
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler'
-import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated'
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withDelay,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated'
 import { scheduleOnRN } from 'react-native-worklets'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import Ionicons from '@expo/vector-icons/Ionicons'
 import { postImageSource, postTimeLabel } from '@/entities/post'
 import type { BoardPost } from '@/entities/post/model'
 import type { GroupMemberProfile } from '@/entities/group'
+import { myReactionEmoji, REACTION_EMOJIS } from '@/entities/reaction'
 import { canSendMessage, MESSAGE_MAX_LENGTH } from '@/entities/message'
 import { ReactionBar } from '@/widgets/meal-tile'
 import { DURATION_MOVE, EASE_OUT, useReducedMotion } from '@/shared/ui/motion'
-import { PressableScale } from '@/shared/ui/press'
+import { PressableScale, haptic } from '@/shared/ui/press'
 import { usePullToClose } from '@/shared/ui/pull-to-close'
 import { useKeyboardShown } from '@/shared/ui/use-keyboard-shown'
 
@@ -34,6 +41,9 @@ import { useKeyboardShown } from '@/shared/ui/use-keyboard-shown'
 const DISMISS_SHRINK = 0.15
 /** 두 손가락으로 벌려 확대하는 최대 배율 */
 const MAX_ZOOM = 4
+/** 사진을 두 번 누르면 다는 리액션 */
+const LIKE = REACTION_EMOJIS[1]
+const HEART_SIZE = 72
 
 type Props = {
   /** 그 사람의 그날 기록, 시각순. 비어 있으면 닫힌 상태. */
@@ -59,6 +69,9 @@ type Props = {
  * 그날 전체). 장마다 별개의 기록이라 시각·메모·리액션도 보고 있는 장을 따라 바뀐다.
  * 리액션은 시간 띠에 자리가 없어 여기서만 단다. 넘기는 건 사진 영역만 —
  * 화면 전체를 넘기게 하면 메모를 스크롤하려던 손가락이 장을 넘긴다.
+ *
+ * 사진을 두 번 누르면 ❤️ 리액션(인스타 방식). 누른 자리에서 하트가 떠오른다. 1인 1리액션이라
+ * 다른 이모지를 달아 뒀으면 ❤️로 바뀌고, 이미 ❤️면 그대로 둔다(두 번 누르기로는 지우지 않는다).
  *
  * 사진은 두 손가락으로 벌려 확대하고, 놓으면 원래 크기로 돌아온다(인스타 방식). 확대하는 동안은
  * 사진 넘기기를 멈춘다(끌어내리기는 한 손가락만 받아 저절로 비켜 간다).
@@ -90,6 +103,11 @@ export function PostDetail({
 
   /** 두 손가락으로 확대하는 중 — 그동안 사진 넘기기를 멈춘다. */
   const [zooming, setZooming] = useState(false)
+
+  const like = (target: BoardPost) => {
+    if (myReactionEmoji(target.reactions, currentUserId) !== LIKE) onReact(target.id, LIKE)
+    void haptic('light')
+  }
 
   const onPageEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     setIndex(Math.round(e.nativeEvent.contentOffset.x / width))
@@ -161,7 +179,11 @@ export function PostDetail({
                             accessible={posts.length > 1}
                             accessibilityLabel={`사진 ${posts.length}장 중 ${i + 1}번째`}
                           >
-                            <ZoomablePhoto post={p} onZoomChange={setZooming} />
+                            <ZoomablePhoto
+                              post={p}
+                              onZoomChange={setZooming}
+                              onDoubleTap={() => like(p)}
+                            />
                           </View>
                         ))}
                       </ScrollView>
@@ -325,9 +347,11 @@ function ReplyComposer({
 function ZoomablePhoto({
   post,
   onZoomChange,
+  onDoubleTap,
 }: {
   post: BoardPost
   onZoomChange: (zooming: boolean) => void
+  onDoubleTap: () => void
 }) {
   const reduced = useReducedMotion()
   const scale = useSharedValue(1)
@@ -355,6 +379,49 @@ function ZoomablePhoto({
     [scale, fx, fy, w, h, reduced, onZoomChange],
   )
 
+  /** 두 번 누른 자리에서 떠오르는 하트 */
+  const heartX = useSharedValue(0)
+  const heartY = useSharedValue(0)
+  const heartScale = useSharedValue(0)
+  const heartOpacity = useSharedValue(0)
+  const heartRise = useSharedValue(0)
+
+  const doubleTap = useMemo(
+    () =>
+      Gesture.Tap()
+        .numberOfTaps(2)
+        .onEnd((e) => {
+          heartX.set(e.x - HEART_SIZE / 2)
+          heartY.set(e.y - HEART_SIZE / 2)
+          if (reduced) {
+            // 움직임 없이 잠깐 보였다 사라진다.
+            heartScale.set(1)
+            heartRise.set(0)
+            heartOpacity.set(
+              withSequence(withTiming(1, { duration: 0 }), withDelay(500, withTiming(0, { duration: 200 }))),
+            )
+          } else {
+            heartScale.set(withSequence(withTiming(1.15, { duration: 160 }), withTiming(1, { duration: 120 })))
+            heartRise.set(0)
+            heartRise.set(withDelay(280, withTiming(-40, { duration: 420, easing: EASE_OUT })))
+            heartOpacity.set(
+              withSequence(withTiming(1, { duration: 80 }), withDelay(400, withTiming(0, { duration: 300 }))),
+            )
+          }
+          scheduleOnRN(onDoubleTap)
+        }),
+    [heartX, heartY, heartScale, heartOpacity, heartRise, reduced, onDoubleTap],
+  )
+
+  const heartStyle = useAnimatedStyle(() => ({
+    opacity: heartOpacity.get(),
+    transform: [
+      { translateX: heartX.get() },
+      { translateY: heartY.get() + heartRise.get() },
+      { scale: heartScale.get() },
+    ],
+  }))
+
   const style = useAnimatedStyle(() => ({
     transform: [
       { translateX: fx.get() },
@@ -366,16 +433,29 @@ function ZoomablePhoto({
   }))
 
   return (
-    <GestureDetector gesture={pinch}>
-      <Animated.View
-        style={[{ flex: 1 }, style]}
-        onLayout={(e) => {
-          w.set(e.nativeEvent.layout.width)
-          h.set(e.nativeEvent.layout.height)
-        }}
-      >
-        <Photo post={post} />
-      </Animated.View>
+    <GestureDetector gesture={Gesture.Simultaneous(pinch, doubleTap)}>
+      <View style={{ flex: 1 }}>
+        <Animated.View
+          style={[{ flex: 1 }, style]}
+          onLayout={(e) => {
+            w.set(e.nativeEvent.layout.width)
+            h.set(e.nativeEvent.layout.height)
+          }}
+        >
+          <Photo post={post} />
+        </Animated.View>
+        <Animated.View
+          pointerEvents="none"
+          style={[{ position: 'absolute', left: 0, top: 0, opacity: 0 }, heartStyle]}
+        >
+          <Ionicons
+            name="heart"
+            size={HEART_SIZE}
+            color="#fff"
+            style={{ textShadowColor: 'rgba(0,0,0,0.35)', textShadowRadius: 12 }}
+          />
+        </Animated.View>
+      </View>
     </GestureDetector>
   )
 }
