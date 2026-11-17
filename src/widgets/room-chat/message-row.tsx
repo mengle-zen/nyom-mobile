@@ -14,7 +14,8 @@ import { PressableScale, haptic } from '@/shared/ui/press'
 export const LEFT_MEMBER_NAME = '나간 친구'
 
 const AVATAR = 32
-const THUMB = 34
+/** 답장이 가리키는 기록 사진 — 무엇에 단 답장인지 사진으로 알아볼 만큼(2026-11-17, 34에서 키움) */
+const THUMB = 120
 /** 이만큼 왼쪽으로 밀면 답장. 넘는 순간 진동이 온다. */
 const REPLY_THRESHOLD = 56
 /** 말풍선이 따라오는 최대 거리. 끝으로 갈수록 덜 따라온다. */
@@ -286,18 +287,18 @@ function QuoteCard({
       onPress={() => onPress(post)}
       hapticKind={null}
       swipeSafe
-      style={{ marginBottom: 4 }}
-      className="flex-row items-center gap-2 rounded-xl bg-board-tile py-1.5 pl-1.5 pr-3"
+      style={{ marginBottom: 4, width: THUMB + 12 }}
+      className="gap-1.5 rounded-xl bg-board-tile p-1.5"
     >
       <View
         style={{ width: THUMB, height: THUMB }}
-        className="overflow-hidden rounded-md bg-white/10"
+        className="overflow-hidden rounded-lg bg-white/10"
       >
         {source && (
           <Image source={source} style={{ width: THUMB, height: THUMB }} contentFit="cover" />
         )}
       </View>
-      <Text numberOfLines={2} className="shrink text-xs font-semibold text-white/70">
+      <Text numberOfLines={2} className="px-0.5 text-xs font-semibold text-white/70">
         {label}
       </Text>
     </PressableScale>
