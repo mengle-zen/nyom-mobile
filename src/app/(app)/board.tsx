@@ -28,6 +28,7 @@ import {
 import type { BoardPost } from '@/entities/post/model'
 import {
   useBoardPosts,
+  useUpdatePostCaption,
   useToggleReaction,
   useGroupRecordedDays,
 } from '@/entities/post/queries'
@@ -42,6 +43,7 @@ import { BoardHeader } from '@/widgets/board-header'
 import { TimeLanes, TimeLanesSkeleton } from '@/widgets/time-lanes'
 import { DayPicker } from '@/widgets/day-picker'
 import { PhotoSourceSheet } from '@/features/upload'
+import { PostEditSheet, type EditablePost } from '@/features/post-edit'
 import { PostDetail } from '@/widgets/post-detail'
 import { chatHref } from '@/shared/lib/board-href'
 import { ErrorState } from '@/shared/ui/error-state'
@@ -91,6 +93,8 @@ export default function BoardScreen() {
   const [linkedOffset, setLinkedOffset] = useState<number | null>(null)
   const [pickerOpen, setPickerOpen] = useState(false)
   const [detailPostId, setDetailPostId] = useState<string | null>(null)
+  /** 사후 편집 대상. 상세에서 넘어온다(두 모달이 겹치지 않게 교체 — 프로필과 같다). */
+  const [editingPost, setEditingPost] = useState<EditablePost | null>(null)
   const [seenLink, setSeenLink] = useState<string | undefined>(undefined)
   if (linkKey !== seenLink) {
     // 렌더 중 상태 맞추기(React 문서의 "prop이 바뀔 때 state 조정" 패턴) — effect로 하면 한 번 더 그린다.
@@ -131,6 +135,7 @@ export default function BoardScreen() {
 
   const react = useToggleReaction(activeGroupId, dateOffset, userId)
   const send = useSendMessage(activeGroupId, userId)
+  const saveCaption = useUpdatePostCaption(userId)
   const unreadQuery = useRoomUnread(activeGroupId ? [activeGroupId] : [])
   const hasUnread = activeGroupId ? (unreadQuery.data?.has(activeGroupId) ?? false) : false
   // 대화방에서 돌아오면 읽음 처리가 끝났으니 점을 다시 계산한다.
@@ -422,8 +427,16 @@ export default function BoardScreen() {
           currentUserId={userId}
           onReact={react}
           onReply={(postId, content) => send.mutateAsync({ content, postId }).then(() => {})}
+          onEdit={(post) => {
+            setDetailPostId(null)
+            setEditingPost({ id: post.id, batch_id: post.batch_id })
+          }}
+          onSaveCaption={(post, caption) =>
+            saveCaption.mutateAsync({ post, caption }).then(() => {})
+          }
           onClose={() => setDetailPostId(null)}
         />
+        <PostEditSheet post={editingPost} onClose={() => setEditingPost(null)} />
         <PhotoSourceSheet
           open={sourceOpen}
           onClose={() => setSourceOpen(false)}

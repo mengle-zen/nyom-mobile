@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   AccessibilityInfo,
+  ActivityIndicator,
   Keyboard,
   KeyboardAvoidingView,
   Modal,
@@ -58,6 +59,10 @@ type Props = {
   onReact: (postId: string, emoji: string) => void
   /** 보고 있는 장에 답장 — 방 채팅에 그 기록을 인용한 메시지로 올라간다. 실패하면 reject. */
   onReply: (postId: string, content: string) => Promise<void>
+  /** 내 기록일 때 보고 있는 장의 시각·태그 등을 고친다. 상세는 닫고 편집 시트를 연다. */
+  onEdit: (post: BoardPost) => void
+  /** 내 기록의 메모만 그 자리에서 고친다. 빈 메모는 null. 실패하면 reject. */
+  onSaveCaption: (post: BoardPost, caption: string | null) => Promise<void>
   onClose: () => void
 }
 
@@ -96,6 +101,8 @@ export function PostDetail({
   currentUserId,
   onReact,
   onReply,
+  onEdit,
+  onSaveCaption,
   onClose,
 }: Props) {
   const insets = useSafeAreaInsets()
@@ -104,6 +111,9 @@ export function PostDetail({
   const open = posts.length > 0 && member !== null
   // 보는 중에 장이 사라지면(삭제 등) 남은 마지막 장에 머문다.
   const post = posts[Math.min(index, posts.length - 1)]
+
+  /** 메모를 고치는 중 — 그동안 답장 입력칸을 숨긴다(입력칸이 둘이면 어디에 쓰는지 헷갈린다). */
+  const [editingCaption, setEditingCaption] = useState(false)
 
   /** 두 손가락으로 확대하는 중 — 그동안 사진 넘기기를 멈춘다. */
   const [zooming, setZooming] = useState(false)
@@ -163,6 +173,19 @@ export function PostDetail({
                           {postTimeLabel(post.recorded_at, post.meal_tag)}
                         </Text>
                       </View>
+                      {isMe && (
+                        <Pressable
+                          // 장을 넘겼으면 보고 있는 장을 고친다
+                          onPress={() => onEdit(post)}
+                          accessibilityRole="button"
+                          accessibilityLabel="기록 편집"
+                          hitSlop={8}
+                          className="h-9 flex-row items-center gap-1.5 rounded-full bg-white/10 px-3 active:opacity-70"
+                        >
+                          <Ionicons name="create-outline" size={16} color="#fff" />
+                          <Text className="text-xs font-semibold text-white">편집</Text>
+                        </Pressable>
+                      )}
                     </View>
 
                     <View className="flex-1 bg-black">
@@ -198,6 +221,8 @@ export function PostDetail({
 
                 <ScrollView
                   style={{ maxHeight: 240 }}
+                  // 메모를 고치다 「저장」을 누르면 첫 탭이 키보드 닫기로 먹히지 않게
+                  keyboardShouldPersistTaps="handled"
                   contentContainerStyle={{
                     gap: 12,
                     paddingHorizontal: 20,
@@ -205,7 +230,15 @@ export function PostDetail({
                     paddingBottom: 12,
                   }}
                 >
-                  {post.caption ? (
+                  {isMe ? (
+                    <CaptionEditor
+                      // 장을 넘기면 그 장의 메모로 새로 시작한다(댓글과 key가 겹치지 않게 접두어)
+                      key={`caption-${post.id}`}
+                      caption={post.caption}
+                      onEditingChange={setEditingCaption}
+                      onSave={(caption) => onSaveCaption(post, caption)}
+                    />
+                  ) : post.caption ? (
                     <Text className="text-sm leading-relaxed text-white/85">{post.caption}</Text>
                   ) : (
                     <Text className="text-sm text-white/30">메모 없이 올렸어요</Text>
@@ -225,19 +258,157 @@ export function PostDetail({
                   />
                 </ScrollView>
 
-                <ReplyComposer
-                  // 장을 넘기면 대상이 바뀐다 — 보내는 순간 보고 있는 장에 답장한다.
-                  postId={post.id}
-                  placeholder={isMe ? '이 기록에 대해 말하기…' : `${member.nickname}에게 답장…`}
-                  bottomInset={insets.bottom}
-                  onReply={onReply}
-                />
+                {editingCaption ? (
+                  <View style={{ height: insets.bottom }} />
+                ) : (
+                  <ReplyComposer
+                    // 장을 넘기면 대상이 바뀐다 — 보내는 순간 보고 있는 장에 답장한다.
+                    postId={post.id}
+                    placeholder={isMe ? '이 기록에 대해 말하기…' : `${member.nickname}에게 답장…`}
+                    bottomInset={insets.bottom}
+                    onReply={onReply}
+                  />
+                )}
               </View>
             </KeyboardAvoidingView>
           </Animated.View>
         </GestureHandlerRootView>
       )}
     </Modal>
+  )
+}
+
+/** 편집 시트의 메모 칸과 같은 한도 */
+const CAPTION_MAX_LENGTH = 100
+
+/**
+ * 내 기록의 메모 — 누르면 그 자리에서 입력칸이 된다(2026-11-17).
+ *
+ * 메모 한 줄 고치려고 상세를 닫고 편집 시트를 여는 건 길었다. 시각·태그·그룹은 여전히
+ * 헤더의 「편집」에서 고친다. 저장 결과는 앱 토스트 대신 여기 적는다 — 상세는 RN `Modal`이라
+ * 루트의 Toaster가 아래에 가려진다(ReplyComposer와 같다).
+ */
+function CaptionEditor({
+  caption,
+  onEditingChange,
+  onSave,
+}: {
+  caption: string | null
+  onEditingChange: (editing: boolean) => void
+  onSave: (caption: string | null) => Promise<void>
+}) {
+  const [draft, setDraft] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [failed, setFailed] = useState(false)
+  const editing = draft !== null
+
+  useEffect(() => {
+    onEditingChange(editing)
+  }, [editing, onEditingChange])
+  // 장을 넘기거나 닫히면 답장 입력칸을 되돌린다
+  useEffect(() => () => onEditingChange(false), [onEditingChange])
+
+  if (!editing) {
+    return (
+      <Pressable
+        onPress={() => {
+          setFailed(false)
+          setDraft(caption ?? '')
+        }}
+        accessibilityRole="button"
+        accessibilityLabel={caption ? `메모 고치기: ${caption}` : '메모 쓰기'}
+        className="flex-row items-start gap-2 active:opacity-60"
+      >
+        {caption ? (
+          <Text className="flex-1 text-sm leading-relaxed text-white/85">{caption}</Text>
+        ) : (
+          <Text className="flex-1 text-sm text-white/40">메모 쓰기</Text>
+        )}
+        <Ionicons name="pencil" size={14} color="rgba(255,255,255,0.45)" style={{ marginTop: 3 }} />
+      </Pressable>
+    )
+  }
+
+  const next = draft.trim() ? draft.trim() : null
+  const changed = next !== (caption ?? null)
+
+  const save = async () => {
+    if (saving) return
+    if (!changed) {
+      setDraft(null)
+      Keyboard.dismiss()
+      return
+    }
+    setSaving(true)
+    setFailed(false)
+    try {
+      await onSave(next)
+      void haptic('success')
+      setDraft(null)
+      Keyboard.dismiss()
+      AccessibilityInfo.announceForAccessibility('메모를 고쳤어요')
+    } catch {
+      // 쓴 글은 그대로 두고 다시 누르기만 하면 되게 한다.
+      void haptic('error')
+      setFailed(true)
+      AccessibilityInfo.announceForAccessibility('메모를 고치지 못했어요. 다시 저장해 주세요')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <View className="gap-2">
+      <TextInput
+        value={draft}
+        onChangeText={(v) => {
+          setDraft(v)
+          if (failed) setFailed(false)
+        }}
+        autoFocus
+        editable={!saving}
+        maxLength={CAPTION_MAX_LENGTH}
+        placeholder="한 줄 메모"
+        placeholderTextColor="rgba(255,255,255,0.45)"
+        accessibilityLabel="메모"
+        returnKeyType="done"
+        submitBehavior="submit"
+        onSubmitEditing={() => void save()}
+        className="h-field rounded-xl bg-board-surface px-4 text-sm text-white"
+      />
+      <View className="flex-row items-center gap-2" accessibilityLiveRegion="polite">
+        {failed && (
+          <Text className="text-xs font-semibold text-destructive">
+            고치지 못했어요. 다시 저장해 주세요
+          </Text>
+        )}
+        <Pressable
+          onPress={() => {
+            setDraft(null)
+            Keyboard.dismiss()
+          }}
+          disabled={saving}
+          accessibilityRole="button"
+          hitSlop={6}
+          className="ml-auto h-9 justify-center px-3 active:opacity-60"
+        >
+          <Text className="text-sm font-semibold text-white/60">취소</Text>
+        </Pressable>
+        <Pressable
+          onPress={() => void save()}
+          disabled={saving}
+          accessibilityRole="button"
+          accessibilityState={{ disabled: saving, busy: saving }}
+          hitSlop={6}
+          className={`h-9 flex-row items-center gap-1.5 rounded-full bg-primary px-4 active:opacity-80 ${
+            saving ? 'opacity-50' : ''
+          }`}
+        >
+          {saving && <ActivityIndicator color="#fff" size="small" />}
+          <Text className="text-sm font-bold text-primary-foreground">저장</Text>
+        </Pressable>
+      </View>
+    </View>
   )
 }
 

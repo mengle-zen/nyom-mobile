@@ -12,6 +12,8 @@ import { dedupeByBatch } from './dedupe'
 export type BoardPost = {
   id: string
   user_id: string
+  /** 같은 촬영을 여러 그룹에 올린 행들이 공유한다 — 사후 편집 대상(`PostBatchRef`) */
+  batch_id: string | null
   image_url: string
   signedImageUrl: string | null
   caption: string | null
@@ -366,7 +368,7 @@ export async function fetchBoardPosts(
   const { data, error } = await supabase
     .from('posts')
     .select(`
-      id, user_id, image_url, caption, meal_tag, created_at, recorded_at,
+      id, user_id, batch_id, image_url, caption, meal_tag, created_at, recorded_at,
       reactions ( emoji, user_id )
     `)
     .eq('group_id', groupId)

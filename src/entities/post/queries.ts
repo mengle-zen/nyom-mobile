@@ -82,12 +82,38 @@ export function invalidateAfterPostEdit(
   qc: QueryClient,
   userId: string,
   affectedGroupIds: string[],
-): void {
-  void qc.invalidateQueries({ queryKey: queryKeys.myPosts(userId) })
-  for (const groupId of affectedGroupIds) {
-    void qc.invalidateQueries({ queryKey: ['board', groupId] })
-    void qc.invalidateQueries({ queryKey: queryKeys.recordedDays(groupId) })
-  }
+): Promise<void> {
+  return Promise.all([
+    qc.invalidateQueries({ queryKey: queryKeys.myPosts(userId) }),
+    ...affectedGroupIds.flatMap((groupId) => [
+      qc.invalidateQueries({ queryKey: ['board', groupId] }),
+      qc.invalidateQueries({ queryKey: queryKeys.recordedDays(groupId) }),
+    ]),
+  ]).then(() => {})
+}
+
+/**
+ * 메모만 고친다 — 사진 상세에서 바로 쓰는 짧은 길.
+ * 편집 RPC는 공유 그룹 전체를 받으므로 현재 그룹을 먼저 읽어 그대로 넘긴다(시각·태그는 유지).
+ * 새로 받은 보드가 도착한 뒤에 끝나야 상세에 옛 메모가 잠깐 비치지 않는다.
+ */
+export function useUpdatePostCaption(userId: string | undefined) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (vars: { post: PostBatchRef; caption: string | null }) => {
+      const batch = await fetchPostBatch(userId as string, vars.post)
+      await updatePostBatch({
+        postId: batch.postId,
+        groupIds: batch.groupIds,
+        caption: vars.caption,
+        recordedAt: null,
+        tag: null,
+      })
+      return batch.groupIds
+    },
+    onSuccess: (groupIds) =>
+      userId ? invalidateAfterPostEdit(qc, userId, groupIds) : undefined,
+  })
 }
 
 /** batch 사후 편집(그룹 추가/제거 · 메모 · 시각 · 끼니). */
