@@ -22,11 +22,14 @@ export function defaultRecipients({
   return []
 }
 
-/** 보내기 버튼 문구. 받는 곳 이름이 버튼에 박혀 있어야 엉뚱한 그룹에 보내는 실수가 준다. */
-export function sendLabel(names: string[]): string {
+/**
+ * 보내기 버튼 문구. 받는 곳 이름이 버튼에 박혀 있어야 엉뚱한 그룹에 보내는 실수가 준다.
+ * 여러 장이면 장 수도 박는다 — 몇 개의 기록이 생기는지 보내기 전에 보이게.
+ */
+export function sendLabel(names: string[], photoCount = 1): string {
   if (names.length === 0) return '받는 곳을 골라 주세요'
-  if (names.length === 1) return `${names[0]}에 보내기`
-  return `${names.length}곳에 보내기`
+  const where = names.length === 1 ? names[0] : `${names.length}곳`
+  return photoCount > 1 ? `${where}에 ${photoCount}장 보내기` : `${where}에 보내기`
 }
 
 /** 「받는 곳」 줄에 쓰는 요약 — 첫 그룹 이름 + 나머지 수 */

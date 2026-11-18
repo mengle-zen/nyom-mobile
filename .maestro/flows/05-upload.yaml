@@ -45,19 +45,24 @@ name: 올리기
 - tapOn: "기록"
 - tapOn: "앨범에서 고르기"
 - waitForAnimationToEnd
-# 시스템 사진 선택기 — 가장 최근 사진(맨 위 왼쪽)
+# 시스템 사진 선택기 — 가장 최근 사진(맨 위 왼쪽). 여러 장을 고를 수 있어(2026-11-17)
+# 한 장을 눌러도 바로 돌아오지 않는다 — 「추가」로 마친다.
 - runFlow:
     when:
       platform: iOS
     commands:
       - tapOn:
           point: "17%,22%"
+      - tapOn: "추가|Add"
 - runFlow:
     when:
       platform: Android
     commands:
       - tapOn:
           point: "17%,34%"
+      - tapOn:
+          text: "선택|Select|완료|Done"
+          optional: true
 - extendedWaitUntil:
     visible: "받는 곳"
     timeout: 15000

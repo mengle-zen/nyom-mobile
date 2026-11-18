@@ -52,9 +52,12 @@ const PHOTO_SHADOW = {
  */
 export function PhotoCanvas({
   shot,
+  initialTransform = INITIAL_TRANSFORM,
   ref,
 }: {
   shot: Shot
+  /** 여러 장을 오갈 때 — 다른 장에 다녀와도 고치던 그대로 이어서 보여 준다(첫 렌더에만 쓴다) */
+  initialTransform?: CanvasTransform
   ref?: Ref<PhotoCanvasHandle>
 }) {
   const reduceMotion = useReducedMotion()
@@ -62,10 +65,10 @@ export function PhotoCanvas({
   const sizeSV = useSharedValue(0)
   const captureView = useRef<View>(null)
 
-  const x = useSharedValue(INITIAL_TRANSFORM.x)
-  const y = useSharedValue(INITIAL_TRANSFORM.y)
-  const scale = useSharedValue(INITIAL_TRANSFORM.scale)
-  const rotation = useSharedValue(INITIAL_TRANSFORM.rotation)
+  const x = useSharedValue(initialTransform.x)
+  const y = useSharedValue(initialTransform.y)
+  const scale = useSharedValue(initialTransform.scale)
+  const rotation = useSharedValue(initialTransform.rotation)
 
   // 제스처 시작 시점의 값 — 각 제스처는 시작점 대비 변화량을 준다.
   const startX = useSharedValue(0)

@@ -8,6 +8,7 @@ import Animated from 'react-native-reanimated'
 import { usePullToClose } from '@/shared/ui/pull-to-close'
 import { notifyError } from '@/shared/lib/error'
 import { pickFromLibrary, takePhoto } from '../lib/pick-photo'
+import { MAX_PHOTOS } from '../lib/photo-drafts'
 import { uploadHref } from '../lib/upload-href'
 
 type Source = 'camera' | 'library'
@@ -48,13 +49,13 @@ export function PhotoSourceSheet({
     setPending(null)
     try {
       if (source === 'library') {
-        const picked = await pickFromLibrary()
-        if (picked) router.push(uploadHref({ group: groupId, picked }))
+        const picked = await pickFromLibrary(MAX_PHOTOS)
+        if (picked.length > 0) router.push(uploadHref({ group: groupId, picked }))
         return
       }
       const result = await takePhoto()
       if (result.kind === 'shot') {
-        router.push(uploadHref({ group: groupId, picked: result }))
+        router.push(uploadHref({ group: groupId, picked: [result] }))
       } else if (result.kind === 'denied') {
         router.push(
           uploadHref({ group: groupId, cameraBlocked: result.canAskAgain ? 'denied' : 'settings' }),

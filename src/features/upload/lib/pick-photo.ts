@@ -44,19 +44,31 @@ export async function takePhoto(): Promise<PickResult> {
   }
 }
 
+/** 갤러리에서 고른 사진 한 장과 그 촬영 시각 */
+export type PickedPhoto = { shot: Shot; takenAt: Date }
+
 /**
- * 갤러리에서 한 장. 오늘 찍은 사진이면 그 촬영 시각을 먹은 시각으로 쓴다.
- * 불러오기 실패는 그대로 throw한다 — 호출부가 토스트로 알린다.
+ * 갤러리에서 여러 장(최대 `limit`). 고른 순서대로 돌려준다. 오늘 찍은 사진이면 그 촬영 시각을
+ * 먹은 시각으로 쓴다. 취소하면 빈 배열. 불러오기 실패는 그대로 throw한다 — 호출부가 토스트로 알린다.
  */
-export async function pickFromLibrary(): Promise<{ shot: Shot; takenAt: Date } | null> {
+export async function pickFromLibrary(limit: number): Promise<PickedPhoto[]> {
+  if (limit <= 0) return []
   const result = await ImagePicker.launchImageLibraryAsync({
     mediaTypes: ['images'],
     quality: 1,
     allowsEditing: false,
     exif: true,
+    allowsMultipleSelection: limit > 1,
+    selectionLimit: limit,
+    // 고른 순서에 번호를 붙여 보여 준다(iOS) — 올리기 화면의 썸네일 순서와 같다.
+    orderedSelection: true,
   })
-  if (result.canceled) return null
-  const asset = result.assets[0]
-  if (!asset) return null
-  return { shot: await toShot(asset), takenAt: capturedAtFromExif(asset.exif, new Date()) }
+  if (result.canceled) return []
+  const now = new Date()
+  const picked: PickedPhoto[] = []
+  // 한 장씩 줄인다 — 여러 장을 한꺼번에 디코딩하면 메모리가 튄다.
+  for (const asset of result.assets.slice(0, limit)) {
+    picked.push({ shot: await toShot(asset), takenAt: capturedAtFromExif(asset.exif, now) })
+  }
+  return picked
 }

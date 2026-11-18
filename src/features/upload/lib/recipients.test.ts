@@ -38,6 +38,12 @@ describe('sendLabel / recipientSummary', () => {
     expect(sendLabel([])).toBe('받는 곳을 골라 주세요')
   })
 
+  it('여러 장이면 장 수도 버튼에 들어간다', () => {
+    expect(sendLabel(['점심 원정대'], 3)).toBe('점심 원정대에 3장 보내기')
+    expect(sendLabel(['a', 'b'], 2)).toBe('2곳에 2장 보내기')
+    expect(sendLabel([], 3)).toBe('받는 곳을 골라 주세요')
+  })
+
   it('요약은 첫 이름 + 나머지 수', () => {
     expect(recipientSummary(['점심 원정대', '회사 동기'])).toBe('점심 원정대 외 1곳')
     expect(recipientSummary([])).toBe('고르기')
