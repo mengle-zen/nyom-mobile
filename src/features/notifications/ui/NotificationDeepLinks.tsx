@@ -67,6 +67,9 @@ export function NotificationDeepLinks() {
         return
       }
       if (target.chat) {
+        // 그 방 채팅이 스택에 이미 있으면 navigate가 그 화면을 그대로 앞으로 꺼내
+        // 다시 받지 않는다 — 실시간 구독이 멈춰 있던 사이 온 메시지가 빠진다.
+        void qc.invalidateQueries({ queryKey: queryKeys.messages(target.group) })
         router.navigate(chatHref(target.group))
         return
       }

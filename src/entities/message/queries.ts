@@ -48,9 +48,11 @@ export function useRoomMessages(groupId: string | null) {
     getNextPageParam: (last) =>
       last.length < MESSAGE_PAGE_SIZE ? undefined : last[last.length - 1].created_at,
     enabled: !!groupId,
-    // 실시간 구독은 화면이 열려 있을 때만 받는다. 닫혀 있던 사이 온 메시지·지워진 기록을
-    // 놓치지 않게, 전역 30초 staleTime을 쓰지 않고 들어올 때마다 다시 받는다.
+    // 실시간 구독은 화면이 열려 있고 앱이 앞에 있을 때만 받는다. 닫혀 있던 사이·백그라운드에
+    // 있던 사이 온 메시지를 놓치지 않게, 들어올 때와 앱으로 돌아올 때마다 다시 받는다.
+    // (채팅을 열어 둔 채 나갔다가 푸시로 돌아오면 화면이 그대로라 마운트 refetch가 없다.)
     staleTime: 0,
+    refetchOnWindowFocus: true,
   })
 }
 
@@ -158,8 +160,9 @@ export function useRoomReads(groupId: string | null) {
     queryKey: queryKeys.roomReads(groupId ?? ''),
     queryFn: () => fetchRoomReads(groupId as string),
     enabled: !!groupId,
-    // 화면이 닫혀 있던 사이 읽은 것도 들어올 때 반영한다.
+    // 화면이 닫혀 있던 사이·백그라운드에 있던 사이 읽은 것도 반영한다.
     staleTime: 0,
+    refetchOnWindowFocus: true,
   })
 }
 
