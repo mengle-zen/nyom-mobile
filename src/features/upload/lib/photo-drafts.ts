@@ -18,6 +18,11 @@ export type PhotoDraft = {
   key: string
   /** 자르지 않은 편집 원본 */
   shot: Shot
+  /**
+   * 편집용 크기(`prepareForEdit`)로 줄였는지. 앨범에서 고른 사진은 원본으로 먼저 보여 주고
+   * 올리기 화면이 뒤에서 줄인다. 다 줄이기 전에 보내도 보낼 때 다시 줄이니 결과는 같다.
+   */
+  prepared: boolean
   /** 찍은 시각 — 시각 칸의 「초기화」가 되돌릴 값 */
   capturedAt: Date
   /** 먹은 시각 'HH:mm' — 마지막으로 유효했던 값 */
@@ -39,10 +44,13 @@ export function newDraft(input: {
   takenAt: Date
   tag?: string | null
   caption?: string
+  /** 이미 편집용 크기인지(카메라·되돌리기는 줄인 사진). 기본은 이미 줄인 것 */
+  prepared?: boolean
 }): PhotoDraft {
   return {
     key: `${++seq}:${input.shot.uri}`,
     shot: input.shot,
+    prepared: input.prepared ?? true,
     capturedAt: input.takenAt,
     time: hhmmFromDate(input.takenAt),
     timeValid: true,
@@ -72,6 +80,8 @@ export type PhotoParam = {
   height: number
   /** ISO 시각 */
   takenAt: string
+  /** 앨범에서 막 고른 원본이라 아직 편집용으로 줄이지 않았다 */
+  raw?: boolean
   tag?: string | null
   caption?: string
 }
@@ -100,6 +110,7 @@ export function decodePhotos(raw: string | undefined): PhotoParam[] {
         typeof p.width === 'number' &&
         typeof p.height === 'number' &&
         typeof p.takenAt === 'string' &&
+        (p.raw === undefined || typeof p.raw === 'boolean') &&
         !Number.isNaN(new Date(p.takenAt).getTime()),
     )
     .slice(0, MAX_PHOTOS)

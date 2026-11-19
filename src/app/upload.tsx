@@ -25,7 +25,7 @@ import { useMyGroups } from '@/entities/group'
 import { useAuth } from '@/features/auth'
 import { isUntouched } from '@/features/upload/lib/canvas-transform'
 import { downscaleForUpload, type Shot } from '@/features/upload/lib/downscale'
-import { pickFromLibrary, takePhoto } from '@/features/upload/lib/pick-photo'
+import { pickFromLibrary, prepareForEdit, takePhoto } from '@/features/upload/lib/pick-photo'
 import {
   decodePhotos,
   encodePhotos,
@@ -86,6 +86,7 @@ function draftFromParam(p: PhotoParam): PhotoDraft {
   return newDraft({
     shot: { uri: p.uri, width: p.width, height: p.height, mimeType: 'image/jpeg' },
     takenAt: new Date(p.takenAt),
+    prepared: !p.raw,
     tag: p.tag ?? null,
     caption: p.caption ?? '',
   })
@@ -138,6 +139,27 @@ export default function UploadScreen() {
   )
   const [preparing, setPreparing] = useState(false)
   const [uploading, setUploading] = useState(false)
+
+  /**
+   * 앨범 원본을 편집용 크기로 줄인다 — 화면을 먼저 띄우고 뒤에서 한 장씩, 보고 있는 장부터.
+   * 원본 그대로는 큰 사진 여러 장의 흐린 배경·썸네일이 무겁다. 위치·확대는 비율이라
+   * 같은 사진을 줄인 것으로 바꿔도 고치던 그림이 그대로다(캔버스 key는 장 key).
+   * 한 번에 한 장만 — 여러 장을 한꺼번에 디코딩하면 메모리가 튄다.
+   */
+  const preparingKey = useRef<string | null>(null)
+  useEffect(() => {
+    if (preparingKey.current) return
+    const next = [current, ...drafts].find((d): d is PhotoDraft => !!d && !d.prepared)
+    if (!next) return
+    preparingKey.current = next.key
+    // 줄이지 못하면 원본으로 둔다(downscaleForUpload가 원본을 돌려준다) — 보낼 때 다시 줄인다.
+    void prepareForEdit(next.shot).then((shot) => {
+      preparingKey.current = null
+      setDrafts((list) =>
+        list.map((d) => (d.key === next.key ? { ...d, shot, prepared: true } : d)),
+      )
+    })
+  }, [current, drafts])
 
   /** 보고 있는 장의 입력값만 바꾼다 */
   const updateCurrent = (patch: Partial<PhotoDraft>) =>
@@ -296,7 +318,7 @@ export default function UploadScreen() {
       const picked = await pickFromLibrary(MAX_PHOTOS - drafts.length)
       if (picked.length > 0) {
         const base = await stashCurrent()
-        setDrafts([...base, ...picked.map(newDraft)])
+        setDrafts([...base, ...picked.map((p) => newDraft({ ...p, prepared: false }))])
         setActive(base.length)
         setFallback(null)
       }

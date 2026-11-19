@@ -8,12 +8,12 @@ import { EDIT_SOURCE_EDGE } from './fit'
 export type PickResult = { kind: 'shot'; shot: Shot; takenAt: Date } | CameraAttempt
 
 /** 편집 원본으로 쓸 크기로 줄인다 — 자르지 않는다(위치·확대는 미리보기 캔버스에서). */
+export function prepareForEdit(shot: Pick<Shot, 'uri' | 'width' | 'height'>): Promise<Shot> {
+  return downscaleForUpload(shot, EDIT_SOURCE_EDGE, { square: false })
+}
+
 function toShot(asset: ImagePicker.ImagePickerAsset): Promise<Shot> {
-  return downscaleForUpload(
-    { uri: asset.uri, width: asset.width, height: asset.height },
-    EDIT_SOURCE_EDGE,
-    { square: false },
-  )
+  return prepareForEdit({ uri: asset.uri, width: asset.width, height: asset.height })
 }
 
 /**
@@ -44,12 +44,15 @@ export async function takePhoto(): Promise<PickResult> {
   }
 }
 
-/** 갤러리에서 고른 사진 한 장과 그 촬영 시각 */
+/** 갤러리에서 고른 사진 한 장과 그 촬영 시각. `shot`은 줄이지 않은 원본이다. */
 export type PickedPhoto = { shot: Shot; takenAt: Date }
 
 /**
  * 갤러리에서 여러 장(최대 `limit`). 고른 순서대로 돌려준다. 오늘 찍은 사진이면 그 촬영 시각을
  * 먹은 시각으로 쓴다. 취소하면 빈 배열. 불러오기 실패는 그대로 throw한다 — 호출부가 토스트로 알린다.
+ *
+ * 원본을 그대로 돌려준다(2026-11-19). 여기서 장마다 줄이고 나서 화면을 열면 10장에 몇 초씩
+ * 아무 표시 없이 기다렸다. 편집용으로 줄이기(`prepareForEdit`)는 올리기 화면이 뜬 뒤 뒤에서 한다.
  */
 export async function pickFromLibrary(limit: number): Promise<PickedPhoto[]> {
   if (limit <= 0) return []
@@ -62,13 +65,20 @@ export async function pickFromLibrary(limit: number): Promise<PickedPhoto[]> {
     selectionLimit: limit,
     // 고른 순서에 번호를 붙여 보여 준다(iOS) — 올리기 화면의 썸네일 순서와 같다.
     orderedSelection: true,
+    // iOS가 HEIC를 JPEG로 바꿔 넘기지 않게 원본 그대로 받는다 — 여러 장이면 이 변환이 가장 느렸다.
+    // 어차피 편집·올리기 전에 우리가 JPEG로 줄인다.
+    preferredAssetRepresentationMode:
+      ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Current,
   })
   if (result.canceled) return []
   const now = new Date()
-  const picked: PickedPhoto[] = []
-  // 한 장씩 줄인다 — 여러 장을 한꺼번에 디코딩하면 메모리가 튄다.
-  for (const asset of result.assets.slice(0, limit)) {
-    picked.push({ shot: await toShot(asset), takenAt: capturedAtFromExif(asset.exif, now) })
-  }
-  return picked
+  return result.assets.slice(0, limit).map((asset) => ({
+    shot: {
+      uri: asset.uri,
+      width: asset.width,
+      height: asset.height,
+      mimeType: asset.mimeType ?? 'image/jpeg',
+    },
+    takenAt: capturedAtFromExif(asset.exif, now),
+  }))
 }

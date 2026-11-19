@@ -50,7 +50,9 @@ export function PhotoSourceSheet({
     try {
       if (source === 'library') {
         const picked = await pickFromLibrary(MAX_PHOTOS)
-        if (picked.length > 0) router.push(uploadHref({ group: groupId, picked }))
+        if (picked.length > 0) {
+          router.push(uploadHref({ group: groupId, picked: picked.map((p) => ({ ...p, raw: true })) }))
+        }
         return
       }
       const result = await takePhoto()

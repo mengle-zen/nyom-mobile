@@ -12,6 +12,11 @@ describe('newDraft', () => {
     expect(d.timeValid).toBe(true)
     expect(d.transform).toEqual(INITIAL_TRANSFORM)
     expect(d.baked).toBeNull()
+    expect(d.prepared).toBe(true)
+  })
+
+  it('앨범 원본은 아직 줄이지 않은 것으로 표시할 수 있다', () => {
+    expect(newDraft({ shot: shot('a'), takenAt: new Date(), prepared: false }).prepared).toBe(false)
   })
 
   it('같은 파일을 두 번 골라도 key가 다르다', () => {
@@ -47,6 +52,11 @@ describe('encodePhotos / decodePhotos', () => {
       { uri: 'file:///a.jpg', width: 10, height: 20, takenAt: '2026-11-17T03:00:00.000Z' },
       { uri: 'file:///b,c.jpg', width: 1, height: 1, takenAt: '2026-11-17T04:00:00.000Z', tag: '야식', caption: 'x' },
     ]
+    expect(decodePhotos(encodePhotos(photos))).toEqual(photos)
+  })
+
+  it('앨범 원본 표시(raw)도 왕복한다', () => {
+    const photos = [{ uri: 'a', width: 1, height: 1, takenAt: '2026-11-17T00:00:00.000Z', raw: true }]
     expect(decodePhotos(encodePhotos(photos))).toEqual(photos)
   })
 

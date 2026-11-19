@@ -11,7 +11,7 @@ export type CameraBlocked = 'denied' | 'settings' | 'unavailable'
  */
 export function uploadHref(params: {
   group?: string | null
-  picked?: { shot: Shot; takenAt: Date }[]
+  picked?: { shot: Shot; takenAt: Date; raw?: boolean }[]
   cameraBlocked?: CameraBlocked
 }): Href {
   const q = new URLSearchParams()
@@ -20,11 +20,13 @@ export function uploadHref(params: {
     q.set(
       'photos',
       encodePhotos(
-        params.picked.map(({ shot, takenAt }) => ({
+        params.picked.map(({ shot, takenAt, raw }) => ({
           uri: shot.uri,
           width: shot.width,
           height: shot.height,
           takenAt: takenAt.toISOString(),
+          // 카메라 사진은 이미 줄였고, 앨범 사진은 원본이다 — 올리기 화면이 뒤에서 줄인다.
+          raw: raw || undefined,
         })),
       ),
     )
