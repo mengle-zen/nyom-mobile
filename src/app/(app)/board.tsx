@@ -110,13 +110,22 @@ export default function BoardScreen() {
     if (linkKey) router.setParams({ date: undefined, post: undefined })
   }, [linkKey])
 
-  const { data: groups, error: groupsError, isLoading: groupsLoading } = useMyGroups()
+  const {
+    data: groups,
+    error: groupsError,
+    isLoading: groupsLoading,
+    refetch: refetchGroups,
+  } = useMyGroups()
   const activeGroupId = useMemo(() => {
     if (!groups) return null
     return groups.find((g) => g.id === groupIdParam)?.id ?? groups[0]?.id ?? null
   }, [groups, groupIdParam])
 
-  const { data: members = [], error: membersError } = useGroupMembers(activeGroupId)
+  const {
+    data: members = [],
+    error: membersError,
+    refetch: refetchMembers,
+  } = useGroupMembers(activeGroupId)
   const {
     data: posts = [],
     error: postsError,
@@ -305,7 +314,13 @@ export default function BoardScreen() {
       <View className="flex-1 bg-board-bg" style={{ paddingTop: insets.top }}>
         <ErrorState
           message="보드를 불러오지 못했어요"
-          onRetry={() => router.replace(href('/groups'))}
+          // 그 자리에서 다시 받는다 — 예전엔 그룹 목록으로 보내 방을 다시 골라야 했다.
+          // 실패한 것만 다시 받는다(성공한 조회까지 다시 부르면 화면이 한 번 더 깜빡인다).
+          onRetry={() => {
+            if (groupsError) void refetchGroups()
+            if (membersError) void refetchMembers()
+            if (postsError) void refetchPosts()
+          }}
         />
       </View>
     )

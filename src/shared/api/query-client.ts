@@ -1,5 +1,6 @@
 import { AppState } from 'react-native'
 import { focusManager, QueryClient } from '@tanstack/react-query'
+import { supabase } from './supabase'
 
 /**
  * 앱 전역 QueryClient.
@@ -23,4 +24,15 @@ export const queryClient = new QueryClient({
 // 백그라운드 동안 실시간 구독은 멈춰 그사이 온 채팅을 놓친다 — 돌아오면 다시 받아야 한다.
 AppState.addEventListener('change', (state) => {
   focusManager.setFocused(state === 'active')
+})
+
+// 로그인 토큰이 새로 생기면 실패한 채 멈춘 조회를 다시 받는다(2026-11-19).
+// 앱으로 돌아온 직후 토큰 갱신이 한 번 끊기면 1분쯤 토큰 없이 요청이 나가 전부 401로 거절됐고,
+// 토큰이 다시 생긴 뒤에도 보드가 「불러오지 못했어요」에 멈춰 있었다.
+// 콜백 안에서 곧바로 Supabase를 부르지 않는다 — auth 콜백 안의 호출은 갱신과 맞물려 멈출 수 있다.
+supabase.auth.onAuthStateChange((event) => {
+  if (event !== 'TOKEN_REFRESHED' && event !== 'SIGNED_IN') return
+  setTimeout(() => {
+    void queryClient.refetchQueries({ type: 'active', predicate: (q) => q.state.status === 'error' })
+  }, 0)
 })
