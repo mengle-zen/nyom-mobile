@@ -54,6 +54,7 @@ pnpm lint
 - `.maestro/config.yaml`과 `.maestro/flows/`에 로그인→그룹→보드→프로필→올리기 흐름이 있다. `maestro --device <기기ID> test .maestro`로 실행한다.
 - E2E는 실제 Supabase를 사용한다. 테스트 계정과 혼자인 비공개 그룹 **E2E 전용**만 사용하고, 올리기 테스트는 곧바로 되돌린다. 다른 그룹 추가·나가기·강퇴를 테스트에 넣지 않는다.
 - 되돌리기 스낵바의 애니메이션이 Maestro를 지연시키면 테스트 기기의 동작 줄이기를 사용한다. 촬영과 푸시는 시뮬레이터 확인만으로 완료 처리하지 않는다.
+- 빌드 번호를 올릴 때 사용자가 알아챌 변화가 있으면 `src/features/whats-new/lib/release-notes.ts`에 그 빌드 항목을 더한다. 업데이트 뒤 처음 열 때 「새로 바뀐 점」 시트로 뜬다.
 - TestFlight 업로드 시 `app.json`의 `ios.buildNumber`를 올리고 `EXPO_PUBLIC_TEST_LOGIN_EMAIL`·`EXPO_PUBLIC_TEST_LOGIN_PASSWORD`를 비워 번들에 테스트 계정 정보가 포함되지 않게 한다. 서명 키·인증 정보·개인별 도구 경로는 지침에 복사하지 않는다.
 - 현재 푸시 수신 준비와 서버 발송은 구분해야 한다. `README.md`의 알려진 이슈처럼 웹의 WebPush 발송 경로만으로 네이티브 Expo 토큰에 알림을 보낼 수 없다.
 

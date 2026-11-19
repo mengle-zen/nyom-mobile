@@ -1,16 +1,10 @@
 import { useEffect, useState } from 'react'
 import { AppState, Linking, Modal, Platform, Text, View } from 'react-native'
-import Constants from 'expo-constants'
 import Feather from '@expo/vector-icons/Feather'
 
+import { installedBuild } from '@/shared/lib/app-build'
 import { PressableScale } from '@/shared/ui/press'
 import { APP_VERSION_URL, needsUpdate, parseUpdatePolicy, type UpdatePolicy } from '../lib/policy'
-
-/** 설치된 바이너리의 빌드 번호. 네이티브 빌드 때 app.json 값으로 생성된 설정을 읽는다. */
-function currentBuild(): string | number | undefined {
-  const config = Constants.expoConfig
-  return Platform.OS === 'ios' ? config?.ios?.buildNumber : config?.android?.versionCode
-}
 
 async function fetchPolicy(): Promise<UpdatePolicy | null> {
   try {
@@ -38,7 +32,7 @@ export function RequiredUpdateModal() {
     let alive = true
     const check = () => {
       void fetchPolicy().then((next) => {
-        if (alive) setPolicy(needsUpdate(currentBuild(), next) ? next : null)
+        if (alive) setPolicy(needsUpdate(installedBuild(), next) ? next : null)
       })
     }
     check()

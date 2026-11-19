@@ -11,6 +11,7 @@ import { useRoomUnread } from '@/entities/message'
 import { useAuth } from '@/features/auth'
 import { useInboxHasUnread } from '@/features/inbox'
 import { PushAskModal } from '@/features/notifications'
+import { WhatsNewSheet } from '@/features/whats-new'
 import {
   CreateJoinSheet,
   DiscoverTab,
@@ -34,6 +35,10 @@ export default function GroupsScreen() {
   const [tab, setTab] = useState<Tab>('mine')
   const [addMode, setAddMode] = useState<'create' | 'join' | null>(null)
   const [actionGroupId, setActionGroupId] = useState<string | null>(null)
+  /** 「새로 바뀐 점」을 다 봤거나 띄울 게 없다 — 그 뒤에 알림 켜기 안내를 띄운다 */
+  const [whatsNewDone, setWhatsNewDone] = useState(false)
+  // 고정해 둔다 — 시트가 이걸 effect 의존성으로 쓴다(바뀌면 저장값을 다시 읽는다).
+  const finishWhatsNew = useCallback(() => setWhatsNewDone(true), [])
   const [settingsGroupId, setSettingsGroupId] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
 
@@ -219,8 +224,10 @@ export default function GroupsScreen() {
         />
       )}
 
+      {/* 업데이트 뒤 처음 열 때 한 번 — 다 보고 나서 알림 켜기 안내로 넘어간다 */}
+      <WhatsNewSheet onDone={finishWhatsNew} />
       {/* 알림이 꺼진 사람에게 한 번 — 7일 간격, 세 번 미루면 그만 묻는다 */}
-      <PushAskModal />
+      {whatsNewDone && <PushAskModal />}
     </View>
   )
 }

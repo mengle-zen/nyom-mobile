@@ -13,6 +13,7 @@ import { queryClient } from '@/shared/api/query-client'
 import { RequiredUpdateModal } from '@/features/app-update'
 import { AuthProvider, useAuth } from '@/features/auth'
 import { NotificationDeepLinks, PushTokenSync } from '@/features/notifications'
+import { WhatsNewInstallMark } from '@/features/whats-new'
 import { useReducedMotion } from '@/shared/ui/motion'
 
 export default function RootLayout() {
@@ -33,6 +34,8 @@ export default function RootLayout() {
             <PushTokenSync />
             {/* 옛 빌드 차단 — 기준은 웹의 app-version.json. 로그인 전에도 뜬다. */}
             <RequiredUpdateModal />
+            {/* 새로 설치한 사람에게는 「새로 바뀐 점」을 띄우지 않게 켤 때 표시해 둔다. 렌더 없음. */}
+            <WhatsNewInstallMark />
           </AuthProvider>
         </QueryClientProvider>
       </SafeAreaProvider>
