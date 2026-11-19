@@ -1,5 +1,6 @@
 import { useCallback, useImperativeHandle, useRef, useState, type Ref } from 'react'
-import { Image, StyleSheet, View, type LayoutChangeEvent } from 'react-native'
+import { Image, Pressable, StyleSheet, View, type LayoutChangeEvent } from 'react-native'
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import Animated, {
   useAnimatedStyle,
@@ -15,6 +16,7 @@ import {
   INITIAL_TRANSFORM,
   baseSize,
   clampScale,
+  nextQuarterTurn,
   snapAngle,
   snapOffset,
   type CanvasTransform,
@@ -46,6 +48,9 @@ const PHOTO_SHADOW = {
  * - 손대지 않으면 지금과 같은 그림(짧은 변이 꽉 찬 가운데)이라 기록 흐름이 그대로다.
  * - 사진이 캔버스보다 작아지거나 기울면 빈 곳은 같은 사진을 흐리게 깔아 채운다.
  * - 가운데·0°/90°에 가까우면 붙고, 붙는 순간에만 가벼운 햅틱 한 번.
+ *
+ * 왼쪽 아래 버튼은 시계 방향 90°(2026-11-19 시안 A, 글자 없이 아이콘만). 두 손가락 회전이
+ * 화면에 드러나지 않아 옆으로 누운 사진을 바로잡는 길을 아무도 몰랐다.
  *
  * 모든 변환은 UI 스레드의 shared value로 처리한다(제스처 중 React 렌더 없음).
  * 위치는 캔버스 한 변에 대한 비율이라, 키보드로 캔버스가 줄어도 같은 그림이다.
@@ -180,6 +185,14 @@ export function PhotoCanvas({
 
   const gesture = Gesture.Simultaneous(pan, pinch, rotate, reset)
 
+  const turn = () => {
+    const next = nextQuarterTurn(rotation.get())
+    rotation.set(
+      reduceMotion ? next : withTiming(next, { duration: DURATION_MOVE, easing: EASE_OUT }),
+    )
+    void haptic('light')
+  }
+
   const base = baseSize(shot, size)
 
   const photoStyle = useAnimatedStyle(() => {
@@ -209,60 +222,72 @@ export function PhotoCanvas({
   return (
     <View onLayout={onLayout} className="flex-1 items-center justify-center self-stretch">
       {size > 0 && (
-        <GestureDetector gesture={gesture}>
-          <View
-            accessible
-            accessibilityRole="image"
-            accessibilityLabel="촬영한 사진"
-            accessibilityHint="끌어서 옮기고, 두 손가락으로 확대하거나 돌릴 수 있어요. 두 번 탭하면 처음 위치로 돌아가요."
-            style={{ width: size, height: size, borderRadius: 16, overflow: 'hidden' }}
-          >
-            {/* 캡처 영역: 여기 담긴 것만 올라간다 */}
+        <View style={{ width: size, height: size }}>
+          <GestureDetector gesture={gesture}>
             <View
-              ref={captureView}
-              collapsable={false}
-              style={{ width: size, height: size, overflow: 'hidden', backgroundColor: '#251F18' }}
+              accessible
+              accessibilityRole="image"
+              accessibilityLabel="촬영한 사진"
+              accessibilityHint="끌어서 옮기고, 두 손가락으로 확대하거나 돌릴 수 있어요. 두 번 탭하면 처음 위치로 돌아가요."
+              style={{ width: size, height: size, borderRadius: 16, overflow: 'hidden' }}
             >
-              {/*
-                빈 곳 채움 — 같은 사진을 흐리게 깔아 틀 안이 비어 보이지 않게 한다.
-                로컬 file:// 이라 RN 기본 Image를 쓴다(CLAUDE.md: expo-image는 Expo Go에서 못 읽음).
-              */}
-              <Image
-                source={{ uri: shot.uri }}
-                blurRadius={FILL_BLUR}
-                resizeMode="cover"
-                style={StyleSheet.absoluteFill}
-              />
-              <View style={StyleSheet.absoluteFill} className="bg-black/25" />
-
-              <Animated.View
-                style={[
-                  {
-                    position: 'absolute',
-                    left: (size - base.width) / 2,
-                    top: (size - base.height) / 2,
-                    width: base.width,
-                    height: base.height,
-                    ...PHOTO_SHADOW,
-                  },
-                  photoStyle,
-                ]}
+              {/* 캡처 영역: 여기 담긴 것만 올라간다 */}
+              <View
+                ref={captureView}
+                collapsable={false}
+                style={{ width: size, height: size, overflow: 'hidden', backgroundColor: '#251F18' }}
               >
-                <Image source={{ uri: shot.uri }} resizeMode="cover" style={StyleSheet.absoluteFill} />
-              </Animated.View>
-            </View>
+                {/*
+                  빈 곳 채움 — 같은 사진을 흐리게 깔아 틀 안이 비어 보이지 않게 한다.
+                  로컬 file:// 이라 RN 기본 Image를 쓴다(CLAUDE.md: expo-image는 Expo Go에서 못 읽음).
+                */}
+                <Image
+                  source={{ uri: shot.uri }}
+                  blurRadius={FILL_BLUR}
+                  resizeMode="cover"
+                  style={StyleSheet.absoluteFill}
+                />
+                <View style={StyleSheet.absoluteFill} className="bg-black/25" />
 
-            {/* 가운데 가이드 — 캡처 영역 밖이라 결과물에 찍히지 않는다 */}
-            <Animated.View
-              pointerEvents="none"
-              style={[styles.guideV, { left: size / 2 - 0.75 }, guideV]}
-            />
-            <Animated.View
-              pointerEvents="none"
-              style={[styles.guideH, { top: size / 2 - 0.75 }, guideH]}
-            />
-          </View>
-        </GestureDetector>
+                <Animated.View
+                  style={[
+                    {
+                      position: 'absolute',
+                      left: (size - base.width) / 2,
+                      top: (size - base.height) / 2,
+                      width: base.width,
+                      height: base.height,
+                      ...PHOTO_SHADOW,
+                    },
+                    photoStyle,
+                  ]}
+                >
+                  <Image source={{ uri: shot.uri }} resizeMode="cover" style={StyleSheet.absoluteFill} />
+                </Animated.View>
+              </View>
+
+              {/* 가운데 가이드 — 캡처 영역 밖이라 결과물에 찍히지 않는다 */}
+              <Animated.View
+                pointerEvents="none"
+                style={[styles.guideV, { left: size / 2 - 0.75 }, guideV]}
+              />
+              <Animated.View
+                pointerEvents="none"
+                style={[styles.guideH, { top: size / 2 - 0.75 }, guideH]}
+              />
+            </View>
+          </GestureDetector>
+          {/* 제스처·캡처 영역 밖에 얹는다 — 누르기가 끌기로 먹히지 않고 결과물에 찍히지 않는다 */}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="사진 90도 돌리기"
+            onPress={turn}
+            hitSlop={6}
+            className="absolute bottom-2.5 left-2.5 size-10 items-center justify-center rounded-full bg-black/60 active:opacity-70"
+          >
+            <MaterialCommunityIcons name="rotate-right" size={20} color="#fff" />
+          </Pressable>
+        </View>
       )}
     </View>
   )

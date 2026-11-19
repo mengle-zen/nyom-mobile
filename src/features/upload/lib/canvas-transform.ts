@@ -58,6 +58,16 @@ export function snapAngle(deg: number): { value: number; snapped: boolean } {
 }
 
 /** 손댄 적이 없는가 — 그렇다면 캡처 대신 원본에서 가운데를 잘라 화질을 지킨다. */
+/**
+ * 「90° 돌리기」 버튼 — 지금 각도에서 시계 방향으로 다음 직각까지(2026-11-19).
+ * 두 손가락으로 37°쯤 돌려 놨으면 90°로, 90°(소수점 오차 포함)면 180°로. 각도는 계속 더해 간다 —
+ * 360°로 접으면 270°→0°가 거꾸로 도는 애니메이션이 된다(`isUntouched`는 접어서 본다).
+ */
+export function nextQuarterTurn(deg: number): number {
+  'worklet'
+  return (Math.floor((deg + 1e-3) / 90) + 1) * 90
+}
+
 export function isUntouched(t: CanvasTransform): boolean {
   return t.x === 0 && t.y === 0 && t.scale === 1 && normalizeDegrees(t.rotation) === 0
 }

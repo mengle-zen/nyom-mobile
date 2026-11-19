@@ -6,7 +6,13 @@
  * 아이콘은 Ionicons 이름. 한 빌드에 서너 개를 넘기지 않는다(시트가 길어진다).
  */
 export type ReleaseNote = {
-  icon: 'images-outline' | 'copy-outline' | 'create-outline' | 'chatbubble-ellipses-outline'
+  icon:
+    | 'images-outline'
+    | 'copy-outline'
+    | 'create-outline'
+    | 'chatbubble-ellipses-outline'
+    | 'grid-outline'
+    | 'refresh-outline'
   title: string
   body: string
 }
@@ -39,6 +45,21 @@ export const RELEASE_NOTES: { build: number; items: ReleaseNote[] }[] = [
         icon: 'copy-outline',
         title: '한 번에 올린 사진은 한 칸으로',
         body: '방 화면에서 겹친 카드로 묶여 보여요. 누르고 옆으로 밀어 넘겨 보세요.',
+      },
+    ],
+  },
+  {
+    build: 21,
+    items: [
+      {
+        icon: 'grid-outline',
+        title: '프로필 그리드는 하루가 한 칸',
+        body: '그날 먹은 사진이 한 칸에 모여요. 누르고 옆으로 밀어 넘겨 보세요.',
+      },
+      {
+        icon: 'refresh-outline',
+        title: '올릴 때 사진 돌리기',
+        body: '사진 왼쪽 아래 버튼을 누르면 90°씩 돌아가요.',
       },
     ],
   },

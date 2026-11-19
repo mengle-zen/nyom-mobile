@@ -8,8 +8,7 @@ import {
   clampScale,
   isUntouched,
   snapAngle,
-  snapOffset,
-} from './canvas-transform'
+  snapOffset, nextQuarterTurn } from './canvas-transform'
 
 describe('snapOffset', () => {
   it('붙는 거리(8pt) 안이면 가운데로 붙는다', () => {
@@ -87,5 +86,22 @@ describe('baseSize', () => {
 
   it('크기를 모르면 정사각', () => {
     expect(baseSize({ width: 0, height: 0 }, 300)).toEqual({ width: 300, height: 300 })
+  })
+})
+
+describe('nextQuarterTurn', () => {
+  it('시계 방향으로 다음 직각까지', () => {
+    expect(nextQuarterTurn(0)).toBe(90)
+    expect(nextQuarterTurn(90)).toBe(180)
+    expect(nextQuarterTurn(270)).toBe(360)
+  })
+
+  it('비스듬하면 가까운 다음 직각으로 맞춘다', () => {
+    expect(nextQuarterTurn(37)).toBe(90)
+    expect(nextQuarterTurn(-30)).toBe(0)
+  })
+
+  it('소수점 오차만큼 모자란 직각은 직각으로 본다', () => {
+    expect(nextQuarterTurn(89.9999)).toBe(180)
   })
 })
