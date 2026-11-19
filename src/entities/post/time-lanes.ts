@@ -114,3 +114,26 @@ export function laneMembers<M extends { user_id: string }>(members: M[], me: str
 export function postsByMember<P extends { user_id: string; recorded_at: string }>(posts: P[], userId: string): P[] {
   return posts.filter((p) => p.user_id === userId).sort((a, b) => a.recorded_at.localeCompare(b.recorded_at))
 }
+
+/**
+ * 한 번에 올린 장 — 같은 사람이 앞 장을 올리고 60초 안에 또 올린 기록끼리 한 묶음(2026-11-19).
+ * 시간 띠는 묶음을 한 칸(겹친 카드 + 장 수)으로 보여 준다. 서버가 게시 알림을 한 번만
+ * 보내는 기준(웹 20261118000000_post_push_burst)과 같다 — 방 화면이 그룹별이라 같은 방 조건은
+ * 호출부가 이미 맞춘다. 한 사람의 기록만 넘긴다.
+ */
+export const BURST_GAP_MS = 60_000
+
+/** 묶음마다 먹은 시각순. 띠의 자리·각인 시각은 묶음의 첫 장(가장 이른 시각). 묶음끼리도 첫 장 시각순. */
+export function uploadBursts<P extends { created_at: string; recorded_at: string }>(posts: P[]): P[][] {
+  const byUpload = [...posts].sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at))
+  const bursts: P[][] = []
+  let lastAt = Number.NEGATIVE_INFINITY
+  for (const p of byUpload) {
+    const t = Date.parse(p.created_at)
+    if (bursts.length > 0 && t - lastAt <= BURST_GAP_MS) bursts[bursts.length - 1].push(p)
+    else bursts.push([p])
+    lastAt = t
+  }
+  const byTime = (a: P, b: P) => a.recorded_at.localeCompare(b.recorded_at)
+  return bursts.map((b) => b.sort(byTime)).sort((a, b) => byTime(a[0], b[0]))
+}

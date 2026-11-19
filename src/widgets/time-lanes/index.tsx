@@ -8,7 +8,8 @@ import {
   type RefreshControlProps,
 } from 'react-native'
 import { Image } from 'expo-image'
-import { FOLD_HEIGHT, hhmmFromDate, postImageSource, timeLanesLayout } from '@/entities/post'
+import Ionicons from '@expo/vector-icons/Ionicons'
+import { FOLD_HEIGHT, hhmmFromDate, postImageSource, timeLanesLayout, uploadBursts } from '@/entities/post'
 import type { BoardPost } from '@/entities/post/model'
 import type { GroupMemberProfile } from '@/entities/group'
 import { PressableScale } from '@/shared/ui/press'
@@ -19,11 +20,13 @@ const PAD = 12
 const GAP = 6
 const VISIBLE = 4
 const HEADER_H = 56
-/** 띠 위아래 여백. 촬영 버튼은 띠 아래 따로 놓여 가리지 않는다. */
-const TOP_PAD = 8
+/** 띠 위아래 여백. 위는 묶음 칸의 뒤 카드(STACK_PEEK × 2)가 머리줄에 잘리지 않을 만큼. 촬영 버튼은 띠 아래 따로 놓여 가리지 않는다. */
+const TOP_PAD = 14
 const BOTTOM_PAD = 24
 const STAMP_FONT = Platform.select({ ios: 'Menlo', default: 'monospace' })
 const AVATAR = ['#FFA56A', '#9FD18B', '#8EC5FF', '#F7A8C4', '#C7B6F2', '#F5D06F']
+/** 묶음 칸 뒤로 겹쳐 보이는 카드가 위로 삐져나오는 정도 — 띠 폭을 넘지 않게 위로만 낸다 */
+const STACK_PEEK = 5
 
 type Props = {
   members: GroupMemberProfile[]      // laneMembers로 이미 정렬
@@ -37,7 +40,13 @@ type Props = {
   refreshControl?: ReactElement<RefreshControlProps>
 }
 
-/** 2026-10-27 설계 ① — 멤버별 세로 띠, 같은 시간축. 배치는 `timeLanesLayout`. */
+/**
+ * 2026-10-27 설계 ① — 멤버별 세로 띠, 같은 시간축. 배치는 `timeLanesLayout`.
+ *
+ * 한 번에 올린 장(`uploadBursts`)은 한 칸으로 묶는다(2026-11-19 시안,
+ * https://claude.ai/artifact/6Lokuycopeum7tg3a4ViRH). 첫 장 위에 뒤 카드가 겹쳐 보이고
+ * 장 수 배지가 붙는다. 누르면 상세가 그 첫 장부터 열려 밀어서 넘겨 본다.
+ */
 export function TimeLanes({
   members,
   posts,
@@ -60,16 +69,24 @@ export function TimeLanes({
   const lanesW = GUTTER + PAD * 2 + members.length * photo + GAP * Math.max(members.length - 1, 0)
 
   const byId = useMemo(() => new Map(posts.map((p) => [p.id, p])), [posts])
+  /** 띠마다 한 번에 올린 장 묶음. 띠에는 묶음의 첫 장만 놓는다. */
+  const bursts = useMemo(
+    () => members.map((m) => uploadBursts(posts.filter((p) => p.user_id === m.user_id))),
+    [members, posts],
+  )
+  /** 묶음 첫 장 id → 묶음 장 수 */
+  const burstSize = useMemo(
+    () => new Map(bursts.flat().map((b) => [b[0].id, b.length])),
+    [bursts],
+  )
   const layout = useMemo(
     () =>
       timeLanesLayout({
-        lanes: members.map((m) =>
-          posts.filter((p) => p.user_id === m.user_id).map((p) => ({ id: p.id, at: p.recorded_at })),
-        ),
+        lanes: bursts.map((lane) => lane.map((b) => ({ id: b[0].id, at: b[0].recorded_at }))),
         photo: photo || 1,
         now,
       }),
-    [members, posts, photo, now],
+    [bursts, photo, now],
   )
 
   // 오늘(또는 알림으로 연 날)은 가장 최근 사진이 촬영 버튼 위에 보이게, 지난날은 맨 위부터.
@@ -136,15 +153,34 @@ export function TimeLanes({
                   const post = byId.get(item.postId)!
                   const who = members[item.lane]
                   const time = hhmmFromDate(new Date(post.recorded_at))
-                  return (
+                  const count = burstSize.get(item.postId) ?? 1
+                  const left = laneX(item.lane)
+                  return [
+                    // 묶음이면 뒤 카드 두 장이 위로 살짝 겹쳐 보인다(누르기는 앞 카드가 받는다)
+                    ...(count > 1
+                      ? [2, 1].map((depth) => (
+                          <View
+                            key={`${item.postId}-back${depth}`}
+                            pointerEvents="none"
+                            style={{
+                              position: 'absolute',
+                              left: left + depth * STACK_PEEK,
+                              top: item.y - depth * STACK_PEEK,
+                              width: photo - depth * STACK_PEEK * 2,
+                              height: photo,
+                            }}
+                            className={`rounded-[10px] border border-white/15 ${depth === 2 ? 'bg-neutral-700' : 'bg-neutral-600'}`}
+                          />
+                        ))
+                      : []),
                     <PressableScale
                       key={item.postId}
                       onPress={() => onOpenPost(post)}
                       swipeSafe
                       hapticKind={null}
                       accessibilityRole="button"
-                      accessibilityLabel={`${who.user_id === currentUserId ? '나' : who.nickname} ${post.meal_tag ? `${post.meal_tag} ` : ''}${time} 사진 보기`}
-                      style={{ position: 'absolute', left: laneX(item.lane), top: item.y, width: photo, height: photo }}
+                      accessibilityLabel={`${who.user_id === currentUserId ? '나' : who.nickname} ${post.meal_tag ? `${post.meal_tag} ` : ''}${time} 사진 ${count > 1 ? `${count}장 ` : ''}보기`}
+                      style={{ position: 'absolute', left, top: item.y, width: photo, height: photo }}
                       className="overflow-hidden rounded-[10px] bg-board-tile"
                     >
                       {post.signedImageUrl && (
@@ -152,7 +188,8 @@ export function TimeLanes({
                       )}
                       {post.meal_tag ? (
                         // iOS는 Text의 둥근 배경을 깎지 않아 View로 감싼다
-                        <View className="absolute left-1 top-1 max-w-[90%] rounded-full bg-black/50 px-1.5">
+                        // 묶음이면 오른쪽 위에 장 수가 있어 폭을 줄인다
+                        <View className={`absolute left-1 top-1 rounded-full bg-black/50 px-1.5 ${count > 1 ? 'max-w-[62%]' : 'max-w-[90%]'}`}>
                           <Text numberOfLines={1} className="text-[10px] font-extrabold text-white">
                             {post.meal_tag}
                           </Text>
@@ -167,8 +204,14 @@ export function TimeLanes({
                           {time}
                         </Text>
                       </View>
-                    </PressableScale>
-                  )
+                      {count > 1 && (
+                        <View className="absolute right-1 top-1 flex-row items-center gap-0.5 rounded-full bg-black/60 px-1.5 py-0.5">
+                          <Ionicons name="copy-outline" size={11} color="#fff" />
+                          <Text className="text-[11px] font-extrabold text-white">{count}</Text>
+                        </View>
+                      )}
+                    </PressableScale>,
+                  ]
                 })}
               </View>
             </ScrollView>

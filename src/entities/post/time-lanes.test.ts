@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { FOLD_HEIGHT, LANE_GAP, laneMembers, postsByMember, timeLanesLayout } from './time-lanes'
+import { FOLD_HEIGHT, LANE_GAP, laneMembers, postsByMember, timeLanesLayout, uploadBursts } from './time-lanes'
 
 const at = (h: number, m: number) => new Date(2026, 9, 27, h, m).toISOString()
 const P = 60
@@ -92,5 +92,35 @@ describe('postsByMember', () => {
       { id: '1', user_id: 'a', recorded_at: at(8, 0) },
     ]
     expect(postsByMember(ps, 'a').map((p) => p.id)).toEqual(['1', '2'])
+  })
+})
+
+describe('uploadBursts', () => {
+  const sec = (s: number) => new Date(Date.UTC(2026, 10, 19, 3, 0, s)).toISOString()
+  const post = (id: string, upS: number, h: number, m: number) => ({ id, created_at: sec(upS), recorded_at: at(h, m) })
+  const ids = (b: { id: string }[][]) => b.map((x) => x.map((p) => p.id))
+
+  it('60초 안에 연달아 올린 장은 한 묶음, 간격은 앞 장 기준', () => {
+    const r = uploadBursts([post('a', 0, 12, 10), post('b', 40, 12, 11), post('c', 95, 12, 12)])
+    expect(ids(r)).toEqual([['a', 'b', 'c']])
+  })
+
+  it('앞 장과 60초 넘게 떨어지면 새 묶음', () => {
+    const r = uploadBursts([post('a', 0, 12, 10), post('b', 61, 12, 40)])
+    expect(ids(r)).toEqual([['a'], ['b']])
+  })
+
+  it('묶음 안은 먹은 시각순 — 첫 장이 띠의 자리', () => {
+    const r = uploadBursts([post('late', 0, 12, 30), post('early', 5, 12, 5)])
+    expect(ids(r)).toEqual([['early', 'late']])
+  })
+
+  it('묶음끼리도 첫 장 시각순', () => {
+    const r = uploadBursts([post('dinner', 0, 19, 0), post('lunch', 300, 12, 0)])
+    expect(ids(r)).toEqual([['lunch'], ['dinner']])
+  })
+
+  it('기록이 없으면 빈 목록', () => {
+    expect(uploadBursts([])).toEqual([])
   })
 })

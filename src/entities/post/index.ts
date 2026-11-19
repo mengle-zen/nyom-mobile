@@ -3,6 +3,7 @@ export {
   timeLanesLayout,
   laneMembers,
   postsByMember,
+  uploadBursts,
   LANE_GAP,
   FOLD_HEIGHT,
   type LanesLayout,
