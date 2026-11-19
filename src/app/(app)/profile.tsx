@@ -26,9 +26,13 @@ import { useAuth } from '@/features/auth'
 import { LookbackCalendar } from '@/features/calendar'
 import { PostEditSheet, type EditablePost } from '@/features/post-edit'
 import {
+  groupByDay,
+  longDayLabel,
+  shortDayLabel,
   useMyPostCount,
   useMyPosts,
   useMyProfile,
+  type DayGroup,
   type MyPost,
 } from '@/features/profile'
 import { queryKeys } from '@/shared/api/query-keys'
@@ -55,6 +59,15 @@ type DetailPost = {
   caption: string | null
   recorded_at: string
   meal_tag: string | null
+}
+
+/** 상세에 여는 묶음 — 그리드는 하루치, 돌아보기 타임라인은 한 장. */
+type DetailGroup = {
+  /** 모달을 열 때마다 처음 장부터 — 열린 묶음이 바뀌면 새로 그린다 */
+  key: string
+  /** 그리드에서 열면 그날 날짜. 한 장만 열면 없다 */
+  title: string | null
+  posts: DetailPost[]
 }
 
 /**
@@ -105,12 +118,13 @@ export default function ProfileScreen() {
   }, [queryClient, refetchProfile, userId])
 
   const [tab, setTab] = useState<ProfileTab>('grid')
-  const [detail, setDetail] = useState<DetailPost | null>(null)
+  const [detail, setDetail] = useState<DetailGroup | null>(null)
   /** 사후 편집 대상. 상세에서 넘어온다(두 모달이 겹치지 않게 교체). */
   const [editingPost, setEditingPost] = useState<EditablePost | null>(null)
 
-  // 같은 촬영(batch)이 여러 그룹에 올라갔어도 그리드엔 1번만
-  const posts = dedupeByBatch(postsQuery.data?.pages.flat() ?? [])
+  // 같은 촬영(batch)이 여러 그룹에 올라갔어도 그리드엔 1번만. 한 칸 = 하루(2026-11-19).
+  // 페이지 경계에 걸린 날은 다음 페이지를 불러오면 같은 칸에 마저 채워진다.
+  const days = groupByDay(dedupeByBatch(postsQuery.data?.pages.flat() ?? []))
 
   const nickname =
     profile?.nickname ??
@@ -184,22 +198,27 @@ export default function ProfileScreen() {
 
         {tab === 'grid' ? (
           <MyPostsGrid
-            posts={posts}
+            days={days}
             loading={postsQuery.isLoading}
             error={(postsQuery.error as Error) ?? null}
             onRetry={() => void postsQuery.refetch()}
-            onSelect={setDetail}
+            onSelect={(day) =>
+              setDetail({ key: day.key, title: longDayLabel(day.key), posts: day.posts })
+            }
             hasMore={postsQuery.hasNextPage}
             loadingMore={postsQuery.isFetchingNextPage}
             onLoadMore={() => void postsQuery.fetchNextPage()}
           />
         ) : (
-          <LookbackCalendar onSelectPost={setDetail} />
+          <LookbackCalendar
+            onSelectPost={(post) => setDetail({ key: post.id, title: null, posts: [post] })}
+          />
         )}
       </ScrollView>
 
       <PostDetailModal
-        post={detail}
+        key={detail?.key ?? 'closed'}
+        group={detail}
         onClose={() => setDetail(null)}
         onEdit={(post) => {
           setDetail(null)
@@ -262,7 +281,7 @@ function GridSkeleton() {
 }
 
 function MyPostsGrid({
-  posts,
+  days,
   loading,
   error,
   onRetry,
@@ -271,11 +290,11 @@ function MyPostsGrid({
   loadingMore,
   onLoadMore,
 }: {
-  posts: MyPost[]
+  days: DayGroup<MyPost>[]
   loading: boolean
   error: Error | null
   onRetry: () => void
-  onSelect: (post: MyPost) => void
+  onSelect: (day: DayGroup<MyPost>) => void
   hasMore: boolean
   loadingMore: boolean
   onLoadMore: () => void
@@ -299,7 +318,7 @@ function MyPostsGrid({
     )
   }
 
-  if (posts.length === 0) {
+  if (days.length === 0) {
     return (
       <View className="items-center justify-center gap-3 py-12">
         <Ionicons name="restaurant-outline" size={44} color="#A89A82" />
@@ -312,37 +331,40 @@ function MyPostsGrid({
   return (
     <View className="gap-3">
       <View className="-m-0.5 flex-row flex-wrap">
-        {posts.map((post) => {
-          // 시각(태그가 있으면 태그 · 시각) 칩 — 웹 그리드에도 있는 오버레이. 사진만으론 언제 먹은 건지
-          // 알 수 없어서 회고에서 이 한 줄이 가장 많은 정보를 준다.
-          const label = postTimeLabel(post.recorded_at, post.meal_tag)
+        {days.map((day) => {
+          // 한 칸 = 하루. 그날 첫 끼니가 대표 사진, 여러 장이면 방 화면 묶음 칸과 같은 장 수 배지.
+          // 아래 띠는 시각 대신 날짜 — 회고에서 「언제」가 가장 먼저 궁금하다.
+          const cover = day.posts[0]
+          const count = day.posts.length
+          const label = shortDayLabel(day.key)
           return (
-            <View key={post.id} style={{ width: '33.3333%' }} className="p-0.5">
+            <View key={day.key} style={{ width: '33.3333%' }} className="p-0.5">
               <PressableScale
                 accessibilityRole="button"
-                accessibilityLabel={label ? `${label} 기록 보기` : '기록 보기'}
+                accessibilityLabel={`${longDayLabel(day.key)} 기록 ${count}장 보기`}
                 // 상세를 여는 건 보기일 뿐 — 햅틱 없음.
                 hapticKind={null}
-                onPress={() => onSelect(post)}
+                onPress={() => onSelect(day)}
                 className="aspect-square overflow-hidden rounded-md bg-muted"
               >
-                {post.signedImageUrl && (
+                {cover.signedImageUrl && (
                   <Image
-                    source={postImageSource(post)}
+                    source={postImageSource(cover)}
                     contentFit="cover"
                     style={{ width: '100%', height: '100%' }}
                   />
                 )}
-                {!!label && (
-                  <View className="absolute inset-x-0 bottom-0 bg-black/45 px-1 py-0.5">
-                    <Text
-                      numberOfLines={1}
-                      className="text-[11px] font-semibold text-white"
-                    >
-                      {label}
-                    </Text>
+                {count > 1 && (
+                  <View className="absolute right-1 top-1 flex-row items-center gap-0.5 rounded-full bg-black/60 px-1.5 py-0.5">
+                    <Ionicons name="copy-outline" size={11} color="#fff" />
+                    <Text className="text-[11px] font-extrabold text-white">{count}</Text>
                   </View>
                 )}
+                <View className="absolute inset-x-0 bottom-0 bg-black/45 px-1 py-0.5">
+                  <Text numberOfLines={1} className="text-[11px] font-semibold text-white">
+                    {label}
+                  </Text>
+                </View>
               </PressableScale>
             </View>
           )
@@ -367,20 +389,31 @@ function MyPostsGrid({
   )
 }
 
+/**
+ * 상세 카드 — 그리드에서 열면 그날 사진을 밀어서 넘겨 보고(2026-11-19), 돌아보기 타임라인에서
+ * 열면 한 장. 시각·메모·「기록 편집」은 보고 있는 장을 따른다. 열 때마다 key로 새로 그려
+ * 첫 장부터 시작한다.
+ */
 function PostDetailModal({
-  post,
+  group,
   onClose,
   onEdit,
 }: {
-  post: DetailPost | null
+  group: DetailGroup | null
   onClose: () => void
   onEdit: (post: DetailPost) => void
 }) {
-  const label = post ? postTimeLabel(post.recorded_at, post.meal_tag) : ''
+  /** 사진 칸 폭 — 한 장씩 넘기는 단위. 카드가 그려진 뒤에 안다. */
+  const [pageW, setPageW] = useState(0)
+  const [index, setIndex] = useState(0)
+  const posts = group?.posts ?? []
+  const post = posts[Math.min(index, posts.length - 1)] ?? null
+  const time = post ? postTimeLabel(post.recorded_at, post.meal_tag) : ''
+  const label = group?.title ? `${group.title} · ${time}` : time
 
   return (
     <Modal
-      visible={post !== null}
+      visible={group !== null}
       transparent
       animationType="fade"
       onRequestClose={onClose}
@@ -398,14 +431,39 @@ function PostDetailModal({
           style={StyleSheet.absoluteFill}
         />
         <View className="w-full overflow-hidden rounded-2xl bg-card">
-          <View className="aspect-square w-full bg-muted">
-            {post?.signedImageUrl && (
-              <Image
-                source={postImageSource(post)}
-                contentFit="cover"
-                style={{ width: '100%', height: '100%' }}
-                accessibilityLabel={post.caption ?? '기록 사진'}
-              />
+          <View
+            className="aspect-square w-full bg-muted"
+            onLayout={(e) => setPageW(e.nativeEvent.layout.width)}
+          >
+            {pageW > 0 && (
+              <ScrollView
+                horizontal
+                pagingEnabled
+                showsHorizontalScrollIndicator={false}
+                // 한 장뿐이면 넘길 게 없다 — 끝에서 튕기는 것도 막는다.
+                scrollEnabled={posts.length > 1}
+                onMomentumScrollEnd={(e) =>
+                  setIndex(Math.round(e.nativeEvent.contentOffset.x / pageW))
+                }
+              >
+                {posts.map((p, i) => (
+                  <View
+                    key={p.id}
+                    style={{ width: pageW, height: pageW }}
+                    accessible={posts.length > 1}
+                    accessibilityLabel={`사진 ${posts.length}장 중 ${i + 1}번째`}
+                  >
+                    {p.signedImageUrl && (
+                      <Image
+                        source={postImageSource(p)}
+                        contentFit="cover"
+                        style={{ width: '100%', height: '100%' }}
+                        accessibilityLabel={p.caption ?? '기록 사진'}
+                      />
+                    )}
+                  </View>
+                ))}
+              </ScrollView>
             )}
             <Pressable
               accessibilityRole="button"
@@ -416,6 +474,19 @@ function PostDetailModal({
             >
               <Ionicons name="close" size={18} color="#fff" />
             </Pressable>
+            {posts.length > 1 && (
+              <View
+                pointerEvents="none"
+                className="absolute inset-x-0 bottom-2.5 flex-row justify-center gap-1.5"
+              >
+                {posts.map((p, i) => (
+                  <View
+                    key={p.id}
+                    className={`size-1.5 rounded-full ${i === index ? 'bg-white' : 'bg-white/50'}`}
+                  />
+                ))}
+              </View>
+            )}
           </View>
 
           <View className="flex-row items-center gap-2 px-4 py-2.5">
